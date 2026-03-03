@@ -1,14 +1,17 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Russo_One, Poppins } from "next/font/google";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const russoOne = Russo_One({
+  variable: "--font-russo-one",
+  weight: "400",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const poppins = Poppins({
+  variable: "--font-poppins",
+  weight: "400",
   subsets: ["latin"],
 });
 
@@ -24,10 +27,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className={`${russoOne.variable} ${poppins.variable}`}>
         {children}
+        <Toaster />
       </body>
     </html>
   );
