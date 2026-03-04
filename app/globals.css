@@ -4,8 +4,6 @@
 
 @custom-variant dark (&:is(.dark *));
 
-
-
 @layer utilities {
   .scrollbar::-webkit-scrollbar {
     width: 6px;
@@ -45,6 +43,19 @@
 
   .scrollbar::-webkit-scrollbar-thumb:hover {
     background: #c0a0b9;
+  }
+
+  @media (pointer: coarse) {
+    .scrollbar-services {
+      overflow: auto; /* keep scroll functional */
+      -ms-overflow-style: none; /* IE 10+ */
+      scrollbar-width: none; /* Firefox */
+    }
+
+    /* Chrome, Safari, Edge */
+    .scrollbar-services::-webkit-scrollbar {
+      display: none;
+    }
   }
 }
 
@@ -213,5 +224,3 @@ textarea::-webkit-scrollbar-thumb {
   border-radius: 99px;
   transition: background 0.3s ease;
 }
-
-
