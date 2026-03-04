@@ -162,8 +162,9 @@ const Policy = () => {
               <p>
                 Severe weather may affect appointments.{" "}
                 <Highlight text="We may reschedule" /> to maintain quality and
-                safety, <Highlight text="or offer a full refund of your " />
-                reservation fee if rescheduling is not possible.
+                safety,{" "}
+                <Highlight text="or offer a full refund of your reservation fee " />
+                if rescheduling is not possible.
               </p>
             }
           />

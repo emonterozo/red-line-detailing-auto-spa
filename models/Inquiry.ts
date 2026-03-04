@@ -5,6 +5,7 @@ import { InquiryStatus } from "@/lib/enums";
 
 const serviceSchema = new Schema<IInquiry>({
   name: { type: String, required: true },
+  contact_number: { type: String, required: true },
   email: { type: String, required: true },
   message: { type: String, required: true },
   status: {

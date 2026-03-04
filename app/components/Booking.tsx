@@ -461,7 +461,7 @@ export default function Booking() {
                         <PopoverTrigger
                           className={`w-full h-14 px-5 rounded-xl bg-white/10 border border-white/20 backdrop-blur-md text-base flex items-center ${field.state.value.length > 0 ? "text-white" : "text-gray-400"}`}
                         >
-                          <div className="flex-1 overflow-x-auto scrollbar-hide">
+                          <div className="flex-1 overflow-x-auto scrollbar-services my-1">
                             <div className="flex flex-nowrap gap-3 min-w-max items-center">
                               {field.state.value.length > 0 ? (
                                 field.state.value.map((item) => (
@@ -538,7 +538,7 @@ export default function Booking() {
                         <PopoverTrigger
                           className={`w-full h-14 px-5 rounded-xl bg-white/10 border-white/20 backdrop-blur-sm text-base flex items-center justify-between ${(field.state.value ?? []).length > 0 ? "text-white" : "text-gray-400"}`}
                         >
-                          <div className="flex-1 overflow-x-auto scrollbar-hide">
+                          <div className="flex-1 overflow-x-auto scrollbar-services my-1">
                             <div className="flex flex-nowrap gap-3 min-w-max items-center">
                               {(field.state.value ?? []).length > 0 ? (
                                 field.state.value?.map((item) => (

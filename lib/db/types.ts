@@ -24,6 +24,7 @@ export interface IServiceDocument extends Omit<IService, "pricing_per_sizes"> {
 
 export interface IInquiry {
   name: string;
+  contact_number: string;
   email: string;
   message: string;
   status: InquiryStatus;
@@ -68,4 +69,9 @@ export interface IBooking {
   notes: string;
   created_at: Date;
   updated_at: Date;
+}
+
+export interface IBookingDocument extends Omit<IBooking, "time_slots"> {
+  _id: Types.ObjectId;
+  __v?: number;
 }

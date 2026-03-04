@@ -7,6 +7,7 @@ import Link from "next/link";
 import SectionContainer from "./SectionContainer";
 import { getServices, IServiceResponse } from "../actions/getServices";
 import { ServiceType } from "@/lib/enums";
+import { trackVisit } from "../actions/trackVisit";
 
 const Services = () => {
   const [services, setServices] = useState<IServiceResponse[]>([]);
@@ -17,6 +18,7 @@ const Services = () => {
 
   useEffect(() => {
     const fetchServices = async () => {
+      await trackVisit()
       const response = await getServices();
       setServices(response);
     };

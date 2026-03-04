@@ -46,6 +46,7 @@ const Contact = () => {
     onSubmit: async ({ value }) => {
       const result = await createInquiry({
         name: value.fullName,
+        contact_number: value.contactNumber,
         email: value.email,
         message: value.message,
         status: InquiryStatus.NEW,
@@ -100,7 +101,6 @@ const Contact = () => {
             className="space-y-6"
             id="contact-form"
             onSubmit={(e) => {
-              console.log("Submitting form...");
               e.preventDefault();
               form.handleSubmit();
             }}
