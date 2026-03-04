@@ -15,13 +15,16 @@ export async function trackVisit() {
 
   const hashedIp = CryptoJS.SHA256(ip).toString(CryptoJS.enc.Hex);
 
-  
+  const today = new Date();
+  today.setHours(23, 59, 59, 59);
+
   try {
-    await Visit.create({ ip: hashedIp, date: new Date() });
+    await Visit.updateOne(
+      { ip: hashedIp, date: today },
+      { $setOnInsert: { ip: hashedIp, date: today } },
+      { upsert: true },
+    );
   } catch (error: any) {
-    if (error.code !== 11000) {
-      throw error;
-    }
-   
+    console.error("Error tracking visit:", error);
   }
 }
