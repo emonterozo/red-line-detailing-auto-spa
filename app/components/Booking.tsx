@@ -107,6 +107,7 @@ export default function Booking() {
   const [schedules, setSchedules] = useState<ISchedulesResponse[]>([]);
   const [slots, setSlots] = useState<(ITimeSlot & { _id: string })[]>([]);
   const [isSlotPickerOpen, setIsSlotPickerOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const fetchServices = async () => {
     const response = await getServices();
@@ -196,6 +197,7 @@ export default function Booking() {
       onSubmit: formSchema,
     },
     onSubmit: async ({ value }) => {
+      setLoading(true);
       const selectedDate = schedules.find(
         (schedule) =>
           schedule.date.getDate() === value.preferred_date?.getDate() &&
@@ -239,6 +241,7 @@ export default function Booking() {
         created_at: new Date(),
         updated_at: new Date(),
       });
+      setLoading(false);
       if (
         !result.success &&
         result.field &&
@@ -275,7 +278,7 @@ export default function Booking() {
       } else {
         const data = await fetchSchedules();
         setSchedules(data);
-        setSlots([])
+        setSlots([]);
         toast(result.message, {
           position: "bottom-right",
           duration: 5000,
@@ -821,25 +824,50 @@ export default function Booking() {
               </form.Field>
             </FieldGroup>
 
-            <button
+           <button
               type="submit"
-              form="booking-form"
-              className="group w-full md:w-auto md:px-16 py-4 bg-[#dc143c] hover:bg-red-700 text-white font-bold text-lg rounded-xl transition-all duration-300 shadow-[0_0_30px_rgba(220,20,60,0.3)] hover:shadow-[0_0_40px_rgba(220,20,60,0.5)] hover:-translate-y-0.5 flex items-center justify-center gap-3"
+              className="group w-full md:w-auto md:px-16 py-4 bg-[#dc143c] hover:bg-red-700 text-white font-bold text-lg rounded-xl transition-all duration-300 shadow-[0_0_30px_rgba(220,20,60,0.3)] hover:shadow-[0_0_40px_rgba(220,20,60,0.5)] hover:-translate-y-0.5 flex items-center justify-center gap-3 disabled:opacity-50"
+              disabled={loading}
             >
-              <span>Submit Booking</span>
-              <svg
-                className="w-5 h-5 group-hover:translate-x-1 transition-transform"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M17 8l4 4m0 0l-4 4m4-4H3"
-                />
-              </svg>
+              {loading ? (
+                <svg
+                  className="w-5 h-5 animate-spin text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                  ></path>
+                </svg>
+              ) : (
+                <>
+                  <span>Submit Booking</span>
+                  <svg
+                    className="w-5 h-5 group-hover:translate-x-1 transition-transform"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M17 8l4 4m0 0l-4 4m4-4H3"
+                    />
+                  </svg>
+                </>
+              )}
             </button>
           </form>
         </div>
