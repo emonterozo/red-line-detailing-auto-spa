@@ -106,19 +106,10 @@ const Policy = () => {
             title="Travel & Distance Policy"
             content={
               <p>
-                For areas outside our standard{" "}
-                <Highlight text="5km service radius" />, a{" "}
-                <Highlight
-                  text="travel fee
-                applies based on distance"
-                />
-                . Travel distance is calculated from our base location using
-                Google Maps driving distance and{" "}
-                <Highlight
-                  text="will be
-                added to your total service cost"
-                />
-                .
+                Service is <Highlight text="free within 5km of our base location" />. Beyond 5km,
+                <Highlight text=" a ₱30/km travel fee applies" /> based on Google Maps driving distance
+                <Highlight text=" and will be added to the service cost" />. We currently service
+                locations within a 20km radius.
               </p>
             }
           />
