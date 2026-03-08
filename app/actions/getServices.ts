@@ -13,9 +13,9 @@ export interface IServiceResponse extends Omit<IService, "pricing_per_sizes"> {
 export const getServices = async () => {
   await connect();
 
-  const servicesDoc = (await Service.find(
-    {},
-  ).lean()) as unknown as IServiceDocument[];
+  const servicesDoc = (await Service.find({
+    is_available: true,
+  }).lean()) as unknown as IServiceDocument[];
 
   const servicesJson: IServiceResponse[] = servicesDoc.map((service) => {
     const formattedPricing = service.pricing_per_sizes.map((size) => ({

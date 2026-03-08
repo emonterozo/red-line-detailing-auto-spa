@@ -149,7 +149,7 @@ const Policy = () => {
                 water, as well as a dedicated work area "
                 />
                 that is safe and clear of obstacles. We do not provide services
-                on sidewalks.
+                on illegal sidewalks.
               </p>
             }
           />

@@ -19,6 +19,7 @@ const serviceSchema = new Schema<IService>({
     ],
     required: true
   },
+  is_available: {type: Boolean, required: true }
 });
 
 const Service = models.Service || model<IService>('Service', serviceSchema);

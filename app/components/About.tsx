@@ -40,10 +40,10 @@ const About = () => {
           {/* Content */}
           <div>
             <h3 className="font-russo text-2xl lg:text-3xl font-bold text-white mb-3 group-hover:text-[#dc143c] transition-colors">
-              Expert Team
+              Passionate Team
             </h3>
             <p className="text-gray-400 text-sm sm:text-base leading-relaxed">
-              Our team is fully trained, certified, and passionate about what they do. We bring precision, care, and attention to every service, ensuring each car leaves in perfect condition. Every detail matters, and we handle every job with professionalism and pride.
+              Our team is passionate about car detailing and takes pride in every vehicle we service. We focus on precision, care, and attention to every detail to ensure each car leaves looking its best. Every job is handled with dedication and professionalism.
             </p>
           </div>
         </div>

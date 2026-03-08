@@ -68,8 +68,8 @@ export const formSchema = z.object({
     .min(1, "Choose at least one signature service."),
   addOns: z.array(serviceSchema).optional(),
   social: z
-    .url("Enter you social account url.")
-    .max(250, "Social account url must be at most 250 characters."),
+    .url("Enter you profile account url.")
+    .max(250, "Profile account url must be at most 250 characters."),
   preferred_date: z
     .date()
     .nullable()
@@ -423,7 +423,7 @@ export default function Booking() {
                   return (
                     <Field>
                       <FieldLabel className="text-gray-300 uppercase">
-                        Social Account
+                        Messenger or Tiktok Profile URL
                       </FieldLabel>
                       <Input
                         id={field.name}
@@ -432,7 +432,7 @@ export default function Booking() {
                         onBlur={field.handleBlur}
                         onChange={(e) => field.handleChange(e.target.value)}
                         aria-invalid={isInvalid}
-                        placeholder="Enter your social url (Facebook, Tiktok, Instagram, etc.)"
+                        placeholder="Enter your profile url"
                         className="!text-base h-14 px-5 rounded-xl bg-white/10 border-white/20 text-white placeholder:text-gray-400 backdrop-blur-sm focus-visible:border-[#dc143c] focus-visible:ring-[#dc143c]/20"
                       />
                       <FieldDescription>
@@ -622,7 +622,7 @@ export default function Booking() {
                             ? field.state.value.toLocaleDateString("en-US", {
                                 dateStyle: "full",
                               })
-                            : "Choose a date"}
+                            : "Choose your preferred date"}
                         </PopoverTrigger>
 
                         <PopoverContent className="backdrop-blur-md border border-white/20 rounded-xl p-3 shadow-lg overflow-y-auto">
@@ -716,7 +716,7 @@ export default function Booking() {
                           }`}
                         >
                           {field.state.value === ""
-                            ? "Choose a time slot"
+                            ? "Choose your preferred time slot"
                             : field.state.value}
                         </PopoverTrigger>
 

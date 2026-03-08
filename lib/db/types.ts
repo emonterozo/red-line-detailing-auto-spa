@@ -14,6 +14,7 @@ export interface IService {
   pricing_per_sizes: IPricingPerSize[];
   price: number;
   pricing_options: string | null;
+  is_available: boolean
 }
 
 export interface IServiceDocument extends Omit<IService, "pricing_per_sizes"> {

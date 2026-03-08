@@ -4,7 +4,7 @@ import { Schema, model, models } from "mongoose";
 
 
 const scheduleSchema = new Schema<ISchedule>({
- date: { type: Date, required: true },
+ date: { type: Date, required: true, unique: true },
  time_slots: {
     type: [
       new Schema<ITimeSlot>({

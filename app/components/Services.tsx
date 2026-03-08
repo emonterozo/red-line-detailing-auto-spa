@@ -242,7 +242,7 @@ const Services = () => {
                     <tr className="group hover:bg-white/[0.02] transition-colors duration-300">
                       <td colSpan={3} className="py-5 text-center">
                         <span className="inline-flex items-center justify-center w-full text-sm md:text-base text-white font-medium group-hover:text-[#dc143c] transition-colors duration-300">
-                          {`Uniform rate of ₱${selectedService?.price.toLocaleString()} ${selectedService?.pricing_options} across all vehicles sizes`}
+                          {`Uniform rate of ₱${selectedService?.price.toLocaleString()} ${selectedService?.pricing_options}`}
                         </span>
                       </td>
                     </tr>
