@@ -18,7 +18,7 @@ const Services = () => {
 
   useEffect(() => {
     const fetchServices = async () => {
-      await trackVisit()
+      await trackVisit();
       const response = await getServices();
       setServices(response);
     };
@@ -202,9 +202,6 @@ const Services = () => {
                 <thead>
                   <tr className="border-b border-white/[0.08]">
                     <th className="pb-4 text-sm font-semibold text-gray-500 uppercase tracking-wider">
-                      Size
-                    </th>
-                    <th className="pb-4 text-sm font-semibold text-gray-500 uppercase tracking-wider">
                       Vehicle Type
                     </th>
                     <th className="pb-4 text-sm font-semibold text-gray-500 uppercase tracking-wider text-right">
@@ -212,7 +209,8 @@ const Services = () => {
                     </th>
                   </tr>
                 </thead>
-                {selectedService && selectedService.pricing_per_sizes.length > 0 ? (
+                {selectedService &&
+                selectedService.pricing_per_sizes.length > 0 ? (
                   <tbody className="divide-y divide-white/[0.05]">
                     {selectedService.pricing_per_sizes.map((item) => (
                       <tr
@@ -220,11 +218,6 @@ const Services = () => {
                         className="group hover:bg-white/[0.02] transition-colors duration-300"
                       >
                         <td className="py-5 pl-2">
-                          <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-[#dc143c]/10 text-[#dc143c] font-bold text-sm border border-[#dc143c]/20">
-                            {item.size.toUpperCase()}
-                          </span>
-                        </td>
-                        <td className="py-5">
                           <span className="text-sm md:text-base text-white font-medium group-hover:text-[#dc143c] transition-colors duration-300">
                             {item.vehicle.toUpperCase()}
                           </span>
@@ -250,6 +243,12 @@ const Services = () => {
                 )}
               </table>
             </div>
+
+            {selectedService?.notes !== "" && (
+              <div className="w-full my-5 text-center text-sm md:text-base text-white font-medium">
+                {selectedService?.notes}
+              </div>
+            )}
 
             {/* Footer */}
             <div className="relative p-6 pt-0 mt-2">
