@@ -35,7 +35,6 @@ today.setHours(23, 59, 59, 59);
 
 export const pricingPerSizeSchema = z.object({
   _id: z.string(),
-  size: z.string(),
   vehicle: z.string(),
   price: z.number(),
 });
