@@ -63,7 +63,7 @@ export const updateBooking = async (request: UpdateBookingRequest) => {
     return {
       success: false,
       message:
-        "Something went wrong while creating the inquiry. Please try again later.",
+        "Something went wrong while updating the booking. Please try again later.",
     };
   }
 };

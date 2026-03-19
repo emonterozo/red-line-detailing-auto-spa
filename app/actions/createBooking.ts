@@ -121,7 +121,7 @@ export const createBooking = async (bookingData: IBooking) => {
       success: false,
       field: null,
       message:
-        "Something went wrong while creating the inquiry. Please try again later.",
+        "Something went wrong while creating the booking. Please try again later.",
     };
   }
 };

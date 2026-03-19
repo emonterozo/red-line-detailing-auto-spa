@@ -29,7 +29,7 @@ export const updateInquiry = async (id: string, status: InquiryStatus) => {
     return {
       success: false,
       message:
-        "Something went wrong while creating the inquiry. Please try again later.",
+        "Something went wrong while updating the inquiry. Please try again later.",
     };
   }
 };
