@@ -4,6 +4,8 @@ import { IBooking } from "@/lib/db/types";
 import { BookingStatus } from "@/lib/enums";
 
 const bookingSchema = new Schema<IBooking>({
+  user_id: { type: Types.ObjectId, default: null },
+  size_id: { type: Types.ObjectId, default: null },
   name: { type: String, required: true },
   contact_number: { type: String, required: true },
   vehicle_model: { type: String, default: null },
@@ -44,7 +46,9 @@ const bookingSchema = new Schema<IBooking>({
   status: { type: String, enum: BookingStatus, required: true },
   reservation_fee: { type: Number, default: 0, required: true },
   total_amount: { type: Number, default: 0, required: true },
+  travel_fee: { type: Number, default: 0, required: true },
   notes: { type: String, default: null },
+  is_create_account: { type: Boolean, default: false },
   created_at: { type: Date, default: new Date() },
   updated_at: { type: Date, default: new Date() },
 });

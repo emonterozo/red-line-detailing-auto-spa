@@ -1,8 +1,13 @@
+"use client";
+
 import RecentBookings from "../components/RecentBookings";
 import RecentInquiries from "../components/RecentInquiries";
 import AdminDashboard from "../components/AdminDashboard";
+import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 
 export default function AdminPage() {
+  const router = useRouter()
   return (
     <div className="min-h-screen bg-black text-white p-8">
       <div className="flex items-center justify-center gap-4 mt-8">
@@ -27,6 +32,24 @@ export default function AdminPage() {
       <AdminDashboard />
       <RecentBookings />
       <RecentInquiries />
+      <Button
+        onClick={() => router.push("/admin/transaction")}
+        className="
+        fixed 
+        bottom-6 
+        right-6 
+        rounded-full 
+        px-6 
+        h-14 
+        shadow-lg 
+        bg-green-600 
+        text-white 
+        font-semibold 
+        hover:bg-green-700
+      "
+      >
+        Create Transaction
+      </Button>
     </div>
   );
 }

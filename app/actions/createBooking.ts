@@ -8,8 +8,12 @@ import Booking from "@/models/Booking";
 import Schedule from "@/models/Schedule";
 import { Types } from "mongoose";
 import { bookingTemple } from "../template/booking";
+import Customer from "@/models/Customer";
+import VehicleSize from "@/models/VehicleSize";
+import { hashPassword } from "@/lib/server/utils";
 
 export const createBooking = async (bookingData: IBooking) => {
+  let userId = null
   await connect();
 
   const formattedDate = bookingData.preferred_date.date.toLocaleDateString(
@@ -21,6 +25,7 @@ export const createBooking = async (bookingData: IBooking) => {
       day: "2-digit",
     },
   );
+
 
   try {
     const date = await Schedule.findOne(
@@ -51,7 +56,48 @@ export const createBooking = async (bookingData: IBooking) => {
         { "time_slots.$": 1 },
       );
       if (schedule) {
-        const newBooking = new Booking(bookingData);
+        if (bookingData.is_create_account) {
+          const existingCustomer = await Customer.findOne({
+            contact_number: bookingData.contact_number,
+          });
+
+          if (existingCustomer) {
+            return {
+              success: false,
+              field: "contact_number",
+              message:
+                "Failed to create an account. A customer with the same contact number already exists. Please use a different contact number or log in to your existing account to make a booking.",
+            };
+          }
+
+          const vehicleSizes = await VehicleSize.find().lean();
+
+          const milestoneCount = vehicleSizes.map((size) => ({
+            _id: new Types.ObjectId(),
+            size_id: size._id,
+            progress: 0,
+          }));
+
+          const tempPassword = new Types.ObjectId().toString().slice(0, 8);
+          const hashedPassword = await hashPassword(tempPassword);
+          const newCustomer = new Customer({
+            name: bookingData.name,
+            contact_number: bookingData.contact_number,
+            social: bookingData.social,
+            address: bookingData.address,
+            password: hashedPassword,
+            is_temp_password_change: false,
+            milestone_count: milestoneCount,
+            milestone_claimed: [],
+          });
+          await newCustomer.save();
+          userId = newCustomer._id;
+        }
+
+        const newBooking = new Booking({
+          user_id: userId,
+          ...bookingData
+        });
         await newBooking.save();
 
         await Schedule.findOneAndUpdate(
@@ -74,33 +120,33 @@ export const createBooking = async (bookingData: IBooking) => {
           .map((item) => item.title)
           .join(", ");
 
-        const html = await bookingTemple(
-          bookingData.name,
-          bookingData.contact_number,
-          bookingData.vehicle_model,
-          bookingData.social,
-          formattedDate,
-          bookingData.time_slot.time,
-          `The client has selected the following signature services: ${servicesString}`,
-          `The client has selected the following add-ons services: ${addOnsString === "" ? "N/A" : addOnsString}`,
-        );
+        // const html = await bookingTemple(
+        //   bookingData.name,
+        //   bookingData.contact_number,
+        //   bookingData.vehicle_model,
+        //   bookingData.social,
+        //   formattedDate,
+        //   bookingData.time_slot.time,
+        //   `The client has selected the following signature services: ${servicesString}`,
+        //   `The client has selected the following add-ons services: ${addOnsString === "" ? "N/A" : addOnsString}`,
+        // );
 
-        const transporter = nodemailer.createTransport({
-          service: "gmail",
-          auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS,
-          },
-        });
+        // const transporter = nodemailer.createTransport({
+        //   service: "gmail",
+        //   auth: {
+        //     user: process.env.EMAIL_USER,
+        //     pass: process.env.EMAIL_PASS,
+        //   },
+        // });
 
-        const subject = `${new Types.ObjectId().toString()}, Booking from Website`;
+        // const subject = `${new Types.ObjectId().toString()}, Booking from Website`;
 
-        await transporter.sendMail({
-          from: `Booking from <${process.env.EMAIL_USER}>`,
-          to: [process.env.EMAIL_USER, process.env.PERSONAL_EMAIL].join(","),
-          subject: subject,
-          html: html,
-        });
+        // await transporter.sendMail({
+        //   from: `Booking from <${process.env.EMAIL_USER}>`,
+        //   to: [process.env.EMAIL_USER, process.env.PERSONAL_EMAIL].join(","),
+        //   subject: subject,
+        //   html: html,
+        // });
 
         return {
           success: true,

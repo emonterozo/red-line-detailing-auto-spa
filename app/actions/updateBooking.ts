@@ -11,6 +11,7 @@ type UpdateBookingRequest = {
   scheduleId: string;
   timeSlotId: string;
   reservationFee: number;
+  travelFee: number;
   totalAmount: number;
   notes: string;
   status: string;
@@ -27,6 +28,7 @@ export const updateBooking = async (request: UpdateBookingRequest) => {
       {
         $set: {
           reservation_fee: request.reservationFee,
+          travel_fee: request.travelFee,
           total_amount: request.totalAmount,
           notes: request.notes,
           status: request.status,

@@ -6,7 +6,7 @@ import Link from "next/link";
 
 import SectionContainer from "./SectionContainer";
 import { getServices, IServiceResponse } from "../actions/getServices";
-import { ServiceType } from "@/lib/enums";
+import { ServiceType, VehicleType } from "@/lib/enums";
 import { trackVisit } from "../actions/trackVisit";
 
 const Services = () => {
@@ -212,14 +212,14 @@ const Services = () => {
                 {selectedService &&
                 selectedService.pricing_per_sizes.length > 0 ? (
                   <tbody className="divide-y divide-white/[0.05]">
-                    {selectedService.pricing_per_sizes.map((item) => (
+                    {selectedService.pricing_per_sizes.filter(item => item.type === VehicleType.CAR).map((item) => (
                       <tr
                         key={item._id}
                         className="group hover:bg-white/[0.02] transition-colors duration-300"
                       >
                         <td className="py-5 pl-2">
                           <span className="text-sm md:text-base text-white font-medium group-hover:text-[#dc143c] transition-colors duration-300">
-                            {item.vehicle.toUpperCase()}
+                            {item.description.toUpperCase()}
                           </span>
                         </td>
                         <td className="py-5 pr-2 text-right">

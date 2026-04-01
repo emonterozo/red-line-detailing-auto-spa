@@ -35,7 +35,9 @@ today.setHours(23, 59, 59, 59);
 
 export const pricingPerSizeSchema = z.object({
   _id: z.string(),
-  vehicle: z.string(),
+  type: z.string(),
+  size: z.string(),
+  description: z.string(),
   price: z.number(),
 });
 
@@ -83,6 +85,7 @@ export const formSchema = z.object({
   isChecked: z.boolean().refine((val) => val === true, {
     message: "You must agree before submitting",
   }),
+  isCreateAccount: z.boolean(),
 });
 
 export type FormValues = z.infer<typeof formSchema>;
@@ -98,6 +101,7 @@ const defaultValues: FormValues = {
   timeSlot: "",
   address: "",
   isChecked: false,
+  isCreateAccount: false,
 };
 
 export default function Booking() {
@@ -234,9 +238,11 @@ export default function Booking() {
         },
         address: value.address,
         status: BookingStatus.FOR_CHECKING,
+        travel_fee: 0,
         reservation_fee: 0,
         total_amount: 0,
         notes: "",
+        is_create_account: value.isCreateAccount,
         created_at: new Date(),
         updated_at: new Date(),
       });
@@ -247,32 +253,27 @@ export default function Booking() {
         ["preferred_date", "time_slot"].includes(result.field)
       ) {
         const data = await fetchSchedules();
-        switch (result.field) {
-          case "preferred_date":
-            setSchedules(data);
-            form.setFieldValue("preferred_date", null);
-            form.setFieldValue("timeSlot", "");
-            form.fieldInfo.preferred_date.instance?.setErrorMap({
-              onSubmit: { message: result.message },
-            });
-            break;
+        if (result.field === "preferred_date") {
+          setSchedules(data);
+          form.setFieldValue("preferred_date", null);
+          form.setFieldValue("timeSlot", "");
+          form.fieldInfo.preferred_date.instance?.setErrorMap({
+            onSubmit: { message: result.message },
+          });
+        } else {
+          const dateTimeSlots = data.find(
+            (schedule) =>
+              schedule.date.getDate() === value.preferred_date?.getDate() &&
+              schedule.date.getMonth() === value.preferred_date?.getMonth() &&
+              schedule.date.getFullYear() ===
+                value.preferred_date?.getFullYear(),
+          );
 
-          default:
-            const dateTimeSlots = data.find(
-              (schedule) =>
-                schedule.date.getDate() === value.preferred_date?.getDate() &&
-                schedule.date.getMonth() === value.preferred_date?.getMonth() &&
-                schedule.date.getFullYear() ===
-                  value.preferred_date?.getFullYear(),
-            );
-
-            setSlots(dateTimeSlots?.time_slots ?? []);
-            form.setFieldValue("timeSlot", "");
-            form.fieldInfo.timeSlot.instance?.setErrorMap({
-              onSubmit: { message: result.message },
-            });
-
-            break;
+          setSlots(dateTimeSlots?.time_slots ?? []);
+          form.setFieldValue("timeSlot", "");
+          form.fieldInfo.timeSlot.instance?.setErrorMap({
+            onSubmit: { message: result.message },
+          });
         }
       } else {
         const data = await fetchSchedules();
@@ -282,8 +283,10 @@ export default function Booking() {
           position: "bottom-right",
           duration: 5000,
         });
+        if (result.success) {
+          form.reset();
+        }
       }
-      form.reset();
     },
   });
 
@@ -807,15 +810,42 @@ export default function Booking() {
                           form.setFieldValue("isChecked", checked)
                         }
                       />
-                      <Label className="leading-relaxed">
+                      <Label className="leading-relaxed text-md">
                         {`${showError ? "You must you acknowledge and agree to our " : "By checking this box, you acknowledge and agree to our "}`}
                         <Link
                           href="/policy"
-                          className="text-[#dc143c] hover:underline"
+                          className="text-[#dc143c] hover:underline text-md"
                         >
-                          Booking Policy
+                          Booking Policy.
                         </Link>
-                        .
+                      </Label>
+                    </Field>
+                  );
+                }}
+              </form.Field>
+
+              <form.Field name="isCreateAccount">
+                {(field) => {
+                  return (
+                    <Field orientation="horizontal">
+                      <Checkbox
+                        id={field.name}
+                        name={field.name}
+                        className={`w-5 h-5 border-white/50 rounded-s border-white/50`}
+                        checked={field.state.value}
+                        onCheckedChange={(checked: boolean) =>
+                          form.setFieldValue("isCreateAccount", checked)
+                        }
+                      />
+                      <Label className="leading-relaxed text-md">
+                        Create an account for faster bookings and exclusive
+                        perks{" "}
+                        <Link
+                          href="/benefits"
+                          className="text-[#dc143c] hover:underline text-md"
+                        >
+                          See Benefits.
+                        </Link>
                       </Label>
                     </Field>
                   );
@@ -823,7 +853,7 @@ export default function Booking() {
               </form.Field>
             </FieldGroup>
 
-           <button
+            <button
               type="submit"
               className="group w-full md:w-auto md:px-16 py-4 bg-[#dc143c] hover:bg-red-700 text-white font-bold text-lg rounded-xl transition-all duration-300 shadow-[0_0_30px_rgba(220,20,60,0.3)] hover:shadow-[0_0_40px_rgba(220,20,60,0.5)] hover:-translate-y-0.5 flex items-center justify-center gap-3 disabled:opacity-50"
               disabled={loading}

@@ -42,6 +42,7 @@ export const getBookings = async (
 
     return {
       ...booking,
+      user_id: booking?.user_id?.toString(),
       _id: booking._id.toString(),
       services: formattedServices,
       add_ons: formattedAddOns,

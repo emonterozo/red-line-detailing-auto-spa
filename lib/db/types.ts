@@ -1,8 +1,21 @@
 import { Types } from "mongoose";
-import { BookingStatus, InquiryStatus } from "../enums";
+import {
+  BookingStatus,
+  InquiryStatus,
+  RewardType,
+  TransactionFrom,
+  VehicleSize,
+  VehicleType,
+} from "../enums";
+
+export interface IVehicleSize {
+  type: VehicleType;
+  size: VehicleSize;
+  description: string;
+}
 
 export interface IPricingPerSize {
-  vehicle: string;
+  size_id: Types.ObjectId | IVehicleSize;
   price: number;
 }
 
@@ -13,8 +26,8 @@ export interface IService {
   pricing_per_sizes: IPricingPerSize[];
   price: number;
   pricing_options: string | null;
-  is_available: boolean
-  notes: string
+  is_available: boolean;
+  notes: string;
 }
 
 export interface IServiceDocument extends Omit<IService, "pricing_per_sizes"> {
@@ -55,6 +68,8 @@ export interface IScheduleDocument extends Omit<ISchedule, "time_slots"> {
 }
 
 export interface IBooking {
+  user_id?: string;
+  size_id?: string;
   name: string;
   contact_number: string;
   vehicle_model: string;
@@ -67,7 +82,9 @@ export interface IBooking {
   status: BookingStatus;
   reservation_fee: number;
   total_amount: number;
+  travel_fee: number;
   notes: string;
+  is_create_account: boolean;
   created_at: Date;
   updated_at: Date;
 }
@@ -75,4 +92,35 @@ export interface IBooking {
 export interface IBookingDocument extends Omit<IBooking, "time_slots"> {
   _id: Types.ObjectId;
   __v?: number;
+}
+
+export interface IMilestoneReward {
+  vehicle_type: VehicleType;
+  service_id: Types.ObjectId | string;
+  required_progress_count: number;
+  reward_type: RewardType;
+  discount_percentage: number;
+  discount_amount: number;
+  reward_service_id: Types.ObjectId | string;
+  is_active: boolean;
+}
+
+export interface ITransaction {
+  user_id: string | null;
+  booking_id: string | null;
+  transaction_from: TransactionFrom;
+  vehicle_type: VehicleType;
+  vehicle_size: VehicleSize;
+  vehicle_model: string;
+  services: { _id: string; title: string }[];
+  travel_fee: number;
+  total_amount: number;
+  total_discount: number;
+  milestone_reward: {
+    _id: string;
+    title: string;
+    price: number;
+    required_progress_count: number;
+  } | null;
+  milestone_discount: number;
 }
