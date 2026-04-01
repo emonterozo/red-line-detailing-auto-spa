@@ -4,12 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "@tanstack/react-form";
 import { toast } from "sonner";
 import * as z from "zod";
-import {
-  Field,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Popover,
@@ -23,18 +18,7 @@ import {
   CommandInput,
   CommandItem,
 } from "@/components/ui/command";
-import {
-  Check,
-  ChevronDown,
-  Car,
-  Bike,
-  User,
-  Wrench,
-  Tag,
-  Zap,
-  ArrowRight,
-  Loader2,
-} from "lucide-react";
+import { Check, ChevronDown, User, ArrowRight, Loader2, X } from "lucide-react";
 import {
   RewardType,
   TransactionFrom,
@@ -50,15 +34,10 @@ import { createTransaction } from "../actions/createTransaction";
 import { getCustomers, ICustomerResponse } from "../actions/getCustomers";
 import { useSearchParams } from "next/navigation";
 import { getBooking } from "../actions/getBooking";
-
-const vehicleTypes = [VehicleType.CAR, VehicleType.MOTORCYCLE];
-const vehicleSizes = [
-  VehicleSize.SM,
-  VehicleSize.MD,
-  VehicleSize.LG,
-  VehicleSize.XL,
-  VehicleSize.XXL,
-];
+import {
+  getVehicleSizes,
+  IVehicleSizesResponse,
+} from "../actions/getVehicleSizes";
 
 export const pricingPerSizeSchema = z.object({
   _id: z.string(),
@@ -76,6 +55,13 @@ export const serviceSchema = z.object({
   pricing_per_sizes: z.array(pricingPerSizeSchema),
   price: z.number(),
   pricing_options: z.string().nullable(),
+});
+
+export const vehicleSizeSchema = z.object({
+  _id: z.string(),
+  size: z.enum(VehicleSize),
+  type: z.enum(VehicleType),
+  description: z.string(),
 });
 
 export const milestoneRewardSchema = z.object({
@@ -97,8 +83,8 @@ export const customerSchema = z.object({
       _id: z.string(),
       vehicle: z.object({
         _id: z.string(),
-        size: z.enum(vehicleSizes),
-        type: z.enum(vehicleTypes),
+        size: z.enum(VehicleSize),
+        type: z.enum(VehicleType),
       }),
       progress: z.number(),
     }),
@@ -107,8 +93,7 @@ export const customerSchema = z.object({
 
 export const formSchema = z.object({
   customer: z.array(customerSchema),
-  vehicleType: z.array(z.enum(vehicleTypes)).min(1, "Choose a vehicle type."),
-  vehicleSize: z.array(z.enum(vehicleSizes)).min(1, "Choose a vehicle size."),
+  vehicleSizes: z.array(vehicleSizeSchema),
   vehicleModel: z
     .string()
     .min(4, "Vehicle model must be at least 5 characters.")
@@ -126,9 +111,8 @@ export const formSchema = z.object({
 export type FormValues = z.infer<typeof formSchema>;
 
 const defaultValues: FormValues = {
+  vehicleSizes: [],
   customer: [],
-  vehicleType: [vehicleTypes[0]],
-  vehicleSize: [vehicleSizes[0]],
   vehicleModel: "",
   services: [],
   travelFee: 0,
@@ -140,20 +124,17 @@ const defaultValues: FormValues = {
   milestoneDiscount: 0,
 };
 
-/* ─── tiny helpers ─── */
-const stepLabels = ["Customer", "Vehicle", "Services", "Summary"];
-
 function SectionCard({
   step,
   title,
   subtitle,
   children,
-}: {
+}: Readonly<{
   step: number;
   title: string;
   subtitle?: string;
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <div className="relative">
       {/* vertical connector */}
@@ -173,7 +154,7 @@ function SectionCard({
               {title}
             </h3>
             {subtitle && (
-              <p className="text-gray-500 text-sm mt-0.5">{subtitle}</p>
+              <p className="text-gray-500 text-sm mt-1">{subtitle}</p>
             )}
           </div>
           <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-5 backdrop-blur-sm">
@@ -188,10 +169,10 @@ function SectionCard({
 function SelectTrigger({
   hasValue,
   children,
-}: {
+}: Readonly<{
   hasValue: boolean;
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <div
       className={`w-full h-12 px-4 rounded-xl border flex items-center justify-between cursor-pointer transition-all duration-200 group
@@ -209,34 +190,11 @@ function SelectTrigger({
   );
 }
 
-function Chip({ label }: { label: string }) {
+function Chip({ label }: Readonly<{ label: string }>) {
   return (
     <span className="inline-flex items-center px-3 py-1 rounded-full bg-[#dc143c]/20 border border-[#dc143c]/40 text-[#ff6b81] text-sm font-medium">
       {label}
     </span>
-  );
-}
-
-function AmountRow({
-  label,
-  value,
-  highlight,
-}: {
-  label: string;
-  value: number;
-  highlight?: boolean;
-}) {
-  return (
-    <div
-      className={`flex justify-between items-center py-2.5 px-3 rounded-lg ${highlight ? "bg-[#dc143c]/10 border border-[#dc143c]/20" : ""}`}
-    >
-      <span className="text-gray-400 text-sm">{label}</span>
-      <span
-        className={`font-semibold ${highlight ? "text-[#ff6b81] text-lg" : "text-white"}`}
-      >
-        ₱{value.toLocaleString()}
-      </span>
-    </div>
   );
 }
 
@@ -248,26 +206,14 @@ export default function Transaction() {
   const [milestoneRewards, setMilestoneRewards] = useState<
     IMilestoneRewardResponse[]
   >([]);
+  const [vehicleSizes, setVehicleSizes] = useState<IVehicleSizesResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [customerQuery, setCustomerQuery] = useState("");
   const [customerResults, setCustomerResults] = useState<ICustomerResponse[]>(
     [],
   );
   const [isCustomerOpen, setIsCustomerOpen] = useState(false);
-
-  useEffect(() => {
-    const init = async () => {
-      const [s, m, c] = await Promise.all([
-        getServices(),
-        getMilestoneRewards(),
-        getCustomers(),
-      ]);
-      setServices(s);
-      setMilestoneRewards(m);
-      setCustomerResults(c);
-    };
-    init();
-  }, []);
+  const [isFabOpen, setIsFabOpen] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -290,8 +236,8 @@ export default function Transaction() {
         const milestoneRewardPrice =
           milestoneRewardService?.pricing_per_sizes.find(
             (p) =>
-              p.type === value.vehicleType[0] &&
-              p.size === value.vehicleSize[0],
+              p.type === value.vehicleSizes[0].type &&
+              p.size === value.vehicleSizes[0].size,
           )?.price ?? 0;
         milestone_reward = {
           _id: value.milestoneReward[0]._id,
@@ -303,10 +249,10 @@ export default function Transaction() {
       }
       const result = await createTransaction({
         user_id: value.customer.length > 0 ? value.customer[0]._id : null,
-        booking_id: null,
-        transaction_from: TransactionFrom.BOOKING,
-        vehicle_type: value.vehicleType[0],
-        vehicle_size: value.vehicleSize[0],
+        booking_id: bookingId,
+        transaction_from: bookingId ? TransactionFrom.BOOKING : TransactionFrom.WALK_IN,
+        vehicle_type: value.vehicleSizes[0].type,
+        vehicle_size: value.vehicleSizes[0].size,
         vehicle_model: value.vehicleModel,
         services: value.services.map((s) => ({ _id: s._id, title: s.title })),
         travel_fee: value.travelFee,
@@ -322,15 +268,32 @@ export default function Transaction() {
 
   useEffect(() => {
     const init = async () => {
+      const [s, m, c, v] = await Promise.all([
+        getServices(),
+        getMilestoneRewards(),
+        getCustomers(),
+        getVehicleSizes(),
+      ]);
+      setServices(s);
+      setMilestoneRewards(m);
+      setCustomerResults(c);
+      setVehicleSizes(v);
+      form.setFieldValue("vehicleSizes", [v[0]]);
+    };
+    init();
+  }, [form]);
+
+  useEffect(() => {
+    const init = async () => {
       if (bookingId) {
         const bookingData = await getBooking(bookingId.toString());
         form.setFieldValue("vehicleModel", bookingData?.vehicle_model ?? "");
         form.setFieldValue("travelFee", bookingData?.travel_fee ?? 0);
-        form.setFieldValue("downPayment", bookingData?.reservation_fee ?? 0)
+        form.setFieldValue("downPayment", bookingData?.reservation_fee ?? 0);
       }
     };
     init();
-  }, [bookingId]);
+  }, [bookingId, form]);
 
   const toggleService = (service: IServiceResponse) => {
     const currentServices = form.getFieldValue("services");
@@ -360,8 +323,8 @@ export default function Transaction() {
     newServices.forEach((service) => {
       const pricing = service.pricing_per_sizes.find(
         (p) =>
-          p.type === form.getFieldValue("vehicleType")[0] &&
-          p.size === form.getFieldValue("vehicleSize")[0],
+          p.type === form.getFieldValue("vehicleSizes")[0].type &&
+          p.size === form.getFieldValue("vehicleSizes")[0].size,
       );
 
       if (pricing) {
@@ -383,8 +346,8 @@ export default function Transaction() {
     const mrPrice =
       mrService?.pricing_per_sizes.find(
         (p) =>
-          p.type === form.getFieldValue("vehicleType")[0] &&
-          p.size === form.getFieldValue("vehicleSize")[0],
+          p.type === form.getFieldValue("vehicleSizes")[0].type &&
+          p.size === form.getFieldValue("vehicleSizes")[0].size,
       )?.price ?? 0;
 
     let discountAmount = 0;
@@ -399,6 +362,17 @@ export default function Transaction() {
     form.setFieldValue("milestoneDiscount", discountAmount);
   };
 
+  const onSelectVehicleSize = (vehicleSize: IVehicleSizesResponse) => {
+    const current = form.getFieldValue("vehicleSizes");
+    const isSelected = current.some((item) => item._id === vehicleSize._id);
+    form.setFieldValue("vehicleSizes", isSelected ? [] : [vehicleSize]);
+    form.setFieldValue("totalAmount", 0);
+    form.setFieldValue("services", []);
+    form.setFieldValue("milestoneReward", []);
+    form.setFieldValue("milestoneDiscount", 0);
+    form.setFieldValue("maximumPoints", 0);
+  };
+
   const selectedCustomer = form.getFieldValue("customer")[0];
 
   return (
@@ -410,64 +384,105 @@ export default function Transaction() {
       <div className="relative max-w-3xl mx-auto px-4 sm:px-6 py-16 md:py-24">
         {/* ── Header ── */}
         <div className="mb-14 text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[#dc143c]/30 bg-[#dc143c]/10 text-[#ff6b81] text-xs font-semibold tracking-widest uppercase mb-6">
-            <Zap className="w-3 h-3" />
-            New Transaction
-          </div>
-          <h1 className="text-5xl sm:text-6xl font-extrabold text-white tracking-tight leading-[1.1]">
-            Create
-            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-[#dc143c] to-[#ff6b81]">
+          <h2 className="font-russo text-5xl sm:text-6xl font-extrabold text-white tracking-tight leading-[1.1]">
+            Create{" "}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#dc143c] to-[#ff6b81]">
               Transaction
             </span>
-          </h1>
+          </h2>
           <p className="mt-4 text-gray-500 text-base max-w-md mx-auto">
             Fill in the details below to log a new service transaction.
           </p>
         </div>
 
-        {/* ── Customer Info Panel (conditional) ── */}
+        {/* ── Customer FAB ── */}
         {selectedCustomer && (
-          <div className="mb-8 rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-sm p-5 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[#dc143c]/20 border border-[#dc143c]/40 flex items-center justify-center text-[#ff6b81] font-bold text-sm">
-                {selectedCustomer.name.slice(0, 2).toUpperCase()}
-              </div>
-              <div>
-                <p className="text-white font-semibold">
-                  {selectedCustomer.name}
-                </p>
-                <p className="text-gray-500 text-xs">
-                  <span className="text-[#ff6b81] font-semibold">
-                    {selectedCustomer.earned_points}
-                  </span>{" "}
-                  points earned
-                </p>
+          <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+            {/* slide-up panel */}
+            <div
+              className={`transition-all duration-300 origin-bottom-right ${
+                isFabOpen
+                  ? "opacity-100 scale-100 translate-y-0 pointer-events-auto"
+                  : "opacity-0 scale-95 translate-y-4 pointer-events-none"
+              }`}
+            >
+              <div className="w-72 rounded-2xl border border-white/10 bg-[#111]/90 backdrop-blur-xl shadow-2xl shadow-black/60 overflow-hidden">
+                {/* header */}
+                <div className="flex items-center gap-3 px-4 py-4 border-b border-white/[0.08]">
+                  <div className="w-10 h-10 rounded-full bg-[#dc143c]/20 border border-[#dc143c]/40 flex items-center justify-center text-[#ff6b81] font-bold text-sm flex-shrink-0">
+                    {selectedCustomer.name.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-white font-semibold text-sm truncate">
+                      {selectedCustomer.name}
+                    </p>
+                    <p className="text-gray-500 text-xs">
+                      <span className="text-[#ff6b81] font-semibold">
+                        {selectedCustomer.earned_points}
+                      </span>{" "}
+                      pts earned
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsFabOpen(false)}
+                    className="ml-auto flex-shrink-0 w-7 h-7 rounded-full bg-white/[0.06] hover:bg-white/10 flex items-center justify-center transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5 text-gray-400" />
+                  </button>
+                </div>
+
+                {/* milestone grid */}
+                {selectedCustomer.milestone_count.length > 0 ? (
+                  <div className="px-4 py-3">
+                    <p className="text-gray-600 text-[10px] uppercase tracking-widest mb-2">
+                      Milestone Progress
+                    </p>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {selectedCustomer.milestone_count.map((m) => (
+                        <div
+                          key={m._id}
+                          className="rounded-xl bg-white/[0.04] border border-white/[0.06] p-2 text-center"
+                        >
+                          <p className="text-gray-600 text-[10px] leading-tight">
+                            {m.vehicle.type.toUpperCase()}
+                            <br />
+                            {m.vehicle.size.toUpperCase()}
+                          </p>
+                          <p className="text-white font-bold text-lg mt-1 leading-none">
+                            {m.progress}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="px-4 py-3">
+                    <p className="text-gray-600 text-xs text-center py-1">
+                      No milestone progress yet.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
-            {selectedCustomer.milestone_count.length > 0 && (
-              <div>
-                <p className="text-gray-500 text-xs uppercase tracking-widest mb-2">
-                  Milestone Progress
-                </p>
-                <div className="grid grid-cols-3 gap-2">
-                  {selectedCustomer.milestone_count.map((m) => (
-                    <div
-                      key={m._id}
-                      className="rounded-xl bg-white/[0.04] border border-white/[0.08] p-3 text-center"
-                    >
-                      <p className="text-gray-500 text-xs">
-                        {m.vehicle.type.toUpperCase()} ·{" "}
-                        {m.vehicle.size.toUpperCase()}
-                      </p>
-                      <p className="text-white font-bold text-xl mt-1">
-                        {m.progress}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* FAB button */}
+            <button
+              type="button"
+              onClick={() => setIsFabOpen((v) => !v)}
+              className={`w-14 h-14 rounded-full flex items-center justify-center shadow-xl transition-all duration-200 active:scale-95
+                ${
+                  isFabOpen
+                    ? "bg-white/10 border border-white/20 text-white"
+                    : "bg-[#dc143c] shadow-[#dc143c]/40 text-white hover:bg-[#c01236]"
+                }`}
+            >
+              {isFabOpen ? (
+                <X className="w-5 h-5" />
+              ) : (
+                <User className="w-5 h-5" />
+              )}
+            </button>
           </div>
         )}
 
@@ -560,103 +575,59 @@ export default function Transaction() {
             subtitle="What are we working on today?"
           >
             <div className="space-y-4">
-              {/* Vehicle Type */}
-              <form.Field name="vehicleType">
+              <form.Field name="vehicleSizes">
                 {(field) => (
                   <Field>
-                    <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest mb-1.5 block">
-                      Type
+                    <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest mb-1.5 flex items-center gap-2">
+                      Vehicle Type & Size
                     </FieldLabel>
-                    <div className="grid grid-cols-2 gap-2">
-                      {vehicleTypes.map((type) => {
-                        const isSelected = field.state.value.includes(type);
-                        return (
-                          <button
-                            key={type}
-                            type="button"
-                            onClick={() => {
-                              field.setValue([type]);
-                              const currentSize =
-                                form.getFieldValue("vehicleSize")[0];
-                              const motorcycleSizes = [
-                                VehicleSize.SM,
-                                VehicleSize.MD,
-                                VehicleSize.LG,
-                              ];
-                              const sizeInvalid =
-                                type === VehicleType.MOTORCYCLE &&
-                                !motorcycleSizes.includes(currentSize);
-                              form.setFieldValue("vehicleSize", [
-                                sizeInvalid ? VehicleSize.SM : currentSize,
-                              ]);
-                              form.setFieldValue("totalAmount", 0);
-                              form.setFieldValue("services", []);
-                              form.setFieldValue("milestoneReward", []);
-                              form.setFieldValue("milestoneDiscount", 0);
-                              form.setFieldValue("maximumPoints", 0);
-                            }}
-                            className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-200 font-medium text-sm
-                              ${
-                                isSelected
-                                  ? "bg-[#dc143c]/15 border-[#dc143c]/50 text-white shadow-inner"
-                                  : "bg-white/[0.02] border-white/10 text-gray-400 hover:border-white/20 hover:text-gray-300"
-                              }`}
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button type="button" className="w-full">
+                          <SelectTrigger
+                            hasValue={field.state.value.length > 0}
                           >
-                            {type === VehicleType.CAR ? (
-                              <Car className="w-4 h-4" />
+                            {field.state.value.length > 0 ? (
+                              <div className="overflow-x-auto scrollbar-none w-0 flex-1">
+                                <div className="flex gap-2 flex-nowrap min-w-max items-center">
+                                  {field.state.value.map((item) => (
+                                    <Chip
+                                      key={item._id}
+                                      label={`${item.type.toUpperCase()} • ${item.description.toUpperCase()}`}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
                             ) : (
-                              <Bike className="w-4 h-4" />
+                              <span>Choose vehicle type & size...</span>
                             )}
-                            {type.charAt(0).toUpperCase() + type.slice(1)}
-                            {isSelected && (
-                              <Check className="w-4 h-4 text-[#dc143c] ml-auto" />
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
+                          </SelectTrigger>
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="backdrop-blur-md border border-white/20 rounded-xl p-3 shadow-lg max-h-80 overflow-y-auto">
+                        <Command>
+                          {vehicleSizes.map((size) => {
+                            const isSelected = field.state.value.find(
+                              (item) => item._id === size._id,
+                            );
+                            return (
+                              <CommandItem
+                                key={size._id}
+                                onSelect={() => onSelectVehicleSize(size)}
+                                className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                              >
+                                <span className="text-sm">{`${size.type.toUpperCase()} • ${size.description.toUpperCase()}`}</span>
+                                {isSelected && (
+                                  <Check className="w-4 h-4 text-[#dc143c]" />
+                                )}
+                              </CommandItem>
+                            );
+                          })}
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </Field>
                 )}
-              </form.Field>
-
-              {/* Vehicle Size */}
-              <form.Field name="vehicleSize">
-                {(field) => {
-                  return (
-                    <Field>
-                      <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest mb-1.5 block">
-                        Size
-                      </FieldLabel>
-                      <div className="flex gap-2 flex-wrap">
-                        {vehicleSizes.map((size) => {
-                          const isSelected = field.state.value.includes(size);
-                          return (
-                            <button
-                              key={size}
-                              type="button"
-                              onClick={() => {
-                                field.setValue([size]);
-                                form.setFieldValue("totalAmount", 0);
-                                form.setFieldValue("services", []);
-                                form.setFieldValue("milestoneReward", []);
-                                form.setFieldValue("milestoneDiscount", 0);
-                                form.setFieldValue("maximumPoints", 0);
-                              }}
-                              className={`px-4 py-2 rounded-lg border text-sm font-semibold transition-all duration-200
-                              ${
-                                isSelected
-                                  ? "bg-[#dc143c] border-[#dc143c] text-white shadow-lg shadow-[#dc143c]/30"
-                                  : "bg-white/[0.02] border-white/10 text-gray-400 hover:border-white/20 hover:text-gray-300"
-                              }`}
-                            >
-                              {size.toUpperCase()}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </Field>
-                  );
-                }}
               </form.Field>
 
               {/* Vehicle Model */}
@@ -676,7 +647,7 @@ export default function Transaction() {
                         onBlur={field.handleBlur}
                         onChange={(e) => field.handleChange(e.target.value)}
                         aria-invalid={isInvalid}
-                        placeholder="e.g. Toyota Corolla 2022"
+                        placeholder="e.g. Toyota Vios 2022"
                         className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white placeholder:text-gray-600 text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
                       />
                       {isInvalid && (
@@ -707,7 +678,6 @@ export default function Transaction() {
                   return (
                     <Field>
                       <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest mb-1.5 flex items-center gap-2">
-                        <Wrench className="w-3 h-3" />
                         Availed Services
                       </FieldLabel>
                       <Popover>
@@ -770,7 +740,6 @@ export default function Transaction() {
                 {(field) => (
                   <Field>
                     <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest mb-1.5 flex items-center gap-2">
-                      <Tag className="w-3 h-3" />
                       Milestone Reward
                     </FieldLabel>
                     <Popover>
@@ -799,7 +768,7 @@ export default function Transaction() {
                             .filter(
                               (r) =>
                                 r.vehicle_type ===
-                                form.getFieldValue("vehicleType")[0],
+                                form.getFieldValue("vehicleSizes")[0].type,
                             )
                             .map((mr) => {
                               const isSelected = field.state.value.find(
@@ -836,10 +805,10 @@ export default function Transaction() {
             <div className="space-y-1">
               <form.Field name="totalAmount">
                 {(field) => (
-                  <div>
-                    <label className="text-gray-500 text-xs uppercase tracking-widest block mb-1">
+                  <Field>
+                    <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest mb-1.5 flex items-center gap-2">
                       Availed Services Total Amount
-                    </label>
+                    </FieldLabel>
                     <Input
                       id={field.name}
                       name={field.name}
@@ -847,11 +816,11 @@ export default function Transaction() {
                       onBlur={field.handleBlur}
                       onChange={(e) => {
                         const v = e.target.value;
-                        field.handleChange(v === "" ? 0 : parseInt(v));
+                        field.handleChange(v === "" ? 0 : Number.parseInt(v));
                       }}
-                      className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
+                      className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white placeholder:text-gray-600 text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
                     />
-                  </div>
+                  </Field>
                 )}
               </form.Field>
 
@@ -863,9 +832,6 @@ export default function Transaction() {
                     { off: 100, min: 250 },
                     { off: 150, min: 375 },
                   ];
-                  const reached = tiers.filter(
-                    (t) => (total as number) >= t.min,
-                  ).length;
                   const next = tiers.find((t) => (total as number) < t.min);
 
                   return (
@@ -956,8 +922,7 @@ export default function Transaction() {
                     milestoneDiscount: s.values.milestoneDiscount,
                     total: s.values.totalAmount,
                     milestoneReward: s.values.milestoneReward,
-                    vehicleType: s.values.vehicleType,
-                    vehicleSize: s.values.vehicleSize,
+                    vehicleSizes: s.values.vehicleSizes,
                     travelFee: s.values.travelFee,
                     downPayment: s.values.downPayment,
                   })}
@@ -968,8 +933,7 @@ export default function Transaction() {
                     milestoneDiscount,
                     total,
                     milestoneReward,
-                    vehicleType,
-                    vehicleSize,
+                    vehicleSizes,
                     travelFee,
                     downPayment,
                   }) => {
@@ -982,8 +946,8 @@ export default function Transaction() {
                       return (
                         rewardService?.pricing_per_sizes.find(
                           (p) =>
-                            p.type === vehicleType[0] &&
-                            p.size === vehicleSize[0],
+                            p.type === vehicleSizes[0].type &&
+                            p.size === vehicleSizes[0].size,
                         )?.price ?? 0
                       );
                     })();
@@ -1036,9 +1000,9 @@ export default function Transaction() {
                         <form.Field name="totalDiscount">
                           {(field) => (
                             <div className="flex justify-between items-center py-2 px-3">
-                              <label className="text-gray-500 text-sm">
+                              <span className="text-gray-500 text-sm">
                                 Total Discount
-                              </label>
+                              </span>
                               <Input
                                 id={field.name}
                                 name={field.name}
@@ -1047,7 +1011,7 @@ export default function Transaction() {
                                 onChange={(e) => {
                                   const v = e.target.value;
                                   field.handleChange(
-                                    v === "" ? 0 : parseInt(v),
+                                    v === "" ? 0 : Number.parseInt(v),
                                   );
                                 }}
                                 className="h-8 w-28 text-right px-3 rounded-lg bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60"

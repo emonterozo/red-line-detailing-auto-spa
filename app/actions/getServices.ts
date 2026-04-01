@@ -8,10 +8,12 @@ import { VehicleSize, VehicleType } from "@/lib/enums";
 
 type PricingPerSize = {
   _id: string;
+  size_id: string;
   type: VehicleType;
   size: VehicleSize;
   description: string;
   price: number;
+  
 };
 
 export interface IServiceResponse extends Omit<IService, "pricing_per_sizes"> {
