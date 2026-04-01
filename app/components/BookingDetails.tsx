@@ -3,12 +3,7 @@
 import { useEffect, useState } from "react";
 import { useForm } from "@tanstack/react-form";
 import * as z from "zod";
-import {
-  Field,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -22,17 +17,12 @@ import {
   ChevronDown,
   User,
   Car,
-  MapPin,
   Calendar,
-  Clock,
   Wrench,
-  PlusCircle,
   FileText,
   CreditCard,
   ArrowRight,
   Loader2,
-  ClipboardList,
-  Bike,
 } from "lucide-react";
 import { IBooking } from "@/lib/db/types";
 import {
@@ -50,19 +40,11 @@ import {
 } from "../actions/getVehicleSizes";
 import { getServices, IServiceResponse } from "../actions/getServices";
 
-const vehicleTypes = [VehicleType.CAR, VehicleType.MOTORCYCLE];
-const vehicleSizes = [
-  VehicleSize.SM,
-  VehicleSize.MD,
-  VehicleSize.LG,
-  VehicleSize.XL,
-  VehicleSize.XXL,
-];
-
 export const pricingPerSizeSchema = z.object({
   _id: z.string(),
   type: z.string(),
   size: z.string(),
+  size_id: z.string(),
   description: z.string(),
   price: z.number(),
 });
@@ -85,10 +67,13 @@ export const vehicleSizeSchema = z.object({
 });
 
 export const formSchema = z.object({
-  vehicleSizes: z.array(vehicleSizeSchema),
+  vehicleSizes: z
+    .array(vehicleSizeSchema)
+    .min(1, "Choose a vehicle type & size."),
   services: z.array(serviceSchema).min(1, "Choose at least one service."),
   reservationFee: z.number(),
   travelFee: z.number(),
+  travelDistance: z.number(),
   totalAmount: z.number(),
   notes: z.string(),
   status: z.string(),
@@ -102,6 +87,7 @@ const defaultValues: FormValues = {
   reservationFee: 0,
   totalAmount: 0,
   travelFee: 0,
+  travelDistance: 0,
   notes: "",
   status: "",
 };
@@ -145,20 +131,20 @@ function SectionCard({
   subtitle,
   children,
   last,
-}: {
+}: Readonly<{
   icon: React.ReactNode;
   title: string;
   subtitle?: string;
   children: React.ReactNode;
   last?: boolean;
-}) {
+}>) {
   return (
     <div className="relative">
       {!last && (
         <div className="absolute left-5 top-14 bottom-0 w-px bg-gradient-to-b from-[#dc143c]/40 to-transparent z-0" />
       )}
       <div className="relative z-10 flex gap-5">
-        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[#dc143c] flex items-center justify-center text-white shadow-lg shadow-[#dc143c]/40">
+        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[#dc143c] flex items-center justify-center text-white text-sm font-bold shadow-lg shadow-[#dc143c]/40">
           <span className="w-4 h-4">{icon}</span>
         </div>
 
@@ -168,7 +154,7 @@ function SectionCard({
               {title}
             </h3>
             {subtitle && (
-              <p className="text-gray-500 text-sm mt-0.5">{subtitle}</p>
+              <p className="text-gray-500 text-sm mt-1">{subtitle}</p>
             )}
           </div>
           <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-5 backdrop-blur-sm">
@@ -180,58 +166,40 @@ function SectionCard({
   );
 }
 
-function ReadOnlyField({ label, value }: { label: string; value: string }) {
+function ReadOnlyField({
+  label,
+  value,
+}: Readonly<{ label: string; value: string }>) {
   return (
-    <div className="space-y-1.5 min-w-0 w-full">
-      <label className="text-gray-500 text-xs uppercase tracking-widest block">
+    <Field>
+      <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
         {label}
-      </label>
-
-      <div className="px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.08] text-white text-sm min-w-0 w-full">
-        <p className="break-all w-full">
-          {value || <span className="text-gray-600 italic">—</span>}
-        </p>
-      </div>
-    </div>
+      </FieldLabel>
+      <Input
+        readOnly
+        value={value}
+        className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white placeholder:text-gray-600 text-sm
+             focus-visible:outline-none focus-visible:ring-0 focus-visible:border-white/10"
+      />
+    </Field>
   );
 }
 
-function Chip({ label }: { label: string }) {
+function Chip({ label }: Readonly<{ label: string }>) {
   return (
-    <span className="inline-flex items-center px-3 py-1 rounded-full bg-[#dc143c]/20 border border-[#dc143c]/40 text-[#ff6b81] text-sm font-medium whitespace-nowrap">
+    <span className="inline-flex items-center px-3 py-1 rounded-full bg-[#dc143c]/20 border border-[#dc143c]/40 text-[#ff6b81] text-sm font-medium">
       {label}
     </span>
-  );
-}
-
-function ChipRow({ items }: { items: { _id: string; title: string }[] }) {
-  if (!items || items.length === 0) {
-    return (
-      <div className="h-12 px-4 rounded-xl bg-white/[0.03] border border-white/[0.08] flex items-center text-gray-600 text-sm italic">
-        None selected
-      </div>
-    );
-  }
-  return (
-    <div className="h-12 px-4 rounded-xl bg-white/[0.03] border border-white/[0.08] flex items-center min-w-0 overflow-hidden">
-      <div className="overflow-x-auto scrollbar-services w-0 min-w-0 flex-1 py-2">
-        <div className="flex gap-2 flex-nowrap min-w-max items-center">
-          {items.map((item) => (
-            <Chip key={item._id} label={item.title} />
-          ))}
-        </div>
-      </div>
-    </div>
   );
 }
 
 function SelectTrigger({
   hasValue,
   children,
-}: {
+}: Readonly<{
   hasValue: boolean;
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <div
       className={`w-full h-12 px-4 rounded-xl border flex items-center justify-between cursor-pointer transition-all duration-200 group
@@ -241,17 +209,11 @@ function SelectTrigger({
             : "bg-white/[0.02] border-white/10 text-gray-500 hover:border-white/20"
         }`}
     >
-      <div className="flex-1 overflow-hidden min-w-0">{children}</div>
+      <div className="flex-1 min-w-0 overflow-hidden flex items-center">
+        {children}
+      </div>
       <ChevronDown className="w-4 h-4 text-gray-500 group-hover:text-gray-300 transition-colors flex-shrink-0 ml-2" />
     </div>
-  );
-}
-
-function ChipTest({ label }: { label: string }) {
-  return (
-    <span className="inline-flex items-center px-3 py-1 rounded-full bg-[#dc143c]/20 border border-[#dc143c]/40 text-[#ff6b81] text-sm font-medium">
-      {label}
-    </span>
   );
 }
 
@@ -269,14 +231,17 @@ export default function BookingDetails() {
 
   const form = useForm({
     defaultValues,
+    validators: { onSubmit: formSchema },
     onSubmit: async ({ value }) => {
       setLoading(true);
       const result = await updateBooking({
         bookingId: booking?._id ?? "",
+        sizeId: value.vehicleSizes[0]._id,
         scheduleId: booking?.preferred_date._id ?? "",
         timeSlotId: booking?.time_slot._id ?? "",
         reservationFee: value.reservationFee,
         travelFee: value.travelFee,
+        travelDistance: value.travelDistance,
         totalAmount: value.totalAmount,
         notes: value.notes,
         status: value.status,
@@ -296,6 +261,23 @@ export default function BookingDetails() {
         const [servicesData, bookingData, vehicleSizesData] = await Promise.all(
           [getServices(), getBooking(bookingId.toString()), getVehicleSizes()],
         );
+        let selectedServiceIds: string[] = [];
+
+        if (bookingData?.services && bookingData.add_ons) {
+          const result = [...bookingData.services, ...bookingData.add_ons].map(
+            (item) => item._id,
+          );
+          selectedServiceIds = result;
+        }
+
+        const selectedServices = servicesData.filter((item) =>
+          selectedServiceIds.includes(item._id),
+        );
+
+        const vehicleTypeSize = vehicleSizesData.filter(
+          (item) => item._id === bookingData?.size_id,
+        );
+
         setServices(servicesData);
         setVehicleSizes(vehicleSizesData);
         setBooking(bookingData);
@@ -307,6 +289,8 @@ export default function BookingDetails() {
           "status",
           bookingData?.status ?? BookingStatus.FOR_CHECKING,
         );
+        form.setFieldValue("services", selectedServices);
+        form.setFieldValue("vehicleSizes", vehicleTypeSize);
       }
     };
     init();
@@ -351,8 +335,16 @@ export default function BookingDetails() {
     form.setFieldValue("services", newServices);
   };
 
-  const currentStatus = form.getFieldValue("status") as BookingStatus;
-  const statusStyle = statusColors[currentStatus] ?? defaultStatus;
+  const onSelectVehicleTypeSize = (size: IVehicleSizesResponse) => {
+    const selectedServices = form.getFieldValue("services");
+    const price = selectedServices.reduce((total, service) => {
+      const pricing = service.pricing_per_sizes.find(
+        (p) => p.size_id === size._id,
+      );
+      return total + (pricing?.price ?? 0);
+    }, 0);
+    form.setFieldValue("totalAmount", price);
+  };
 
   return (
     <section className="min-h-screen bg-[#0a0a0a] relative overflow-hidden">
@@ -363,18 +355,14 @@ export default function BookingDetails() {
       <div className="relative max-w-3xl mx-auto px-4 sm:px-6 py-16 md:py-24">
         {/* ── Header ── */}
         <div className="mb-14 text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[#dc143c]/30 bg-[#dc143c]/10 text-[#ff6b81] text-xs font-semibold tracking-widest uppercase mb-6">
-            <ClipboardList className="w-3 h-3" />
-            Booking Management
-          </div>
-          <h1 className="text-5xl sm:text-6xl font-extrabold text-white tracking-tight leading-[1.1]">
-            Booking
-            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-[#dc143c] to-[#ff6b81]">
+          <h2 className="font-russo text-5xl sm:text-6xl font-extrabold text-white tracking-tight leading-[1.1]">
+            Booking{" "}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#dc143c] to-[#ff6b81]">
               Details
             </span>
-          </h1>
+          </h2>
           <p className="mt-4 text-gray-500 text-base max-w-md mx-auto">
-            Review booking information and update status or financials.
+            Review booking information and update status.
           </p>
 
           {/* live status badge */}
@@ -434,9 +422,11 @@ export default function BookingDetails() {
             <div className="space-y-4">
               <form.Field name="vehicleSizes">
                 {(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
                   return (
                     <Field>
-                      <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest mb-1.5 flex items-center gap-2">
+                      <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
                         Vehicle Type & Size
                       </FieldLabel>
                       <Popover>
@@ -446,20 +436,18 @@ export default function BookingDetails() {
                               hasValue={field.state.value.length > 0}
                             >
                               {field.state.value.length > 0 ? (
-                                <div className="overflow-x-auto  flex-1 py-2 flex-1">
+                                <div className="overflow-x-auto scrollbar-services w-0 min-w-0 flex-1 py-2 flex-1">
                                   <div className="flex gap-2 flex-nowrap min-w-max items-center">
                                     {field.state.value.map((item) => (
-                                      <ChipTest
+                                      <Chip
                                         key={item._id}
-                                        label={item.description}
+                                        label={`${item.type.toUpperCase()} • ${item.description.toUpperCase()}`}
                                       />
                                     ))}
                                   </div>
                                 </div>
                               ) : (
-                                <span className="flex-1 text-left block">
-                                  Choose vehicle type & size...
-                                </span>
+                                <span>Choose vehicle type & size...</span>
                               )}
                             </SelectTrigger>
                           </button>
@@ -475,12 +463,11 @@ export default function BookingDetails() {
                                   key={size._id}
                                   onSelect={() => {
                                     field.setValue([size]);
+                                    onSelectVehicleTypeSize(size);
                                   }}
                                   className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
                                 >
-                                  <span className="text-sm">
-                                    {size.description}
-                                  </span>
+                                  <span className="text-sm">{`${size.type.toUpperCase()} • ${size.description.toUpperCase()}`}</span>
                                   {isSelected && (
                                     <Check className="w-4 h-4 text-[#dc143c]" />
                                   )}
@@ -490,6 +477,12 @@ export default function BookingDetails() {
                           </Command>
                         </PopoverContent>
                       </Popover>
+                      {isInvalid && (
+                        <FieldError
+                          className="text-[#ff6b81] text-xs mt-1"
+                          errors={field.state.meta.errors}
+                        />
+                      )}
                     </Field>
                   );
                 }}
@@ -498,17 +491,17 @@ export default function BookingDetails() {
                 label="Vehicle Model"
                 value={booking?.vehicle_model ?? ""}
               />
-              <div className="space-y-1.5">
-                <label className="text-gray-500 text-xs uppercase tracking-widest block">
+              <Field>
+                <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
                   Complete Address
-                </label>
+                </FieldLabel>
                 <Textarea
                   readOnly
                   rows={3}
                   value={booking?.address ?? ""}
                   className="px-4 py-3 rounded-xl bg-white/[0.03] border-white/[0.08] text-white text-sm resize-none focus-visible:ring-0"
                 />
-              </div>
+              </Field>
             </div>
           </SectionCard>
 
@@ -540,27 +533,13 @@ export default function BookingDetails() {
             title="Services"
             subtitle="What's being performed?"
           >
-            {/* <div className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-gray-500 text-xs uppercase tracking-widest block">
-                  Signature Services
-                </label>
-                <ChipRow items={booking?.services ?? []} />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-gray-500 text-xs uppercase tracking-widest block flex items-center gap-1.5">
-                  Add-ons
-                </label>
-                <ChipRow items={booking?.add_ons ?? []} />
-              </div>
-            </div> */}
             <form.Field name="services">
               {(field) => {
                 const isInvalid =
                   field.state.meta.isTouched && !field.state.meta.isValid;
                 return (
                   <Field>
-                    <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest mb-1.5 flex items-center gap-2">
+                    <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
                       Availed Services
                     </FieldLabel>
                     <Popover>
@@ -570,7 +549,7 @@ export default function BookingDetails() {
                             hasValue={field.state.value.length > 0}
                           >
                             {field.state.value.length > 0 ? (
-                              <div className="overflow-x-auto  py-2 flex-1">
+                              <div className="overflow-x-auto scrollbar-services w-0 min-w-0 flex-1 py-2 flex-1">
                                 <div className="flex gap-2 flex-nowrap min-w-max items-center">
                                   {field.state.value.map((item) => (
                                     <Chip key={item._id} label={item.title} />
@@ -626,10 +605,10 @@ export default function BookingDetails() {
             <div className="space-y-4">
               <form.Field name="reservationFee">
                 {(field) => (
-                  <div className="space-y-1.5">
-                    <label className="text-gray-500 text-xs uppercase tracking-widest block">
+                  <Field>
+                    <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
                       Reservation Fee
-                    </label>
+                    </FieldLabel>
                     <Input
                       id={field.name}
                       name={field.name}
@@ -637,39 +616,62 @@ export default function BookingDetails() {
                       onBlur={field.handleBlur}
                       onChange={(e) => {
                         const v = e.target.value;
-                        field.handleChange(v === "" ? 0 : parseInt(v));
+                        field.handleChange(v === "" ? 0 : Number.parseInt(v));
                       }}
                       className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
                     />
-                  </div>
+                  </Field>
+                )}
+              </form.Field>
+              <form.Field name="travelDistance">
+                {(field) => (
+                  <Field>
+                    <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
+                      Travel Distance
+                    </FieldLabel>
+                    <Input
+                      id={field.name}
+                      name={field.name}
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        const distance = v === "" ? 0 : Number.parseInt(v);
+
+                        const fee = Math.max(
+                          0,
+                          (distance -
+                            Number.parseInt(
+                              process.env.NEXT_PUBLIC_FREE_TRAVEL_DISTANCE_KM ??
+                                "0",
+                            )) *
+                            Number.parseInt(
+                              process.env.NEXT_PUBLIC_TRAVEL_FEE_PER_KM ?? "0",
+                            ),
+                        );
+                        field.handleChange(distance);
+                        form.setFieldValue("travelFee", fee);
+                      }}
+                      className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
+                    />
+                  </Field>
                 )}
               </form.Field>
               <form.Field name="travelFee">
                 {(field) => (
-                  <div className="space-y-1.5">
-                    <label className="text-gray-500 text-xs uppercase tracking-widest block">
-                      Travel Fee
-                    </label>
-                    <Input
-                      id={field.name}
-                      name={field.name}
-                      value={field.state.value}
-                      onBlur={field.handleBlur}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        field.handleChange(v === "" ? 0 : parseInt(v));
-                      }}
-                      className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
-                    />
-                  </div>
+                  <ReadOnlyField
+                    label="Travel Fee"
+                    value={field.state.value.toLocaleString()}
+                  />
                 )}
               </form.Field>
+
               <form.Field name="totalAmount">
                 {(field) => (
-                  <div className="space-y-1.5">
-                    <label className="text-gray-500 text-xs uppercase tracking-widest block">
+                  <Field>
+                    <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
                       Total Amount
-                    </label>
+                    </FieldLabel>
                     <Input
                       id={field.name}
                       name={field.name}
@@ -677,11 +679,11 @@ export default function BookingDetails() {
                       onBlur={field.handleBlur}
                       onChange={(e) => {
                         const v = e.target.value;
-                        field.handleChange(v === "" ? 0 : parseInt(v));
+                        field.handleChange(v === "" ? 0 : Number.parseInt(v));
                       }}
                       className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
                     />
-                  </div>
+                  </Field>
                 )}
               </form.Field>
 
@@ -697,7 +699,7 @@ export default function BookingDetails() {
                   <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] divide-y divide-white/[0.06]">
                     <div className="flex justify-between items-center px-4 py-3">
                       <span className="text-gray-500 text-sm">
-                        Reservation Deposit (40%)
+                        Reservation Deposit - 40%
                       </span>
                       <span className="text-white font-medium text-sm">
                         ₱
@@ -737,10 +739,10 @@ export default function BookingDetails() {
 
               <form.Field name="notes">
                 {(field) => (
-                  <div className="space-y-1.5">
-                    <label className="text-gray-500 text-xs uppercase tracking-widest block">
+                  <Field>
+                    <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
                       Notes
-                    </label>
+                    </FieldLabel>
                     <Textarea
                       id={field.name}
                       name={field.name}
@@ -752,7 +754,7 @@ export default function BookingDetails() {
                       placeholder="Enter booking notes..."
                       className="px-4 py-3 rounded-xl bg-white/[0.04] border-white/10 text-white placeholder:text-gray-600 text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2 resize-none"
                     />
-                  </div>
+                  </Field>
                 )}
               </form.Field>
             </div>
@@ -771,10 +773,10 @@ export default function BookingDetails() {
                   statusColors[field.state.value as BookingStatus] ??
                   defaultStatus;
                 return (
-                  <div className="space-y-1.5">
-                    <label className="text-gray-500 text-xs uppercase tracking-widest block">
+                  <Field>
+                    <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
                       Current Status
-                    </label>
+                    </FieldLabel>
                     <Popover>
                       <PopoverTrigger asChild>
                         <button type="button" className="w-full">
@@ -838,7 +840,7 @@ export default function BookingDetails() {
                         </Command>
                       </PopoverContent>
                     </Popover>
-                  </div>
+                  </Field>
                 );
               }}
             </form.Field>

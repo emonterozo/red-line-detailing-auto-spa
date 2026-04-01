@@ -3,6 +3,7 @@ import { Schema, Types, model, models } from "mongoose";
 import { IBooking } from "@/lib/db/types";
 import { BookingStatus } from "@/lib/enums";
 
+
 const bookingSchema = new Schema<IBooking>({
   user_id: { type: Types.ObjectId, default: null },
   size_id: { type: Types.ObjectId, default: null },
@@ -47,6 +48,8 @@ const bookingSchema = new Schema<IBooking>({
   reservation_fee: { type: Number, default: 0, required: true },
   total_amount: { type: Number, default: 0, required: true },
   travel_fee: { type: Number, default: 0, required: true },
+  travel_distance: { type: Number, default: 0, required: true },
+  reference_number: { type: String, required: true },
   notes: { type: String, default: null },
   is_create_account: { type: Boolean, default: false },
   created_at: { type: Date, default: new Date() },

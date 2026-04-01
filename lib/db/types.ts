@@ -83,6 +83,8 @@ export interface IBooking {
   reservation_fee: number;
   total_amount: number;
   travel_fee: number;
+  travel_distance: number;
+  reference_number: string;
   notes: string;
   is_create_account: boolean;
   created_at: Date;

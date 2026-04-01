@@ -35,6 +35,7 @@ export const getBooking = async (
     ...bookingDoc,
     _id: bookingDoc._id.toString(),
     user_id: bookingDoc?.user_id?.toString(),
+    size_id: bookingDoc?.size_id?.toString(),
     services: formattedServices,
     add_ons: formattedAddOns,
     preferred_date: {

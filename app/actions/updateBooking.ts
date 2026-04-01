@@ -7,11 +7,13 @@ import Schedule from "@/models/Schedule";
 import { Types } from "mongoose";
 
 type UpdateBookingRequest = {
+  sizeId: string;
   bookingId: string;
   scheduleId: string;
   timeSlotId: string;
   reservationFee: number;
   travelFee: number;
+  travelDistance: number;
   totalAmount: number;
   notes: string;
   status: string;
@@ -27,9 +29,11 @@ export const updateBooking = async (request: UpdateBookingRequest) => {
       },
       {
         $set: {
+          size_id: new Types.ObjectId(request.sizeId),
           reservation_fee: request.reservationFee,
           travel_fee: request.travelFee,
           total_amount: request.totalAmount,
+          travel_distance: request.travelDistance,
           notes: request.notes,
           status: request.status,
           updated_at: new Date(),

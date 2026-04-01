@@ -578,7 +578,7 @@ export default function Transaction() {
               <form.Field name="vehicleSizes">
                 {(field) => (
                   <Field>
-                    <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest mb-1.5 flex items-center gap-2">
+                    <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
                       Vehicle Type & Size
                     </FieldLabel>
                     <Popover>
@@ -637,7 +637,7 @@ export default function Transaction() {
                     field.state.meta.isTouched && !field.state.meta.isValid;
                   return (
                     <Field>
-                      <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest mb-1.5 block">
+                      <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
                         Model
                       </FieldLabel>
                       <Input
@@ -677,7 +677,7 @@ export default function Transaction() {
                     field.state.meta.isTouched && !field.state.meta.isValid;
                   return (
                     <Field>
-                      <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest mb-1.5 flex items-center gap-2">
+                      <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
                         Availed Services
                       </FieldLabel>
                       <Popover>
@@ -739,7 +739,7 @@ export default function Transaction() {
               <form.Field name="milestoneReward">
                 {(field) => (
                   <Field>
-                    <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest mb-1.5 flex items-center gap-2">
+                    <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
                       Milestone Reward
                     </FieldLabel>
                     <Popover>
@@ -806,7 +806,7 @@ export default function Transaction() {
               <form.Field name="totalAmount">
                 {(field) => (
                   <Field>
-                    <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest mb-1.5 flex items-center gap-2">
+                    <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
                       Availed Services Total Amount
                     </FieldLabel>
                     <Input

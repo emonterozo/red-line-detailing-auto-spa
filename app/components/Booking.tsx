@@ -29,6 +29,7 @@ import { getServices, IServiceResponse } from "../actions/getServices";
 import { BookingStatus, ServiceType } from "@/lib/enums";
 import Link from "next/link";
 import { createBooking } from "../actions/createBooking";
+import { randomInt } from "crypto";
 
 const today = new Date();
 today.setHours(23, 59, 59, 59);
@@ -193,6 +194,22 @@ export default function Booking() {
       }),
   );
 
+  const generateReference = () => {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+  const date = new Date();
+  const y = date.getFullYear().toString().slice(2);
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+
+  let random = "";
+  for (let i = 0; i < 5; i++) {
+    random += chars[Math.floor(Math.random() * chars.length)];
+  }
+
+  return `RL-${y}${m}${d}-${random}`;
+};
+
   const form = useForm({
     defaultValues,
     validators: {
@@ -241,6 +258,8 @@ export default function Booking() {
         travel_fee: 0,
         reservation_fee: 0,
         total_amount: 0,
+        travel_distance: 0,
+        reference_number: generateReference(),
         notes: "",
         is_create_account: value.isCreateAccount,
         created_at: new Date(),
