@@ -114,7 +114,7 @@ export interface ITransaction {
   vehicle_type: VehicleType;
   vehicle_size: VehicleSize;
   vehicle_model: string;
-  services: { _id: string; title: string }[];
+  services: { _id: string; title: string, price: number }[];
   travel_fee: number;
   total_amount: number;
   total_discount: number;
@@ -125,4 +125,7 @@ export interface ITransaction {
     required_progress_count: number;
   } | null;
   milestone_discount: number;
+  total_amount_paid: number;
+  points_earned: number;
+  points_used: number
 }

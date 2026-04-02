@@ -49,7 +49,7 @@ const bookingSchema = new Schema<IBooking>({
   total_amount: { type: Number, default: 0, required: true },
   travel_fee: { type: Number, default: 0, required: true },
   travel_distance: { type: Number, default: 0, required: true },
-  reference_number: { type: String, required: true },
+  reference_number: { type: String, required: true, unique: true },
   notes: { type: String, default: null },
   is_create_account: { type: Boolean, default: false },
   created_at: { type: Date, default: new Date() },

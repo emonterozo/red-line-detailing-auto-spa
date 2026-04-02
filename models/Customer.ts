@@ -23,19 +23,24 @@ const milestoneClaimedSchema = new Schema({
     ref: Service.modelName,
     required: true,
   },
+  price: {
+    type: Number,
+    required: true,
+  },
   size_id: {
     type: Schema.Types.ObjectId,
     ref: VehicleSize.modelName,
+    required: true,
+  },
+  vehicle_model: {
+    type: String,
     required: true,
   },
   discount: {
     type: Number,
     required: true,
   },
-  claimed_at: {
-    type: Date,
-    required: true,
-  },
+  claimed_at: { type: Date, default: new Date() },
 });
 
 const customerSchema = new Schema({

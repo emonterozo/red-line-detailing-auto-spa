@@ -36,6 +36,7 @@ const transactionSchema = new Schema({
       new Schema({
         _id: { type: Types.ObjectId },
         title: { type: String, required: true },
+        price: { type: Number, required: true },
       }),
     ],
     required: true,
