@@ -41,3 +41,7 @@ export enum RewardType {
 export enum TransactionFrom {
   BOOKING = 'booking', WALK_IN = 'walk-in',
 }
+
+export enum DiscountType {
+  SYSTEM = "system", MANUAL = 'manual'
+}

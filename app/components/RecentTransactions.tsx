@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, MessageSquare } from "lucide-react";
+import { ChevronRight, Receipt } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -10,8 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useEffect, useRef, useState } from "react";
-import { getInquiries, IInquiriesResponse, IPaginatedInquiries } from "../actions/getInquiries";
-import { InquiryStatus, InquiryStatusDisplay } from "@/lib/enums";
+//import { getTransactions, ITransactionResponse, IPaginatedTransactions } from "../actions/getTransactions";
 import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
 
@@ -24,14 +23,8 @@ const formattedDate = (date: Date) =>
     hour12: true,
   });
 
-const statusStyle: Record<string, string> = {
-  [InquiryStatus.NEW]:       "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  [InquiryStatus.COMPLETED]: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-  [InquiryStatus.REJECTED]:  "bg-red-500/10 text-[#ff6b81] border-red-500/20",
-};
-
-const RecentInquiries = () => {
-  const [inquiries, setInquiries] = useState<IInquiriesResponse[]>([]);
+const RecentTransactions = () => {
+  const [transactions, setTransactions] = useState<ITransactionResponse[]>([]);
   const [page, setPage] = useState(1);
   const [limit] = useState(50);
   const [totalPages, setTotalPages] = useState(1);
@@ -39,24 +32,24 @@ const RecentInquiries = () => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const router = useRouter();
 
-  useEffect(() => {
-    getInquiries(page, limit).then((result: IPaginatedInquiries) => {
-      setInquiries(result.data);
-      setTotalPages(result.totalPages);
-    });
-  }, [page, limit]);
+  // useEffect(() => {
+  //   getTransactions(page, limit).then((result: IPaginatedTransactions) => {
+  //     setTransactions(result.data);
+  //     setTotalPages(result.totalPages);
+  //   });
+  // }, [page, limit]);
 
   return (
     <section className="mb-8 rounded-2xl border border-white/[0.08] bg-white/[0.02] backdrop-blur-sm overflow-hidden">
       {/* header */}
       <div className="px-6 py-5 border-b border-white/[0.06] flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-            <MessageSquare className="w-4 h-4 text-blue-400" />
+          <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+            <Receipt className="w-4 h-4 text-emerald-400" />
           </div>
           <div>
-            <h2 className="text-white font-bold text-base">Recent Inquiries</h2>
-            <p className="text-gray-600 text-xs">{inquiries.length} records shown</p>
+            <h2 className="text-white font-bold text-base">Recent Transactions</h2>
+            <p className="text-gray-600 text-xs">{transactions.length} records shown</p>
           </div>
         </div>
         <button className="flex items-center gap-1.5 text-xs text-[#ff6b81] hover:text-white uppercase tracking-widest transition-colors font-semibold">
@@ -69,7 +62,7 @@ const RecentInquiries = () => {
         <Table className="w-full">
           <TableHeader>
             <TableRow className="border-b border-white/[0.06] hover:bg-transparent">
-              {["Client Name", "Contact", "Email", "Created", "Updated", "Status"].map((h) => (
+              {["Customer", "Vehicle", "Services", "Total", "Discount", "Net", "Source", "Date"].map((h) => (
                 <TableHead key={h} className="px-5 py-3.5 text-gray-600 text-[10px] uppercase tracking-widest font-semibold whitespace-nowrap">
                   {h}
                 </TableHead>
@@ -77,38 +70,56 @@ const RecentInquiries = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {inquiries.length === 0 ? (
+            {transactions.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="px-5 py-12 text-center text-gray-700 text-sm">
-                  No inquiries available
+                <TableCell colSpan={8} className="px-5 py-12 text-center text-gray-700 text-sm">
+                  No transactions available
                 </TableCell>
               </TableRow>
             ) : (
-              inquiries.map((inquiry) => (
+              transactions.map((tx) => (
                 <TableRow
-                  key={inquiry._id}
-                  onClick={() => router.push(`/admin/inquiry/${inquiry._id}`)}
+                  key={tx._id}
+                  onClick={() => router.push(`/admin/transaction/${tx._id}`)}
                   className="border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors cursor-pointer"
                 >
                   <TableCell className="px-5 py-4 text-[#ff6b81] font-semibold text-sm whitespace-nowrap">
-                    {inquiry.name}
-                  </TableCell>
-                  <TableCell className="px-5 py-4 text-gray-500 text-sm whitespace-nowrap">
-                    {inquiry.contact_number}
+                    {tx.customer?.name ?? <span className="text-gray-600 italic">Walk-in</span>}
                   </TableCell>
                   <TableCell className="px-5 py-4 text-gray-400 text-sm whitespace-nowrap">
-                    {inquiry.email}
+                    <span className="text-gray-500">{tx.vehicle_type}/{tx.vehicle_size}</span>
+                    <br />
+                    <span className="text-xs">{tx.vehicle_model}</span>
                   </TableCell>
-                  <TableCell className="px-5 py-4 text-gray-600 text-sm whitespace-nowrap">
-                    {formattedDate(inquiry.created_at)}
+                  <TableCell className="px-5 py-4 text-gray-500 text-sm">
+                    <div className="flex flex-wrap gap-1 max-w-[180px]">
+                      {tx.services.map((s) => (
+                        <span key={s._id} className="inline-flex px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.06] text-xs text-gray-500 whitespace-nowrap">
+                          {s.title}
+                        </span>
+                      ))}
+                    </div>
                   </TableCell>
-                  <TableCell className="px-5 py-4 text-gray-600 text-sm whitespace-nowrap">
-                    {formattedDate(inquiry.updated_at)}
+                  <TableCell className="px-5 py-4 text-white font-medium text-sm whitespace-nowrap">
+                    ₱{tx.total_amount.toLocaleString()}
+                  </TableCell>
+                  <TableCell className="px-5 py-4 text-[#ff6b81] text-sm whitespace-nowrap">
+                    {tx.total_discount > 0 ? `- ₱${tx.total_discount.toLocaleString()}` : <span className="text-gray-700">—</span>}
+                  </TableCell>
+                  <TableCell className="px-5 py-4 text-emerald-400 font-bold text-sm whitespace-nowrap">
+                    ₱{(tx.total_amount - tx.total_discount).toLocaleString()}
                   </TableCell>
                   <TableCell className="px-5 py-4">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full border text-xs font-semibold whitespace-nowrap ${statusStyle[inquiry.status] ?? "bg-white/[0.04] text-gray-400 border-white/10"}`}>
-                      {InquiryStatusDisplay[inquiry.status]}
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full border text-xs font-semibold whitespace-nowrap
+                      ${tx.transaction_from === "booking"
+                        ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                        : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                      }`}>
+                      {tx.transaction_from === "booking" ? "Booking" : "Walk-in"}
                     </span>
+                  </TableCell>
+                  <TableCell className="px-5 py-4 text-gray-600 text-sm whitespace-nowrap">
+                    {formattedDate(tx.created_at)}
                   </TableCell>
                 </TableRow>
               ))
@@ -163,4 +174,4 @@ const RecentInquiries = () => {
   );
 };
 
-export default RecentInquiries;
+export default RecentTransactions;

@@ -1,6 +1,11 @@
 import { Schema, Types, model, models } from "mongoose";
 
-import { VehicleType, VehicleSize, TransactionFrom } from "@/lib/enums";
+import {
+  VehicleType,
+  VehicleSize,
+  TransactionFrom,
+  DiscountType,
+} from "@/lib/enums";
 import Customer from "./Customer";
 import Booking from "./Booking";
 
@@ -47,6 +52,12 @@ const transactionSchema = new Schema({
   total_amount_paid: { type: Number, default: 0, required: true },
   points_used: { type: Number, default: 0, required: true },
   points_earned: { type: Number, default: 0, required: true },
+  discount_type: {
+    type: String,
+    enum: [...Object.values(DiscountType), ""], 
+    default: "",
+  },
+  notes: { type: String,},
   created_at: { type: Date, default: new Date() },
   updated_at: { type: Date, default: new Date() },
 });

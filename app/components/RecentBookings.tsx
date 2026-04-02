@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, CalendarCheck } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -9,24 +9,28 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  getBookings,
-  IBookingResponse,
-  IPaginatedBookings,
-} from "../actions/getBookings";
+import { getBookings, IBookingResponse, IPaginatedBookings } from "../actions/getBookings";
 import { useEffect, useRef, useState } from "react";
-import { BookingStatusDisplay } from "@/lib/enums";
+import { BookingStatus, BookingStatusDisplay } from "@/lib/enums";
 import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
 
-const formattedDate = (date: Date) => {
-  return date.toLocaleString("en-US", {
+const formattedDate = (date: Date) =>
+  new Date(date).toLocaleString("en-US", {
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
     hour12: true,
   });
+
+const statusStyle: Record<string, string> = {
+  [BookingStatus.FOR_CHECKING]: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+  [BookingStatus.CONFIRMED]:    "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+  [BookingStatus.CANCELLED]:    "bg-red-500/10 text-[#ff6b81] border-red-500/20",
+  [BookingStatus.COMPLETED]:    "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  [BookingStatus.REJECTED]:     "bg-neutral-500/10 text-neutral-400 border-neutral-500/20",
+  [BookingStatus.REFUNDED]:     "bg-purple-500/10 text-purple-400 border-purple-500/20",
 };
 
 const RecentBookings = () => {
@@ -39,103 +43,81 @@ const RecentBookings = () => {
   const router = useRouter();
 
   useEffect(() => {
-    async function loadBookings() {
-      const result: IPaginatedBookings = await getBookings(page, limit);
+    getBookings(page, limit).then((result: IPaginatedBookings) => {
       setBookings(result.data);
       setTotalPages(result.totalPages);
-    }
-
-    loadBookings();
+    });
   }, [page, limit]);
 
-  const handlePrevPage = () => {
-    if (page > 1) setPage(page - 1);
-  };
-
-  const handleNextPage = () => {
-    if (page < totalPages) setPage(page + 1);
-  };
-
   return (
-    <section className="bg-neutral-950 border border-neutral-900 rounded-sm overflow-hidden shadow-2xl mb-12">
-      <div className="p-8 border-b border-neutral-900 flex justify-between items-center bg-neutral-950/50 backdrop-blur-sm">
-        <h2 className={`text-2xl font-russo text-white`}>Recent Bookings</h2>
-        <button className="flex items-center gap-2 text-xs text-red-500 hover:text-red-400 uppercase tracking-widest transition-colors">
-          View All Records <ChevronRight className="w-4 h-4" />
+    <section className="mb-8 rounded-2xl border border-white/[0.08] bg-white/[0.02] backdrop-blur-sm overflow-hidden">
+      {/* header */}
+      <div className="px-6 py-5 border-b border-white/[0.06] flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-[#dc143c]/15 border border-[#dc143c]/30 flex items-center justify-center">
+            <CalendarCheck className="w-4 h-4 text-[#ff6b81]" />
+          </div>
+          <div>
+            <h2 className="text-white font-bold text-base">Recent Bookings</h2>
+            <p className="text-gray-600 text-xs">{bookings.length} records shown</p>
+          </div>
+        </div>
+        <button className="flex items-center gap-1.5 text-xs text-[#ff6b81] hover:text-white uppercase tracking-widest transition-colors font-semibold">
+          View All <ChevronRight className="w-3.5 h-3.5" />
         </button>
       </div>
 
+      {/* table */}
       <div className="overflow-x-auto">
-        <Table className="w-full text-left border-collapse">
+        <Table className="w-full">
           <TableHeader>
-            <TableRow className="bg-neutral-900/30 hover:bg-neutral-900/30 border-b border-neutral-900">
-              <TableHead className="p-6 font-medium text-neutral-500 text-xs uppercase tracking-[0.15em]">
-                Client Name
-              </TableHead>
-              <TableHead className="p-6 font-medium text-neutral-500 text-xs uppercase tracking-[0.15em]">
-                Contact Number
-              </TableHead>
-              <TableHead className="p-6 font-medium text-neutral-500 text-xs uppercase tracking-[0.15em]">
-                Vehicle Model
-              </TableHead>
-              <TableHead className="p-6 font-medium text-neutral-500 text-xs uppercase tracking-[0.15em]">
-                Preferred Date
-              </TableHead>
-              <TableHead className="p-6 font-medium text-neutral-500 text-xs uppercase tracking-[0.15em]">
-                Time Slot
-              </TableHead>
-              <TableHead className="p-6 font-medium text-neutral-500 text-xs uppercase tracking-[0.15em]">
-                Created
-              </TableHead>
-              <TableHead className="p-6 font-medium text-neutral-500 text-xs uppercase tracking-[0.15em]">
-                Last Updated
-              </TableHead>
-              <TableHead className="p-6 font-medium text-neutral-500 text-xs uppercase tracking-[0.15em]">
-                Status
-              </TableHead>
+            <TableRow className="border-b border-white/[0.06] hover:bg-transparent">
+              {["Client Name", "Contact", "Vehicle", "Preferred Date", "Time Slot", "Created", "Updated", "Status"].map((h) => (
+                <TableHead key={h} className="px-5 py-3.5 text-gray-600 text-[10px] uppercase tracking-widest font-semibold whitespace-nowrap">
+                  {h}
+                </TableHead>
+              ))}
             </TableRow>
           </TableHeader>
-
           <TableBody>
             {bookings.length === 0 ? (
               <TableRow>
-                <TableCell
-                  colSpan={8}
-                  className="p-6 text-center text-neutral-400 font-medium"
-                >
-                  No data available right now
+                <TableCell colSpan={8} className="px-5 py-12 text-center text-gray-700 text-sm">
+                  No bookings available
                 </TableCell>
               </TableRow>
             ) : (
               bookings.map((booking) => (
                 <TableRow
                   key={booking._id}
-                  className="group hover:bg-neutral-900/30 transition-colors duration-300 border-b border-neutral-900"
                   onClick={() => router.push(`/admin/booking/${booking._id}`)}
+                  className="border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors cursor-pointer group"
                 >
-                  <TableCell className="p-6 text-[#dc143c] text-lg">
+                  <TableCell className="px-5 py-4 text-[#ff6b81] font-semibold text-sm whitespace-nowrap">
                     {booking.name}
                   </TableCell>
-                  <TableCell className="p-6 text-neutral-500 font-light">
+                  <TableCell className="px-5 py-4 text-gray-500 text-sm whitespace-nowrap">
                     {booking.contact_number}
                   </TableCell>
-                  <TableCell className="p-6 text-neutral-500 font-light">
+                  <TableCell className="px-5 py-4 text-gray-400 text-sm whitespace-nowrap">
                     {booking.vehicle_model}
                   </TableCell>
-                  <TableCell className="p-6 text-neutral-300 font-light">
+                  <TableCell className="px-5 py-4 text-gray-400 text-sm whitespace-nowrap">
                     {new Date(booking.preferred_date.date).toDateString()}
                   </TableCell>
-                  <TableCell className="p-6 text-neutral-300 font-light">
+                  <TableCell className="px-5 py-4 text-gray-400 text-sm whitespace-nowrap">
                     {booking.time_slot.time}
                   </TableCell>
-                  <TableCell className="p-6 text-neutral-500 font-light">
+                  <TableCell className="px-5 py-4 text-gray-600 text-sm whitespace-nowrap">
                     {formattedDate(booking.created_at)}
                   </TableCell>
-                  <TableCell className="p-6 text-neutral-500 font-light">
+                  <TableCell className="px-5 py-4 text-gray-600 text-sm whitespace-nowrap">
                     {formattedDate(booking.updated_at)}
                   </TableCell>
-                  <TableCell className="p-6 text-neutral-400 font-light">
-                    {BookingStatusDisplay[booking.status]}
+                  <TableCell className="px-5 py-4">
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full border text-xs font-semibold whitespace-nowrap ${statusStyle[booking.status] ?? "bg-white/[0.04] text-gray-400 border-white/10"}`}>
+                      {BookingStatusDisplay[booking.status]}
+                    </span>
                   </TableCell>
                 </TableRow>
               ))
@@ -144,62 +126,79 @@ const RecentBookings = () => {
         </Table>
       </div>
 
-      {/* Pagination Controls */}
-      <div className="flex gap-4 justify-end items-center p-4 border-t border-neutral-900 bg-neutral-950/50 backdrop-blur-sm">
-        <button
-          onClick={handlePrevPage}
-          disabled={page === 1}
-          className="px-4 py-2 text-sm font-medium text-white bg-neutral-800 rounded hover:bg-neutral-700 disabled:opacity-50"
-        >
-          Previous
-        </button>
-        <div className="flex gap-3 items-center text-sm text-neutral-400">
-          Page
-          <Input
-            min={1}
-            max={totalPages}
-            value={inputPage}
-            ref={inputRef}
-            onChange={(e) => {
-              const val = e.target.value;
-              // Allow empty string while typing
-              setInputPage(val === "" ? "" : Number(val));
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                // Remove focus first to trigger onBlur
-                inputRef.current?.blur();
-                // Do nothing if empty
-                if (inputPage === "" || isNaN(inputPage)) return;
-                const val = Math.min(Math.max(inputPage, 1), totalPages);
-                setPage(val);
-                setInputPage(val);
-              }
-            }}
-            onBlur={() => {
-              if (inputPage === "" || isNaN(inputPage)) {
-                setInputPage(page); // revert to current page if empty
-                return;
-              }
-              const val = Math.min(Math.max(inputPage, 1), totalPages);
-              setPage(val);
-              setInputPage(val);
-            }}
-            className="!text-base w-15 rounded border border-neutral-700 backdrop-blur-sm focus-visible:border-[#dc143c] focus-visible:ring-[#dc143c]/20"
-          />
-          of {totalPages}
-        </div>
-
-        <button
-          onClick={handleNextPage}
-          disabled={page === totalPages}
-          className="px-4 py-2 text-sm font-medium text-white bg-neutral-800 rounded hover:bg-neutral-700 disabled:opacity-50"
-        >
-          Next
-        </button>
-      </div>
+      {/* pagination */}
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        inputPage={inputPage}
+        inputRef={inputRef}
+        setInputPage={setInputPage}
+        setPage={setPage}
+      />
     </section>
   );
 };
+
+function Pagination({
+  page,
+  totalPages,
+  inputPage,
+  inputRef,
+  setInputPage,
+  setPage,
+}: {
+  page: number;
+  totalPages: number;
+  inputPage: number | "";
+  inputRef: React.RefObject<HTMLInputElement>;
+  setInputPage: (v: number | "") => void;
+  setPage: (v: number) => void;
+}) {
+  return (
+    <div className="flex gap-3 justify-end items-center px-5 py-4 border-t border-white/[0.06]">
+      <button
+        onClick={() => setPage(Math.max(1, page - 1))}
+        disabled={page === 1}
+        className="px-3 py-1.5 text-xs font-semibold text-gray-400 bg-white/[0.04] border border-white/[0.08] rounded-lg hover:border-white/20 hover:text-white disabled:opacity-30 transition-all"
+      >
+        Previous
+      </button>
+      <div className="flex items-center gap-2 text-xs text-gray-600">
+        Page
+        <Input
+          min={1}
+          max={totalPages}
+          value={inputPage}
+          ref={inputRef}
+          onChange={(e) => setInputPage(e.target.value === "" ? "" : Number(e.target.value))}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              inputRef.current?.blur();
+              if (inputPage === "" || isNaN(inputPage as number)) return;
+              const val = Math.min(Math.max(inputPage as number, 1), totalPages);
+              setPage(val);
+              setInputPage(val);
+            }
+          }}
+          onBlur={() => {
+            if (inputPage === "" || isNaN(inputPage as number)) { setInputPage(page); return; }
+            const val = Math.min(Math.max(inputPage as number, 1), totalPages);
+            setPage(val);
+            setInputPage(val);
+          }}
+          className="w-12 h-7 text-center text-xs rounded-lg bg-white/[0.04] border-white/10 text-white focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20"
+        />
+        <span>of {totalPages}</span>
+      </div>
+      <button
+        onClick={() => setPage(Math.min(totalPages, page + 1))}
+        disabled={page === totalPages}
+        className="px-3 py-1.5 text-xs font-semibold text-gray-400 bg-white/[0.04] border border-white/[0.08] rounded-lg hover:border-white/20 hover:text-white disabled:opacity-30 transition-all"
+      >
+        Next
+      </button>
+    </div>
+  );
+}
 
 export default RecentBookings;

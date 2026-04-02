@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, MessageSquare } from "lucide-react";
+import { ChevronRight, Users } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -10,8 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useEffect, useRef, useState } from "react";
-import { getInquiries, IInquiriesResponse, IPaginatedInquiries } from "../actions/getInquiries";
-import { InquiryStatus, InquiryStatusDisplay } from "@/lib/enums";
+//import { getCustomers, ICustomerResponse, IPaginatedCustomers } from "../actions/getCustomers";
 import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
 
@@ -24,14 +23,8 @@ const formattedDate = (date: Date) =>
     hour12: true,
   });
 
-const statusStyle: Record<string, string> = {
-  [InquiryStatus.NEW]:       "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  [InquiryStatus.COMPLETED]: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-  [InquiryStatus.REJECTED]:  "bg-red-500/10 text-[#ff6b81] border-red-500/20",
-};
-
-const RecentInquiries = () => {
-  const [inquiries, setInquiries] = useState<IInquiriesResponse[]>([]);
+const RecentCustomers = () => {
+  const [customers, setCustomers] = useState<ICustomerResponse[]>([]);
   const [page, setPage] = useState(1);
   const [limit] = useState(50);
   const [totalPages, setTotalPages] = useState(1);
@@ -39,24 +32,24 @@ const RecentInquiries = () => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const router = useRouter();
 
-  useEffect(() => {
-    getInquiries(page, limit).then((result: IPaginatedInquiries) => {
-      setInquiries(result.data);
-      setTotalPages(result.totalPages);
-    });
-  }, [page, limit]);
+  // useEffect(() => {
+  //   getCustomers("", page, limit).then((result: IPaginatedCustomers) => {
+  //     setCustomers(result.data);
+  //     setTotalPages(result.totalPages);
+  //   });
+  // }, [page, limit]);
 
   return (
     <section className="mb-8 rounded-2xl border border-white/[0.08] bg-white/[0.02] backdrop-blur-sm overflow-hidden">
       {/* header */}
       <div className="px-6 py-5 border-b border-white/[0.06] flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-            <MessageSquare className="w-4 h-4 text-blue-400" />
+          <div className="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
+            <Users className="w-4 h-4 text-purple-400" />
           </div>
           <div>
-            <h2 className="text-white font-bold text-base">Recent Inquiries</h2>
-            <p className="text-gray-600 text-xs">{inquiries.length} records shown</p>
+            <h2 className="text-white font-bold text-base">Customers</h2>
+            <p className="text-gray-600 text-xs">{customers.length} records shown</p>
           </div>
         </div>
         <button className="flex items-center gap-1.5 text-xs text-[#ff6b81] hover:text-white uppercase tracking-widest transition-colors font-semibold">
@@ -69,7 +62,7 @@ const RecentInquiries = () => {
         <Table className="w-full">
           <TableHeader>
             <TableRow className="border-b border-white/[0.06] hover:bg-transparent">
-              {["Client Name", "Contact", "Email", "Created", "Updated", "Status"].map((h) => (
+              {["Customer", "Points", "Milestones", "Transactions", "Joined"].map((h) => (
                 <TableHead key={h} className="px-5 py-3.5 text-gray-600 text-[10px] uppercase tracking-widest font-semibold whitespace-nowrap">
                   {h}
                 </TableHead>
@@ -77,38 +70,49 @@ const RecentInquiries = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {inquiries.length === 0 ? (
+            {customers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="px-5 py-12 text-center text-gray-700 text-sm">
-                  No inquiries available
+                <TableCell colSpan={5} className="px-5 py-12 text-center text-gray-700 text-sm">
+                  No customers available
                 </TableCell>
               </TableRow>
             ) : (
-              inquiries.map((inquiry) => (
+              customers.map((customer) => (
                 <TableRow
-                  key={inquiry._id}
-                  onClick={() => router.push(`/admin/inquiry/${inquiry._id}`)}
+                  key={customer._id}
+                  onClick={() => router.push(`/admin/customer/${customer._id}`)}
                   className="border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors cursor-pointer"
                 >
-                  <TableCell className="px-5 py-4 text-[#ff6b81] font-semibold text-sm whitespace-nowrap">
-                    {inquiry.name}
+                  <TableCell className="px-5 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-[#dc143c]/15 border border-[#dc143c]/30 flex items-center justify-center text-[#ff6b81] font-bold text-xs flex-shrink-0">
+                        {customer.name.slice(0, 2).toUpperCase()}
+                      </div>
+                      <span className="text-[#ff6b81] font-semibold text-sm">{customer.name}</span>
+                    </div>
                   </TableCell>
-                  <TableCell className="px-5 py-4 text-gray-500 text-sm whitespace-nowrap">
-                    {inquiry.contact_number}
-                  </TableCell>
-                  <TableCell className="px-5 py-4 text-gray-400 text-sm whitespace-nowrap">
-                    {inquiry.email}
-                  </TableCell>
-                  <TableCell className="px-5 py-4 text-gray-600 text-sm whitespace-nowrap">
-                    {formattedDate(inquiry.created_at)}
-                  </TableCell>
-                  <TableCell className="px-5 py-4 text-gray-600 text-sm whitespace-nowrap">
-                    {formattedDate(inquiry.updated_at)}
+                  <TableCell className="px-5 py-4 whitespace-nowrap">
+                    <span className="text-amber-400 font-bold text-sm">{customer.earned_points}</span>
+                    <span className="text-gray-600 text-xs ml-1">pts</span>
                   </TableCell>
                   <TableCell className="px-5 py-4">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full border text-xs font-semibold whitespace-nowrap ${statusStyle[inquiry.status] ?? "bg-white/[0.04] text-gray-400 border-white/10"}`}>
-                      {InquiryStatusDisplay[inquiry.status]}
-                    </span>
+                    {customer.milestone_count?.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {customer.milestone_count.map((m) => (
+                          <span key={m._id} className="inline-flex px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.06] text-xs text-gray-500 whitespace-nowrap">
+                            {m.vehicle.type.toUpperCase()} {m.vehicle.size.toUpperCase()} · {m.progress}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-gray-700 text-xs italic">No milestones</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="px-5 py-4 text-gray-400 text-sm whitespace-nowrap">
+                    {customer.transaction_count ?? 0}
+                  </TableCell>
+                  <TableCell className="px-5 py-4 text-gray-600 text-sm whitespace-nowrap">
+                    {customer.created_at ? formattedDate(customer.created_at) : "—"}
                   </TableCell>
                 </TableRow>
               ))
@@ -163,4 +167,4 @@ const RecentInquiries = () => {
   );
 };
 
-export default RecentInquiries;
+export default RecentCustomers;
