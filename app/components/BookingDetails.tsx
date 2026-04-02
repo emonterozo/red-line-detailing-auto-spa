@@ -23,6 +23,7 @@ import {
   CreditCard,
   ArrowRight,
   Loader2,
+  Activity,
 } from "lucide-react";
 import { IBooking } from "@/lib/db/types";
 import {
@@ -39,6 +40,7 @@ import {
   IVehicleSizesResponse,
 } from "../actions/getVehicleSizes";
 import { getServices, IServiceResponse } from "../actions/getServices";
+import { motion } from "framer-motion";
 
 export const pricingPerSizeSchema = z.object({
   _id: z.string(),
@@ -354,35 +356,26 @@ export default function BookingDetails() {
 
       <div className="relative max-w-3xl mx-auto px-4 sm:px-6 py-16 md:py-24">
         {/* ── Header ── */}
-        <div className="mb-14 text-center">
-          <h2 className="font-russo text-5xl sm:text-6xl font-extrabold text-white tracking-tight leading-[1.1]">
-            Booking{" "}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center mb-12"
+        >
+          <h2 className="font-russo text-4xl md:text-6xl font-extrabold text-white tracking-tight">
+            BOOKING{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#dc143c] to-[#ff6b81]">
-              Details
+              DETAILS
             </span>
           </h2>
           <p className="mt-4 text-gray-500 text-base max-w-md mx-auto">
             Review booking information and update status.
           </p>
-
-          {/* live status badge */}
-          <form.Subscribe selector={(s) => s.values.status}>
-            {(status) => {
-              const style =
-                statusColors[status as BookingStatus] ?? defaultStatus;
-              return (
-                <div
-                  className={`mt-6 inline-flex items-center gap-2 px-4 py-2 rounded-full border ${style.bg} ${style.border}`}
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />
-                  <span className={`text-sm font-semibold ${style.text}`}>
-                    {BookingStatusDisplay[status as BookingStatus] ?? status}
-                  </span>
-                </div>
-              );
-            }}
-          </form.Subscribe>
-        </div>
+          <div className="flex items-center justify-center gap-3 mt-6">
+            <div className="h-[1px] w-12 bg-gradient-to-r from-transparent to-[#dc143c]" />
+            <Activity className="w-4 h-4 text-[#dc143c] animate-pulse" />
+            <div className="h-[1px] w-12 bg-gradient-to-l from-transparent to-[#dc143c]" />
+          </div>
+        </motion.div>
 
         <form
           id="booking-form"

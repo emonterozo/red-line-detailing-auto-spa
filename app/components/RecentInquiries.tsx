@@ -10,41 +10,37 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useEffect, useRef, useState } from "react";
-import { getInquiries, IInquiriesResponse, IPaginatedInquiries } from "../actions/getInquiries";
 import { InquiryStatus, InquiryStatusDisplay } from "@/lib/enums";
-import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
-
-const formattedDate = (date: Date) =>
-  new Date(date).toLocaleString("en-US", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  });
+import { Pagination } from "./Pagination";
+import { PAGE_LIMIT, TABLE_DATE_FORMAT } from "@/lib/constants";
+import {
+  getInquiries,
+  IInquiriesResponse,
+  IPaginatedInquiries,
+} from "../actions/getInquiries";
 
 const statusStyle: Record<string, string> = {
-  [InquiryStatus.NEW]:       "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  [InquiryStatus.COMPLETED]: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-  [InquiryStatus.REJECTED]:  "bg-red-500/10 text-[#ff6b81] border-red-500/20",
+  [InquiryStatus.NEW]: "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  [InquiryStatus.COMPLETED]:
+    "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+  [InquiryStatus.REJECTED]: "bg-red-500/10 text-[#ff6b81] border-red-500/20",
 };
 
 const RecentInquiries = () => {
   const [inquiries, setInquiries] = useState<IInquiriesResponse[]>([]);
   const [page, setPage] = useState(1);
-  const [limit] = useState(50);
   const [totalPages, setTotalPages] = useState(1);
   const [inputPage, setInputPage] = useState<number | "">(page);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const router = useRouter();
 
   useEffect(() => {
-    getInquiries(page, limit).then((result: IPaginatedInquiries) => {
+    getInquiries(page, PAGE_LIMIT).then((result: IPaginatedInquiries) => {
       setInquiries(result.data);
       setTotalPages(result.totalPages);
     });
-  }, [page, limit]);
+  }, [page]);
 
   return (
     <section className="mb-8 rounded-2xl border border-white/[0.08] bg-white/[0.02] backdrop-blur-sm overflow-hidden">
@@ -56,7 +52,9 @@ const RecentInquiries = () => {
           </div>
           <div>
             <h2 className="text-white font-bold text-base">Recent Inquiries</h2>
-            <p className="text-gray-600 text-xs">{inquiries.length} records shown</p>
+            <p className="text-gray-600 text-xs">
+              {inquiries.length} records shown
+            </p>
           </div>
         </div>
         <button className="flex items-center gap-1.5 text-xs text-[#ff6b81] hover:text-white uppercase tracking-widest transition-colors font-semibold">
@@ -69,17 +67,25 @@ const RecentInquiries = () => {
         <Table className="w-full">
           <TableHeader>
             <TableRow className="border-b border-white/[0.06] hover:bg-transparent">
-              {["Client Name", "Contact", "Email", "Created", "Updated", "Status"].map((h) => (
-                <TableHead key={h} className="px-5 py-3.5 text-gray-600 text-[10px] uppercase tracking-widest font-semibold whitespace-nowrap">
-                  {h}
-                </TableHead>
-              ))}
+              {["Client Name", "Contact", "Email", "Created", "Status"].map(
+                (h) => (
+                  <TableHead
+                    key={h}
+                    className="px-5 py-3.5 text-gray-600 text-[10px] uppercase tracking-widest font-semibold whitespace-nowrap"
+                  >
+                    {h}
+                  </TableHead>
+                ),
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
             {inquiries.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="px-5 py-12 text-center text-gray-700 text-sm">
+                <TableCell
+                  colSpan={8}
+                  className="px-5 py-12 text-center text-gray-700 text-sm"
+                >
                   No inquiries available
                 </TableCell>
               </TableRow>
@@ -88,25 +94,27 @@ const RecentInquiries = () => {
                 <TableRow
                   key={inquiry._id}
                   onClick={() => router.push(`/admin/inquiry/${inquiry._id}`)}
-                  className="border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors cursor-pointer"
+                  className="border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors cursor-pointer group"
                 >
-                  <TableCell className="px-5 py-4 text-[#ff6b81] font-semibold text-sm whitespace-nowrap">
+                  <TableCell className=" px-5 py-4 text-[#ff6b81] font-semibold text-sm">
                     {inquiry.name}
                   </TableCell>
                   <TableCell className="px-5 py-4 text-gray-500 text-sm whitespace-nowrap">
                     {inquiry.contact_number}
                   </TableCell>
-                  <TableCell className="px-5 py-4 text-gray-400 text-sm whitespace-nowrap">
+                  <TableCell className="break-words px-5 py-4 text-gray-400 text-sm ">
                     {inquiry.email}
                   </TableCell>
                   <TableCell className="px-5 py-4 text-gray-600 text-sm whitespace-nowrap">
-                    {formattedDate(inquiry.created_at)}
-                  </TableCell>
-                  <TableCell className="px-5 py-4 text-gray-600 text-sm whitespace-nowrap">
-                    {formattedDate(inquiry.updated_at)}
+                    {new Date(inquiry.created_at).toLocaleString(
+                      "en-US",
+                      TABLE_DATE_FORMAT,
+                    )}
                   </TableCell>
                   <TableCell className="px-5 py-4">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full border text-xs font-semibold whitespace-nowrap ${statusStyle[inquiry.status] ?? "bg-white/[0.04] text-gray-400 border-white/10"}`}>
+                    <span
+                      className={`inline-flex items-center px-2.5 py-1 rounded-full border text-xs font-semibold whitespace-nowrap ${statusStyle[inquiry.status] ?? "bg-white/[0.04] text-gray-400 border-white/10"}`}
+                    >
                       {InquiryStatusDisplay[inquiry.status]}
                     </span>
                   </TableCell>
@@ -118,47 +126,14 @@ const RecentInquiries = () => {
       </div>
 
       {/* pagination */}
-      <div className="flex gap-3 justify-end items-center px-5 py-4 border-t border-white/[0.06]">
-        <button
-          onClick={() => setPage(Math.max(1, page - 1))}
-          disabled={page === 1}
-          className="px-3 py-1.5 text-xs font-semibold text-gray-400 bg-white/[0.04] border border-white/[0.08] rounded-lg hover:border-white/20 hover:text-white disabled:opacity-30 transition-all"
-        >
-          Previous
-        </button>
-        <div className="flex items-center gap-2 text-xs text-gray-600">
-          Page
-          <Input
-            min={1}
-            max={totalPages}
-            value={inputPage}
-            ref={inputRef}
-            onChange={(e) => setInputPage(e.target.value === "" ? "" : Number(e.target.value))}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                inputRef.current?.blur();
-                if (inputPage === "" || isNaN(inputPage as number)) return;
-                const val = Math.min(Math.max(inputPage as number, 1), totalPages);
-                setPage(val); setInputPage(val);
-              }
-            }}
-            onBlur={() => {
-              if (inputPage === "" || isNaN(inputPage as number)) { setInputPage(page); return; }
-              const val = Math.min(Math.max(inputPage as number, 1), totalPages);
-              setPage(val); setInputPage(val);
-            }}
-            className="w-12 h-7 text-center text-xs rounded-lg bg-white/[0.04] border-white/10 text-white focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20"
-          />
-          <span>of {totalPages}</span>
-        </div>
-        <button
-          onClick={() => setPage(Math.min(totalPages, page + 1))}
-          disabled={page === totalPages}
-          className="px-3 py-1.5 text-xs font-semibold text-gray-400 bg-white/[0.04] border border-white/[0.08] rounded-lg hover:border-white/20 hover:text-white disabled:opacity-30 transition-all"
-        >
-          Next
-        </button>
-      </div>
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        inputPage={inputPage}
+        inputRef={inputRef}
+        setInputPage={setInputPage}
+        setPage={setPage}
+      />
     </section>
   );
 };

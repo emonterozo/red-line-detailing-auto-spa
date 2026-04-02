@@ -44,6 +44,7 @@ export const getBookings = async (
       ...booking,
       user_id: booking?.user_id?.toString(),
       _id: booking._id.toString(),
+      size_id: booking.size_id?.toString(),
       services: formattedServices,
       add_ons: formattedAddOns,
       preferred_date: {
@@ -54,6 +55,7 @@ export const getBookings = async (
         ...booking.time_slot,
         _id: booking.time_slot._id.toString(),
       },
+      
     };
   });
 
