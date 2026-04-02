@@ -107,8 +107,7 @@ export const createTransaction = async (transactionData: ITransaction) => {
       success: true,
       message: "Transaction created successfully.",
     };
-  } catch (err) {
-    console.log(err);
+  } catch {
     return {
       success: false,
       message:

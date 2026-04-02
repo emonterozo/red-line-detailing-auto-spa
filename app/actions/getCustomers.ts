@@ -3,24 +3,23 @@
 import connect from "@/lib/db/mongodb";
 import { VehicleSize, VehicleType } from "@/lib/enums";
 
-
 import Customer from "@/models/Customer";
 
 export interface IMilestoneCount {
-  _id: string
+  _id: string;
   vehicle: {
-    _id: string
-    size: VehicleSize
-    type: VehicleType
-  }
-  progress: number
+    _id: string;
+    size: VehicleSize;
+    type: VehicleType;
+  };
+  progress: number;
 }
 
 export interface ICustomerResponse {
   _id: string;
   name: string;
-  earned_points: number,
-  milestone_count: IMilestoneCount[]
+  earned_points: number;
+  milestone_count: IMilestoneCount[];
 }
 
 export const getCustomers = async (name?: string) => {
@@ -37,7 +36,10 @@ export const getCustomers = async (name?: string) => {
     };
   }
 
-  const customerDoc = await Customer.find(query).limit(5).populate("milestone_count.size_id").lean();
+  const customerDoc = await Customer.find(query)
+    .limit(5)
+    .populate("milestone_count.size_id")
+    .lean();
 
   const customerJson = customerDoc.map((customer) => ({
     _id: customer._id.toString(),
@@ -55,7 +57,5 @@ export const getCustomers = async (name?: string) => {
     })),
   })) as ICustomerResponse[];
 
-  
-
-  return customerJson
+  return customerJson;
 };
