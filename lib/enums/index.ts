@@ -43,5 +43,5 @@ export enum TransactionFrom {
 }
 
 export enum DiscountType {
-  SYSTEM = "system", MANUAL = 'manual'
+  PROMOTIONS = "promotions", MANUAL = 'manual'
 }

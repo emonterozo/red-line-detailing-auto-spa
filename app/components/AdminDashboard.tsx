@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+  ForwardRefExoticComponent,
+  RefAttributes,
+  useEffect,
+  useState,
+} from "react";
 import { getStatistics, StatisticsResponse } from "../actions/getStatistics";
 import {
   Users,
@@ -11,7 +16,8 @@ import {
   TrendingUp,
   Tag,
   ArrowUpRight,
-  Calendar as CalendarIcon, // Added for date picker
+  Calendar as CalendarIcon,
+  LucideProps, // Added for date picker
 } from "lucide-react";
 
 /* ── Custom Date Picker Trigger ── */
@@ -19,10 +25,10 @@ import {
 function DateRangePicker({
   active,
   onClick,
-}: {
+}: Readonly<{
   active: boolean;
   onClick: () => void;
-}) {
+}>) {
   return (
     <button
       onClick={onClick}
@@ -46,13 +52,15 @@ function MetricCard({
   value,
   sub,
   accent,
-}: {
-  icon: any;
+}: Readonly<{
+  icon: ForwardRefExoticComponent<
+    Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>
+  >;
   label: string;
   value: string | number;
   sub?: { label: string; value: string | number }[];
   accent?: boolean;
-}) {
+}>) {
   return (
     <div
       className={`relative flex flex-col h-full rounded-2xl border p-5 transition-all duration-300 hover:-translate-y-1 group
@@ -108,11 +116,11 @@ function FilterPill({
   label,
   active,
   onClick,
-}: {
+}: Readonly<{
   label: string;
   active: boolean;
   onClick: () => void;
-}) {
+}>) {
   return (
     <button
       onClick={onClick}
@@ -139,7 +147,7 @@ const AdminDashboard = () => {
     const init = async () => {
       setLoading(true);
       try {
-        const result = await getStatistics(); // Pass activeFilter to your API here
+        const result = await getStatistics();
         setStatistics(result);
       } finally {
         setLoading(false);
@@ -182,7 +190,7 @@ const AdminDashboard = () => {
 
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-          {[...Array(7)].map((_, i) => (
+          {[...new Array(7)].map((_, i) => (
             <div
               key={i}
               className="h-44 rounded-2xl border border-white/[0.05] bg-white/[0.02] animate-pulse"
@@ -220,7 +228,10 @@ const AdminDashboard = () => {
               label="Inquiries"
               value={statistics?.inquiry.total ?? 0}
               sub={[
-                { label: "New Leads", value: statistics?.inquiry.new ?? 0 },
+                {
+                  label: "New Leads",
+                  value: statistics?.inquiry.new_inquiry ?? 0,
+                },
                 {
                   label: "Completed",
                   value: statistics?.inquiry.completed ?? 0,
@@ -249,11 +260,11 @@ const AdminDashboard = () => {
               sub={[
                 {
                   label: "Walk-ins",
-                  value: statistics?.transaction?.walk_in ?? 0,
+                  value: statistics?.transaction?.walk_ins ?? 0,
                 },
                 {
                   label: "Bookings",
-                  value: statistics?.transaction?.from_booking ?? 0,
+                  value: statistics?.transaction?.bookings ?? 0,
                 },
               ]}
             />
@@ -261,26 +272,30 @@ const AdminDashboard = () => {
               accent
               icon={TrendingUp}
               label="Gross Revenue"
-              value={`₱${(statistics?.transaction?.total_amount ?? 0).toLocaleString()}`}
+              value={`₱${(statistics?.revenue?.total_gross_amount ?? 0).toLocaleString()}`}
               sub={[
                 {
+                  label: "Net Revenue",
+                  value: `₱${(statistics?.revenue?.total_net_amount ?? 0).toLocaleString()}`,
+                },
+                {
                   label: "Avg Ticket",
-                  value: `₱${(statistics?.transaction?.avg_amount ?? 0).toLocaleString()}`,
+                  value: `₱${(statistics?.revenue?.avg_ticket_gross ?? 0).toLocaleString()}`,
                 },
               ]}
             />
             <MetricCard
               icon={Tag}
               label="Discount Given"
-              value={`₱${(statistics?.transaction?.total_discount ?? 0).toLocaleString()}`}
+              value={`₱${(statistics?.discount?.total ?? 0).toLocaleString()}`}
               sub={[
                 {
                   label: "Promotions",
-                  value: `₱${(statistics?.transaction?.total_milestone_discount ?? 0).toLocaleString()}`,
+                  value: `₱${(statistics?.discount?.promotions ?? 0).toLocaleString()}`,
                 },
                 {
                   label: "Manual",
-                  value: `₱${(statistics?.transaction?.total_manual_discount ?? 0).toLocaleString()}`,
+                  value: `₱${(statistics?.discount?.manual ?? 0).toLocaleString()}`,
                 },
               ]}
             />
