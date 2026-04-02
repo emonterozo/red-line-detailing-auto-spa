@@ -378,7 +378,6 @@ export default function BookingDetails() {
         </motion.div>
 
         <form
-          id="booking-form"
           onSubmit={(e) => {
             e.preventDefault();
             form.handleSubmit();
