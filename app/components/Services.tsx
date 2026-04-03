@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, ChevronRight } from "lucide-react";
+import { X, ChevronRight, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 
 import SectionContainer from "./SectionContainer";
@@ -166,97 +166,107 @@ const Services = () => {
       )}
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6">
           {/* Backdrop */}
           <button
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+            className="absolute inset-0 bg-black/80 backdrop-blur-md transition-opacity"
             onClick={() => setIsModalOpen(false)}
           ></button>
 
           {/* Modal Container */}
-          <div className="relative w-full max-w-2xl bg-gradient-to-b from-[#1a1a1a] to-[#0a0a0a] border border-white/[0.08] rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+          <div className="relative w-full max-w-2xl max-h-[85vh] flex flex-col bg-gradient-to-b from-[#1a1a1a] to-[#0a0a0a] border border-white/[0.08] rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
             {/* Modal Glow Effect */}
             <div className="absolute inset-0 bg-gradient-to-br from-[#dc143c]/5 via-transparent to-transparent pointer-events-none"></div>
 
-            {/* Header */}
-            <div className="relative p-8 pb-4 flex justify-between items-center border-b border-white/[0.08]">
+            {/* Header - Fixed at top */}
+            <div className="relative p-6 md:p-8 flex justify-between items-start border-b border-white/[0.08] shrink-0">
               <div>
-                <h2 className="text-2xl font-bold text-white">
-                  Service Pricing
+                <h2 className="text-2xl font-russo text-white uppercase tracking-tight">
+                  Service <span className="text-[#dc143c]">Pricing</span>
                 </h2>
-                <p className="text-gray-400 text-sm mt-1">
+                <p className="text-gray-500 text-[10px] font-black uppercase tracking-[0.3em] mt-2">
                   Prices by vehicle size and type
                 </p>
               </div>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="p-2 rounded-full hover:bg-white/10 transition-colors text-gray-400 hover:text-white"
+                className="p-2 rounded-xl bg-white/5 hover:bg-[#dc143c] transition-all text-gray-400 hover:text-white group"
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
               </button>
             </div>
 
-            {/* Table Content */}
-            <div className="relative p-6">
+            {/* Scrollable Content Area */}
+            <div
+              className="relative flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8 custom-scrollbar 
+  scrollbar-thin 
+  scrollbar-thumb-[#dc143c]/20 
+  scrollbar-track-transparent 
+  hover:scrollbar-thumb-[#dc143c]/40 
+  transition-all"
+            >
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-white/[0.08]">
-                    <th className="pb-4 text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                    <th className="pb-4 text-[10px] font-black text-gray-600 uppercase tracking-[0.2em]">
                       Vehicle Type
                     </th>
-                    <th className="pb-4 text-sm font-semibold text-gray-500 uppercase tracking-wider text-right">
-                      Price
+                    <th className="pb-4 text-[10px] font-black text-gray-600 uppercase tracking-[0.2em] text-right">
+                      Rate (PHP)
                     </th>
                   </tr>
                 </thead>
-                {selectedService &&
-                selectedService.pricing_per_sizes.length > 0 ? (
-                  <tbody className="divide-y divide-white/[0.05]">
-                    {selectedService.pricing_per_sizes.filter(item => item.type === VehicleType.CAR).map((item) => (
-                      <tr
-                        key={item._id}
-                        className="group hover:bg-white/[0.02] transition-colors duration-300"
-                      >
-                        <td className="py-5 pl-2">
-                          <span className="text-sm md:text-base text-white font-medium group-hover:text-[#dc143c] transition-colors duration-300">
-                            {item.description.toUpperCase()}
-                          </span>
-                        </td>
-                        <td className="py-5 pr-2 text-right">
-                          <span className="text-lg font-bold text-white group-hover:text-[#dc143c] transition-colors duration-300">
-                            {`₱${item.price.toLocaleString()}`}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                ) : (
-                  <tbody className="divide-y divide-white/[0.05]">
-                    <tr className="group hover:bg-white/[0.02] transition-colors duration-300">
-                      <td colSpan={3} className="py-5 text-center">
-                        <span className="inline-flex items-center justify-center w-full text-sm md:text-base text-white font-medium group-hover:text-[#dc143c] transition-colors duration-300">
-                          {`Flat rate of ₱${selectedService?.price.toLocaleString()} ${selectedService?.pricing_options}`}
+                <tbody className="divide-y divide-white/[0.05]">
+                  {selectedService &&
+                  selectedService.pricing_per_sizes.length > 0 ? (
+                    selectedService.pricing_per_sizes
+                      .filter((item) => item.type === VehicleType.CAR)
+                      .map((item) => (
+                        <tr
+                          key={item._id}
+                          className="group transition-colors duration-300"
+                        >
+                          <td className="py-5">
+                            <span className="text-sm md:text-base text-gray-300 font-medium group-hover:text-white transition-colors">
+                              {item.description.toUpperCase()}
+                            </span>
+                          </td>
+                          <td className="py-5 text-right">
+                            <span className="text-lg font-russo text-white group-hover:text-[#dc143c] transition-colors">
+                              ₱{item.price.toLocaleString()}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                  ) : (
+                    <tr>
+                      <td colSpan={2} className="py-10 text-center">
+                        <span className="text-sm text-gray-400 italic">
+                          Flat rate of ₱
+                          {selectedService?.price.toLocaleString()}{" "}
+                          {selectedService?.pricing_options}
                         </span>
                       </td>
                     </tr>
-                  </tbody>
-                )}
+                  )}
+                </tbody>
               </table>
+
+              {selectedService?.notes && (
+                <div className="mt-8 p-4 bg-white/[0.03] border border-white/[0.05] rounded-xl text-center text-xs text-gray-500 leading-relaxed uppercase tracking-widest">
+                  Note: {selectedService.notes}
+                </div>
+              )}
             </div>
 
-            {selectedService?.notes !== "" && (
-              <div className="w-full my-5 text-center text-sm md:text-base text-white font-medium">
-                {selectedService?.notes}
-              </div>
-            )}
-
-            {/* Footer */}
-            <div className="relative p-6 pt-0 mt-2">
+            {/* Footer - Fixed at bottom */}
+            <div className="relative p-6 md:p-8 bg-black/40 backdrop-blur-sm border-t border-white/[0.08] shrink-0">
               <Link
                 href="/booking"
-                className="w-full py-4 px-6 rounded-xl bg-[#dc143c] hover:bg-red-700 text-white font-bold text-lg rounded-xl transition-all duration-300 shadow-[0_0_30px_rgba(220,20,60,0.3)] hover:shadow-[0_0_40px_rgba(220,20,60,0.5)] hover:-translate-y-0.5 flex items-center justify-center"
+                className="group relative flex items-center justify-center gap-3 w-full py-4 bg-[#dc143c] hover:bg-red-700 text-white font-black text-xs uppercase tracking-[0.4em] rounded-xl transition-all duration-300 shadow-[0_0_30px_rgba(220,20,60,0.2)]"
               >
-                Book Now
+                <span>Initialize Booking</span>
+                <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
               </Link>
             </div>
           </div>

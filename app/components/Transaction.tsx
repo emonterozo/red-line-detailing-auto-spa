@@ -183,6 +183,8 @@ function Chip({ label }: Readonly<{ label: string }>) {
   );
 }
 
+const multiplier = Number.parseInt(process.env.NEXT_PUBLIC_PERCENTAGE_LIMIT as string) / 100
+
 export default function Transaction() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -213,8 +215,8 @@ export default function Transaction() {
   const getPointsEarned = (amount: number) => {
     return (
       Math.floor(
-        amount / Number.parseInt(process.env.NEXT_PESO_PER_POINTS ?? "100"),
-      ) * Number.parseInt(process.env.NEXT_POINTS_PER_UNIT ?? "2")
+        amount / Number.parseInt(process.env.NEXT_PUBLIC_PESO_PER_POINTS ?? "100"),
+      ) * Number.parseInt(process.env.NEXT_PUBLIC_POINTS_PER_UNIT ?? "2")
     );
   };
 
@@ -329,7 +331,7 @@ export default function Transaction() {
           form.setFieldValue("travelFee", bookingData.travel_fee ?? 0);
           form.setFieldValue("downPayment", bookingData.reservation_fee ?? 0);
           form.setFieldValue("totalAmount", bookingData.total_amount ?? 0);
-          form.setFieldValue("maximumPoints", bookingData.total_amount * 0.4);
+          form.setFieldValue("maximumPoints", bookingData.total_amount * multiplier);
           form.setFieldValue("customer", customer);
           setIsFabVisible(true);
         }
@@ -385,7 +387,7 @@ export default function Transaction() {
           );
           form.setFieldValue(
             "maximumPoints",
-            (transactionData.total_amount - rewardServicePrice) * 0.4,
+            (transactionData.total_amount - rewardServicePrice) * multiplier,
           );
 
           const milestoneDiscount =
@@ -444,7 +446,7 @@ export default function Transaction() {
     });
 
     form.setFieldValue("totalAmount", total);
-    form.setFieldValue("maximumPoints", total * 0.4);
+    form.setFieldValue("maximumPoints", total * multiplier);
     form.setFieldValue("services", newServices);
   };
 

@@ -1,3 +1,7 @@
+"use client";
+
+import React from "react";
+import Link from "next/link";
 import {
   Calendar,
   Clock,
@@ -10,266 +14,201 @@ import {
   PlusCircle,
   CheckCircle2,
   ArrowRight,
+  ShieldCheck,
+  Info,
 } from "lucide-react";
 import Footer from "../components/Footer";
-import Link from "next/link";
 
-const Policy = () => {
+const PolicyPage = () => {
+  const policies = [
+    {
+      id: "01",
+      icon: <Calendar className="w-5 h-5" />,
+      title: "Availability & Schedule",
+      description:
+        "Our services are currently available on weekends, with limited availability during selected holidays. We operate by appointment only.",
+      highlights: [
+        "Weekends only",
+        "By appointment only",
+        "Early booking recommended",
+      ],
+    },
+    {
+      id: "02",
+      icon: <Clock className="w-5 h-5" />,
+      title: "Advance Requirement",
+      description:
+        "Appointments must be scheduled at least 24 hours prior. Your appointment is not officially confirmed until you receive our notice.",
+      highlights: ["24h Lead time", "Verification required"],
+    },
+    {
+      id: "03",
+      icon: <CreditCard className="w-5 h-5" />,
+      title: "Reservation Fee",
+      description:
+        "A non-refundable reservation fee of 50% secures your exclusive slot. This fee is deducted from your total service cost.",
+      highlights: ["50% Deposit", "Non-refundable", "Deducted from total"],
+    },
+    {
+      id: "04",
+      icon: <MapPin className="w-5 h-5" />,
+      title: "Travel & Distance",
+      description:
+        "Free within 3km of base. Beyond 3km, a travel fee of ₱30/km applies based on Google Maps driving distance.",
+      highlights: ["Free < 3km", "₱30/km excess", "20km Max radius"],
+    },
+    {
+      id: "05",
+      icon: <AlertTriangle className="w-5 h-5" />,
+      title: "Cancellation Policy",
+      description:
+        "Rescheduling must be requested at least 24 hours before your appointment. Late cancellations result in fee forfeiture.",
+      highlights: ["24h Reschedule window", "Late cancel = Forfeit deposit"],
+    },
+    {
+      id: "06",
+      icon: <Wrench className="w-5 h-5" />,
+      title: "Service Conditions",
+      description:
+        "We require access to electricity, water, and a dedicated safe work area. We do not provide services on illegal sidewalks.",
+      highlights: ["Water/Power access", "Safe work zone", "No sidewalk work"],
+    },
+  ];
+
   return (
-    <main className="min-h-screen bg-black">
+    <main className="min-h-screen bg-[#050505] text-white selection:bg-[#dc143c]/30">
       {/* --- HERO SECTION --- */}
-      <section className="relative py-20 px-6 md:px-12 lg:px-24 border-b border-red-900/30 bg-gradient-to-b from-black to-neutral-900">
-        <div className="max-w-4xl mx-auto text-center space-y-6">
-          <div className="flex items-center justify-center gap-4 mt-8">
-            <div className="w-12 h-[1px] bg-gradient-to-r from-transparent to-[#dc143c]"></div>
-            <div className="w-2 h-2 rotate-45 bg-[#dc143c]"></div>
-            <div className="w-12 h-[1px] bg-gradient-to-l from-transparent to-[#dc143c]"></div>
+      <section className="relative pt-32 pb-20 px-6 overflow-hidden">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[500px] bg-gradient-to-b from-[#dc143c]/10 to-transparent pointer-events-none" />
+
+        <div className="max-w-7xl mx-auto relative z-10">
+          <div className="flex flex-col items-center text-center space-y-6">
+            <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
+              <ShieldCheck className="w-4 h-4 text-[#dc143c]" />
+              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">
+                Operating Protocols
+              </span>
+            </div>
+
+            <h1 className="font-russo text-5xl md:text-7xl lg:text-8xl tracking-tighter uppercase leading-none">
+              The <span className="text-[#dc143c]">Red Line</span> <br />
+              Standard
+            </h1>
+
+            <p className="max-w-2xl text-gray-500 text-sm md:text-base leading-relaxed font-medium">
+              We deliver an elite, showroom-quality finish with zero compromise.
+              Review our terms of engagement to ensure a seamless detailing
+              experience.
+            </p>
           </div>
-
-          <h1 className="font-russo text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-extrabold text-white leading-[1.1] lg:leading-[1.1] tracking-tight">
-            Precision. Passion. <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#dc143c] via-red-500 to-[#dc143c] bg-[length:200%_auto] animate-gradient">
-              Perfection.
-            </span>
-          </h1>
-
-          <p className="text-gray-400 text-lg md:text-xl text-gray-400 max-w-2xl mx-auto leading-relaxed">
-            Thank you for choosing{" "}
-            <span className="font-russo text-[#dc143c] font-bold">
-              Red Line
-            </span>
-            . We deliver an elite, showroom-quality finish — your car protected,
-            flawless, and looking its absolute best. No shortcuts. No
-            compromise.
-          </p>
         </div>
       </section>
 
-      {/* --- CONTENT GRID --- */}
-      <div className="max-w-6xl mx-auto px-6 py-16 md:py-24 border-b border-white/20">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* 1. Availability */}
-          <PolicyCard
-            icon={<Calendar className="w-9 h-9 text-[#dc143c]" />}
-            title="Availability & Schedule"
-            content={
-              <p>
-                Our services are
-                <Highlight text=" currently available on weekends" />, with
-                <Highlight text=" limited availability during selected holidays" />
-                . We operate <Highlight text="by appointment only" /> to ensure
-                each vehicle receives our full attention. Early booking is
-                highly recommended as slots are extremely limited.
-              </p>
-            }
-          />
-
-          {/* 2. Advance Booking */}
-          <PolicyCard
-            icon={<Clock className="w-9 h-9 text-[#dc143c]" />}
-            title="Advance Booking Requirement"
-            content={
-              <p>
-                Appointments must be scheduled{" "}
-                <Highlight text=" at least 24 hours prior" />. Once submitted,
-                we review, verify availability, and confirm service details.{" "}
-                <Highlight
-                  text=" Your appointment is not officially confirmed until you
-                receive our notice"
-                />
-                .
-              </p>
-            }
-          />
-
-          {/* 3. Reservation Fee (Highlighted) */}
-          <PolicyCard
-            icon={<CreditCard className="w-9 h-9 text-[#dc143c]" />}
-            title="Reservation Fee"
-            content={
-              <p>
-                A <Highlight text="non-refundable reservation fee of 50% " />
-                to secure your exclusive slot.
-                <Highlight
-                  text=" This fee is deducted from your total service
-                cost"
-                />
-                . Failure to submit within the timeframe results in automatic
-                cancellation.
-              </p>
-            }
-          />
-
-          {/* 4. Travel Policy */}
-          <PolicyCard
-            icon={<MapPin className="w-9 h-9 text-[#dc143c]" />}
-            title="Travel & Distance Policy"
-            content={
-              <p>
-                Service is <Highlight text="free within 3km of our base" />.
-                Beyond 3km, <Highlight text="a travel fee of ₱30/km applies" />,
-                based on Google Maps driving distance.{" "}
-                <Highlight text="Travel fees are subject to change" /> and will
-                be confirmed at the time of booking. We currently service
-                locations within a 20 km radius.
-              </p>
-            }
-          />
-
-          {/* 5. Cancellation */}
-          <PolicyCard
-            icon={<AlertTriangle className="w-9 h-9 text-[#dc143c]" />}
-            title="Cancellation & Rescheduling"
-            content={
-              <p>
-                Rescheduling must be requested{" "}
-                <Highlight text="at least 24 hours before your appointment" />.
-                Late cancellations or no-shows result in the
-                <Highlight text=" forfeiture of the reservation fee" />.
-              </p>
-            }
-          />
-
-          {/* 6. Service Conditions */}
-          <PolicyCard
-            icon={<Wrench className="w-9 h-9 text-[#dc143c]" />}
-            title="Service Conditions"
-            content={
-              <p>
-                To ensure optimal results, we require
-                <Highlight
-                  text=" access to electricity and
-                water, as well as a dedicated work area "
-                />
-                that is safe and clear of obstacles. We do not provide services
-                on illegal sidewalks.
-              </p>
-            }
-          />
-
-          {/* 7. Weather */}
-          <PolicyCard
-            icon={<CloudRain className="w-9 h-9 text-[#dc143c]" />}
-            title="Weather Considerations"
-            content={
-              <p>
-                Severe weather may affect appointments.{" "}
-                <Highlight text="We may reschedule" /> to maintain quality and
-                safety,{" "}
-                <Highlight text="or offer a full refund of your reservation fee " />
-                if rescheduling is not possible.
-              </p>
-            }
-          />
-
-          {/* 8. Pricing Disclaimer */}
-          <PolicyCard
-            icon={<DollarSign className="w-9 h-9 text-[#dc143c]" />}
-            title="Pricing Disclaimer"
-            content={
-              <p>
-                <Highlight text="Rates are fixed" /> according to vehicle size.
-                <Highlight text=" Additional charges may apply depending on vehicle conditions" />
-                . Any adjustments are communicated and approved before service
-                begins.
-              </p>
-            }
-          />
-
-          {/* 9. Add-Ons */}
-          <PolicyCard
-            icon={<PlusCircle className="w-9 h-9 text-[#dc143c]" />}
-            title="Add-On Services"
-            content={
-              <p>
-                You may request additional services during your appointment.
-                <Highlight text=" Quick add-ons are provided on the spot" />,
-                while
-                <Highlight
-                  text=" more extensive
-                requests will be reviewed beforehand"
-                />
-                , as they may affect the timing of other appointments.
-              </p>
-            }
-          />
-
-          {/* 10. Satisfaction Guarantee */}
-          <PolicyCard
-            icon={<CheckCircle2 className="w-9 h-9 text-[#dc143c]" />}
-            title="Satisfaction Guarantee"
-            content={
-              <p>
-                <Highlight text="Your satisfaction is our top priority" />. If
-                you are not completely satisfied with our work,
-                <Highlight text=" we will reassess and correct it" /> — no
-                questions asked.
-              </p>
-            }
-          />
-
-          {/* 12. Commitment */}
-          <div className="md:col-span-2 bg-neutral-900 border border-red-900/30 p-8 md:p-12 rounded-sm relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-1 h-full bg-[#dc143c]"></div>
-            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
-              <div>
-                <h3 className="text-2xl text-white mb-2 font-russo">
-                  Our Commitment to Excellence
-                </h3>
-                <p className="text-gray-400 font-poppins">
-                  Precision in Every Detail. Passion in Every Stroke. Perfection
-                  in Every Finish.
-                </p>
+      {/* --- PROTOCOL GRID --- */}
+      <section className="max-w-7xl mx-auto px-6 py-20">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {policies.map((policy) => (
+            <div
+              key={policy.id}
+              className="group relative bg-white/[0.02] border border-white/10 rounded-[2rem] p-8 transition-all duration-500 hover:bg-white/[0.04] hover:border-[#dc143c]/30"
+            >
+              {/* Card Header */}
+              <div className="flex justify-between items-start mb-8">
+                <div className="p-3 bg-[#dc143c]/10 rounded-xl group-hover:scale-110 transition-transform">
+                  <div className="text-[#dc143c]">{policy.icon}</div>
+                </div>
+                <span className="font-russo text-3xl text-white/5 group-hover:text-[#dc143c]/10 transition-colors">
+                  {policy.id}
+                </span>
               </div>
-              <Link
-                href="/booking"
-                className="group bg-[#dc143c] hover:bg-red-700 text-white font-bold py-3 sm:py-4 px-6 sm:px-10 rounded-xl transition duration-300 shadow-[0_0_30px_rgba(220,20,60,0.3)] hover:shadow-[0_0_40px_rgba(220,20,60,0.5)] flex items-center justify-center gap-2 sm:gap-3 text-sm sm:text-base"
-              >
-                Book With Confidence
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </Link>
+
+              <h3 className="font-russo text-xl uppercase tracking-tighter mb-4 group-hover:text-[#dc143c] transition-colors">
+                {policy.title}
+              </h3>
+
+              <p className="text-gray-500 text-sm leading-relaxed mb-6 font-medium">
+                {policy.description}
+              </p>
+
+              {/* Tag Highlights */}
+              <div className="flex flex-wrap gap-2">
+                {policy.highlights.map((tag) => (
+                  <span
+                    key={tag}
+                    className="text-[9px] font-black uppercase tracking-widest px-3 py-1 bg-white/5 border border-white/5 rounded-md text-gray-400"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
             </div>
+          ))}
+        </div>
+
+        {/* Secondary Details (Weather & Pricing) */}
+        <div className="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <SecondaryPolicy
+            icon={<CloudRain className="w-5 h-5" />}
+            title="Weather Contingency"
+            text="Severe weather may affect appointments. We may reschedule to maintain quality or offer a full refund if rescheduling is impossible."
+          />
+          <SecondaryPolicy
+            icon={<DollarSign className="w-5 h-5" />}
+            title="Dynamic Pricing"
+            text="Rates are fixed by vehicle size, but condition-based adjustments may apply. All changes are approved prior to starting work."
+          />
+        </div>
+      </section>
+
+      {/* --- CALL TO ACTION --- */}
+      <section className="max-w-7xl mx-auto px-6 pb-32">
+        <div className="relative overflow-hidden rounded-[3rem] bg-gradient-to-r from-[#dc143c] to-[#8B0E2A] p-12 md:p-20 text-center">
+          {/* Visual Flare */}
+          <div className="absolute top-0 right-0 w-1/2 h-full bg-white/10 skew-x-[45deg] translate-x-1/2 pointer-events-none" />
+
+          <div className="relative z-10 flex flex-col items-center">
+            <CheckCircle2 className="w-12 h-12 text-white mb-6 opacity-50" />
+            <h2 className="font-russo text-3xl md:text-5xl text-white uppercase tracking-tighter mb-6">
+              Ready for the <br /> Perfectionist touch?
+            </h2>
+            <Link
+              href="/booking"
+              className="group flex items-center gap-3 bg-white text-black font-russo uppercase tracking-widest px-10 py-5 rounded-2xl hover:bg-black hover:text-white transition-all shadow-2xl"
+            >
+              Initialize Booking
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </Link>
           </div>
         </div>
-      </div>
+      </section>
 
       <Footer />
     </main>
   );
 };
 
-// --- REUSABLE COMPONENT ---
-function PolicyCard({
+/* --- Helper Components --- */
+
+const SecondaryPolicy = ({
   icon,
   title,
-  content,
+  text,
 }: {
-  icon: React.ReactNode;
+  icon: any;
   title: string;
-  content: React.ReactNode;
-}) {
-  return (
-    <div className="group relative bg-gradient-to-b from-white/[0.08] to-white/[0.02] backdrop-blur-xl border border-white/[0.08] rounded-3xl p-8 lg:p-10 hover:border-[#dc143c]/50 transition-all duration-700 hover:-translate-y-3">
-      <div className="flex items-center gap-4 mb-4">
-        <div
-          className={`p-2 rounded-sm bg-neutral-800 group-hover:bg-red-900/20 transition-colors`}
-        >
-          {icon}
-        </div>
-        <h3 className="font-russo relative text-xl lg:text-xl font-bold text-white leading-[1.1] lg:leading-[1.1] tracking-tight group-hover:text-[#dc143c] transition-colors duration-300">
-          {title}
-        </h3>
-      </div>
-
-      <div className="relative text-gray-400 text-base max-w-3xl  leading-loose tracking-wide">
-        {content}
-      </div>
+  text: string;
+}) => (
+  <div className="flex items-start gap-6 p-8 bg-white/[0.01] border border-white/5 rounded-[2rem] hover:border-white/10 transition-colors">
+    <div className="p-3 bg-white/5 rounded-xl text-[#dc143c]">{icon}</div>
+    <div>
+      <h4 className="font-russo text-lg uppercase tracking-tighter mb-2">
+        {title}
+      </h4>
+      <p className="text-gray-500 text-sm leading-relaxed font-medium">
+        {text}
+      </p>
     </div>
-  );
-}
+  </div>
+);
 
-function Highlight({ text }: { text: string }) {
-  return <strong className="text-[#dc143c]">{text}</strong>;
-}
-
-export default Policy;
+export default PolicyPage;

@@ -104,6 +104,9 @@ function Chip({ label }: Readonly<{ label: string }>) {
   );
 }
 
+const multiplier = Number.parseInt(process.env.NEXT_PUBLIC_PERCENTAGE_LIMIT as string) / 100
+
+
 /* ─── Main component ─── */
 export default function BookingDetails() {
   const router = useRouter();
@@ -178,6 +181,7 @@ export default function BookingDetails() {
         );
         form.setFieldValue("services", selectedServices);
         form.setFieldValue("vehicleSizes", vehicleTypeSize);
+        form.setFieldValue("travelDistance", bookingData?.travel_distance ?? 0)
       }
     };
     init();
@@ -576,13 +580,13 @@ export default function BookingDetails() {
                   <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] divide-y divide-white/[0.06]">
                     <div className="flex justify-between items-center px-4 py-3">
                       <span className="text-gray-500 text-sm">
-                        Reservation Deposit - 40%
+                        {`Reservation Deposit - ${multiplier * 100}%`}
                       </span>
                       <span className="text-white font-medium text-sm">
                         ₱
                         {Math.max(
                           0,
-                          (total + travelFee) * 0.4,
+                          (total + travelFee) * multiplier,
                         ).toLocaleString()}
                       </span>
                     </div>

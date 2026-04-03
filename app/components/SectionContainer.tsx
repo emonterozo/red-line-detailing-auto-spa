@@ -25,7 +25,7 @@ const SectionContainer = ({
       <div className="text-center mb-16 md:mb-20">
         <h2 className="font-russo text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold text-white leading-[1.1] mb-6">
           {`${title}`}{" "}
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#dc143c] via-red-500 to-[#dc143c] bg-[length:200%_auto]">
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#dc143c] via-[#ff4d6d] to-[#dc143c] bg-[length:200%_auto] animate-gradient">
             {secondaryTitle}
           </span>
         </h2>
