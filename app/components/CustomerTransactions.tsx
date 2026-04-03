@@ -102,7 +102,7 @@ const CustomerTransactions = ({ userId }: { userId: string }) => {
                 <TableRow
                   key={transaction._id}
                   onClick={() =>
-                    router.push(`/admin/transaction/${transaction._id}`)
+                    router.push(`/admin/transaction?transaction_id=${transaction._id}`)
                   }
                   className="border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors cursor-pointer"
                 >

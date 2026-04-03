@@ -18,7 +18,7 @@ import {
   CommandInput,
   CommandItem,
 } from "@/components/ui/command";
-import { Check, ChevronDown, User, ArrowRight, Loader2, X } from "lucide-react";
+import { Check, User, ArrowRight, Loader2, X } from "lucide-react";
 import {
   DiscountType,
   DiscountTypeDisplay,
@@ -346,7 +346,61 @@ export default function Transaction() {
       }
 
       if (transactionId) {
-        await getTransaction(transactionId)
+        const transactionData = await getTransaction(transactionId);
+        if (transactionData) {
+          form.setFieldValue(
+            "vehicleModel",
+            transactionData.vehicle_model ?? "",
+          );
+          form.setFieldValue("travelFee", transactionData.travel_fee ?? 0);
+          form.setFieldValue(
+            "downPayment",
+            transactionData.reservation_fee ?? 0,
+          );
+
+          form.setFieldValue("customer", transactionData.customer);
+          setIsFabVisible(transactionData.customer.length > 0);
+          form.setFieldValue("vehicleSizes", transactionData.vehicle_sizes);
+          form.setFieldValue("services", transactionData.services);
+          form.setFieldValue("discountType", transactionData.discount_type);
+          form.setFieldValue(
+            "milestoneReward",
+            transactionData.milestone_reward,
+          );
+          form.setFieldValue("notes", transactionData.notes);
+
+          const rewardService = s.find(
+            (s) => s._id === transactionData.milestone_reward[0].service_id,
+          );
+          const rewardServicePrice =
+            rewardService?.pricing_per_sizes.find(
+              (p) =>
+                p.type === transactionData.vehicle_sizes[0].type &&
+                p.size === transactionData.vehicle_sizes[0].size,
+            )?.price ?? 0;
+
+          form.setFieldValue(
+            "totalAmount",
+            transactionData.total_amount - rewardServicePrice,
+          );
+          form.setFieldValue(
+            "maximumPoints",
+            (transactionData.total_amount - rewardServicePrice) * 0.4,
+          );
+
+          const milestoneDiscount =
+            transactionData.milestone_reward[0].reward_type ===
+            RewardType.DISCOUNT
+              ? transactionData.milestone_reward[0].discount_amount === 0
+                ? rewardServicePrice *
+                  (transactionData.milestone_reward[0].discount_percentage /
+                    100)
+                : transactionData.milestone_reward[0].discount_amount
+              : rewardServicePrice;
+
+          form.setFieldValue("milestoneDiscount", milestoneDiscount);
+          form.setFieldValue("totalDiscount", transactionData.points_used);
+        }
       }
     };
     init();
@@ -440,13 +494,13 @@ export default function Transaction() {
         {/* ── Header ── */}
         <div className="mb-14 text-center">
           <h2 className="font-russo text-5xl sm:text-6xl font-extrabold text-white tracking-tight leading-[1.1]">
-            Create{" "}
+            {`${transactionId ? 'Transaction' : 'Create'} `}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#dc143c] to-[#ff6b81]">
-              Transaction
+              {`${transactionId ? 'Details' : 'Transaction'}`}
             </span>
           </h2>
           <p className="mt-4 text-gray-500 text-base max-w-md mx-auto">
-            Fill in the details below to log a new service transaction.
+            {`${transactionId ? 'Review transaction summary, customer activity, and applied rewards.' : 'Fill in the details below to log a new service transaction.'}`}
           </p>
         </div>
 
@@ -1214,27 +1268,29 @@ export default function Transaction() {
           </SectionCard>
 
           {/* Submit */}
-          <div className="pt-2 flex justify-end">
-            <button
-              type="submit"
-              disabled={loading}
-              className="group relative inline-flex items-center gap-3 px-10 py-4 bg-[#dc143c] hover:bg-[#c01236] active:scale-[0.98] text-white font-bold text-base rounded-2xl transition-all duration-200 shadow-xl shadow-[#dc143c]/30 hover:shadow-[#dc143c]/50 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
-            >
-              {/* shimmer */}
-              <span className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none" />
-              {loading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  Create Transaction
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </>
-              )}
-            </button>
-          </div>
+          {!transactionId && (
+            <div className="pt-2 flex justify-end">
+              <button
+                type="submit"
+                disabled={loading}
+                className="group relative inline-flex items-center gap-3 px-10 py-4 bg-[#dc143c] hover:bg-[#c01236] active:scale-[0.98] text-white font-bold text-base rounded-2xl transition-all duration-200 shadow-xl shadow-[#dc143c]/30 hover:shadow-[#dc143c]/50 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
+              >
+                {/* shimmer */}
+                <span className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none" />
+                {loading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    Create Transaction
+                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </>
+                )}
+              </button>
+            </div>
+          )}
         </form>
       </div>
     </section>

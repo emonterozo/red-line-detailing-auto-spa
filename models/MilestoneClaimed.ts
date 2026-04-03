@@ -4,6 +4,7 @@ import VehicleSize from "./VehicleSize";
 import Service from "./Service";
 import Customer from "./Customer";
 import Transaction from "./Transaction";
+import MilestoneReward from "./MilestoneReward";
 
 const milestoneClaimedSchema = new Schema(
   {
@@ -15,6 +16,11 @@ const milestoneClaimedSchema = new Schema(
     service_id: {
       type: Schema.Types.ObjectId,
       ref: Service.modelName,
+      required: true,
+    },
+    reward_id: {
+      type: Schema.Types.ObjectId,
+      ref: MilestoneReward.modelName,
       required: true,
     },
     transaction_id: {

@@ -81,6 +81,7 @@ export const createTransaction = async (transactionData: ITransaction) => {
         const claimedMilestone = {
           user_id: customer._id,
           service_id: transactionData.milestone_reward?.service_id,
+          reward_id: transactionData.milestone_reward?._id,
           transaction_id: newTransaction._id,
           price: transactionData.milestone_reward?.price,
           size_id: vehicleSize._id,

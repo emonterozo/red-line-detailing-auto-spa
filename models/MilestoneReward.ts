@@ -1,7 +1,7 @@
 import { Schema, Types, model, models } from "mongoose";
 
 import { IMilestoneReward } from "@/lib/db/types";
-import { RewardType } from "@/lib/enums";
+import { RewardType, VehicleType } from "@/lib/enums";
 import Service from "./Service";
 
 const milestoneRewardSchema = new Schema<IMilestoneReward>(
@@ -11,6 +11,7 @@ const milestoneRewardSchema = new Schema<IMilestoneReward>(
       ref: Service.modelName,
       required: true,
     },
+    vehicle_type: { type: String, enum: VehicleType, required: true },
     required_progress_count: { type: Number, required: true },
     reward_type: { type: String, enum: RewardType, required: true },
     discount_percentage: { type: Number, default: 0 },
@@ -28,6 +29,7 @@ const milestoneRewardSchema = new Schema<IMilestoneReward>(
 );
 
 const MilestoneReward =
-  models.MilestoneReward || model<IMilestoneReward>("MilestoneReward", milestoneRewardSchema);
+  models.MilestoneReward ||
+  model<IMilestoneReward>("MilestoneReward", milestoneRewardSchema);
 
 export default MilestoneReward;
