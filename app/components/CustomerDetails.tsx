@@ -18,7 +18,6 @@ export default function CustomerDetails() {
     const init = async () => {
       if (customerId) {
         const customerData = await getCustomer(customerId as string);
-        console.log(JSON.stringify(customerData?.milestone_count))
         setCustomer(customerData);
       }
     };
@@ -44,7 +43,7 @@ export default function CustomerDetails() {
           milestoneCount={customer?.milestone_count ?? []}
         />
         <CustomerBookings userId={customer?._id ?? ''}  />
-        <CustomerTransactions />
+        <CustomerTransactions  userId={customer?._id ?? ''} />
         <CustomerMilestones userId={customer?._id ?? ''} />
       </div>
     </section>

@@ -34,6 +34,12 @@ export const BookingStatusDisplay: Record<BookingStatus, string> = {
   refunded: 'Refunded'
 };
 
+export const TransactionFromDisplay: Record<TransactionFrom, string> = {
+  booking: 'Booking',
+  "walk-in": 'Walk-In',
+  
+};
+
 export enum RewardType {
   DISCOUNT = 'discount', FREE_SERVICE = 'free_service',
 }

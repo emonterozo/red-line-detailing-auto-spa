@@ -1,5 +1,5 @@
 
-export const PAGE_LIMIT = 2
+export const PAGE_LIMIT = 50
 
 export const TABLE_DATE_FORMAT = {
   weekday: "short",

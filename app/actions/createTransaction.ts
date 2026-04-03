@@ -8,6 +8,7 @@ import Transaction from "@/models/Transaction";
 import Customer from "@/models/Customer";
 import VehicleSize from "@/models/VehicleSize";
 import MilestoneClaimed from "@/models/MilestoneClaimed";
+import { DiscountType } from "@/lib/enums";
 
 export const createTransaction = async (transactionData: ITransaction) => {
   await connect();
@@ -30,13 +31,16 @@ export const createTransaction = async (transactionData: ITransaction) => {
       total_discount: transactionData.total_discount,
       points_used: transactionData.points_used,
       total_amount_paid: transactionData.total_amount_paid,
-      discount_type: "",
+      net_total: Math.max(0, transactionData.total_amount - transactionData.total_discount),
+      discount_type: transactionData.total_discount > 0 ? DiscountType.PROMOTIONS : '',
       notes: "",
       points_earned: transactionData.points_earned,
     };
 
     const newTransaction = new Transaction(data);
     await newTransaction.save();
+
+   
 
     if (transactionData.user_id) {
       const customer = await Customer.findById(transactionData.user_id);
@@ -78,6 +82,7 @@ export const createTransaction = async (transactionData: ITransaction) => {
         const claimedMilestone = {
           user_id: customer._id,
           service_id: transactionData.milestone_reward?.service_id,
+          transaction_id: newTransaction._id,
           price: transactionData.milestone_reward?.price,
           size_id: vehicleSize._id,
           vehicle_model: transactionData.vehicle_model,

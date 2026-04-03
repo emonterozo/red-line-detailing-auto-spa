@@ -64,9 +64,7 @@ export default function AdminPage() {
 
         {/* ── Tables ── */}
         <RecentBookings />
-        {/* <RecentTransactions />
-        <RecentCustomers />
-        <RecentInquiries /> */}
+        <RecentTransactions />
         <RecentCustomers />
         <RecentInquiries />
       </div>

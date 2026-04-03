@@ -280,7 +280,7 @@ const AdminDashboard = () => {
                 },
                 {
                   label: "Avg Ticket",
-                  value: `₱${(statistics?.revenue?.avg_ticket_gross ?? 0).toLocaleString()}`,
+                  value: `₱${(statistics?.revenue?.avg_ticket_net ?? 0).toLocaleString()}`,
                 },
               ]}
             />

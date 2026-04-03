@@ -3,6 +3,7 @@ import { Schema, model, models } from "mongoose";
 import VehicleSize from "./VehicleSize";
 import Service from "./Service";
 import Customer from "./Customer";
+import Transaction from "./Transaction";
 
 const milestoneClaimedSchema = new Schema(
   {
@@ -14,6 +15,11 @@ const milestoneClaimedSchema = new Schema(
     service_id: {
       type: Schema.Types.ObjectId,
       ref: Service.modelName,
+      required: true,
+    },
+    transaction_id: {
+      type: Schema.Types.ObjectId,
+      ref: Transaction.modelName,
       required: true,
     },
     price: {

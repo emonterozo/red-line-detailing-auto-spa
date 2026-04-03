@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarCheck, CheckCircle2, ChevronRight, Users } from "lucide-react";
+import { CalendarCheck } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -13,11 +13,6 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Pagination } from "./Pagination";
 import { PAGE_LIMIT, TABLE_DATE_FORMAT } from "@/lib/constants";
-import {
-  getCustomerList,
-  ICustomerResponse,
-  IPaginatedCustomers,
-} from "../actions/getCustomerList";
 import { motion } from "framer-motion";
 import {
   getBookings,
@@ -48,12 +43,14 @@ const CustomerBookings = ({ userId }: { userId: string }) => {
   const router = useRouter();
 
   useEffect(() => {
-    getBookings(page, PAGE_LIMIT, userId).then(
-      (result: IPaginatedBookings) => {
-        setBookings(result.data);
-        setTotalPages(result.totalPages);
-      },
-    );
+    if (userId !== "") {
+      getBookings(page, PAGE_LIMIT, userId).then(
+        (result: IPaginatedBookings) => {
+          setBookings(result.data);
+          setTotalPages(result.totalPages);
+        },
+      );
+    }
   }, [page, userId]);
 
   return (
@@ -82,7 +79,7 @@ const CustomerBookings = ({ userId }: { userId: string }) => {
               {[
                 "Client Name",
                 "Contact",
-                "Vehicle",
+                "Vehicle Model",
                 "Preferred Date",
                 "Time Slot",
                 "Created",

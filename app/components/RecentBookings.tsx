@@ -74,7 +74,7 @@ const RecentBookings = () => {
               {[
                 "Client Name",
                 "Contact",
-                "Vehicle",
+                "Vehicle Model",
                 "Preferred Date",
                 "Time Slot",
                 "Created",

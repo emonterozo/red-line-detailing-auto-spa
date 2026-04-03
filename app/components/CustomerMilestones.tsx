@@ -65,7 +65,7 @@ const CustomerMilestones = ({ userId }: { userId: string }) => {
               {[
                 "Service",
                 "Vehicle Description",
-                "Vehicle",
+                "Vehicle Model",
                 "Price",
                 "Discount",
                 "Claimed",

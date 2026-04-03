@@ -40,7 +40,7 @@ export type StatisticsResponse = {
   revenue: {
     total_gross_amount: number;
     total_net_amount: number;
-    avg_ticket_gross: number;
+    avg_ticket_net: number;
   };
   discount: {
     total: number;
@@ -180,15 +180,10 @@ const getDiscountGiven = async () => {
 const getRevenue = async () => {
   const result = await Transaction.aggregate([
     {
-      $addFields: {
-        net_amount: { $subtract: ["$total_amount", "$total_discount"] },
-      },
-    },
-    {
       $group: {
         _id: null,
         total_gross_amount: { $sum: "$total_amount" },
-        total_net_amount: { $sum: "$net_amount" },
+        total_net_amount: { $sum: "$net_total" },
         total_transactions: { $sum: 1 },
       },
     },
@@ -210,7 +205,7 @@ const getRevenue = async () => {
   return {
     total_gross_amount: result.length > 0 ? result[0].total_gross_amount : 0,
     total_net_amount: result.length > 0 ? result[0].total_net_amount : 0,
-    avg_ticket_gross: result.length > 0 ? result[0].avg_ticket_gross : 0,
+    avg_ticket_net: result.length > 0 ? result[0].avg_ticket_net : 0,
   };
 };
 
