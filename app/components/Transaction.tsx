@@ -20,6 +20,8 @@ import {
 } from "@/components/ui/command";
 import { Check, ChevronDown, User, ArrowRight, Loader2, X } from "lucide-react";
 import {
+  DiscountType,
+  DiscountTypeDisplay,
   RewardType,
   TransactionFrom,
   VehicleSize,
@@ -39,6 +41,8 @@ import {
   IVehicleSizesResponse,
 } from "../actions/getVehicleSizes";
 import { SelectTrigger } from "./SelectTrigger";
+import { Textarea } from "@/components/ui/textarea";
+import { getTransaction } from "../actions/getTransaction";
 
 export const pricingPerSizeSchema = z.object({
   _id: z.string(),
@@ -106,7 +110,9 @@ export const formSchema = z.object({
   totalDiscount: z.number(),
   maximumPoints: z.number(),
   milestoneReward: z.array(milestoneRewardSchema),
+  discountType: z.union([z.enum(DiscountType), z.string()]),
   milestoneDiscount: z.number(),
+  notes: z.string(),
 });
 
 export type FormValues = z.infer<typeof formSchema>;
@@ -122,6 +128,8 @@ const defaultValues: FormValues = {
   maximumPoints: 0,
   totalDiscount: 0,
   milestoneReward: [],
+  discountType: "",
+  notes: "",
   milestoneDiscount: 0,
 };
 
@@ -139,7 +147,7 @@ function SectionCard({
   return (
     <div className="relative">
       {/* vertical connector */}
-      {step < 4 && (
+      {step < 5 && (
         <div className="absolute left-5 top-14 bottom-0 w-px bg-gradient-to-b from-[#dc143c]/40 to-transparent z-0" />
       )}
 
@@ -178,7 +186,8 @@ function Chip({ label }: Readonly<{ label: string }>) {
 export default function Transaction() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const bookingId = searchParams.get("id");
+  const bookingId = searchParams.get("booking_id");
+  const transactionId = searchParams.get("transaction_id");
 
   const [services, setServices] = useState<IServiceResponse[]>([]);
   const [milestoneRewards, setMilestoneRewards] = useState<
@@ -280,10 +289,12 @@ export default function Transaction() {
         total_amount_paid: totalAmountPaid,
         points_earned: pointsEarned,
         points_used: value.totalDiscount,
+        discount_type: value.discountType,
+        notes: value.notes,
       });
       setLoading(false);
       toast(result.message, { position: "bottom-right", duration: 5000 });
-      // router.push("/admin");
+      router.push("/admin");
     },
   });
 
@@ -302,7 +313,7 @@ export default function Transaction() {
       form.setFieldValue("vehicleSizes", [v[0]]);
 
       if (bookingId) {
-        const bookingData = await getBooking(bookingId.toString());
+        const bookingData = await getBooking(bookingId);
 
         let selectedServiceIds: string[] = [];
 
@@ -333,9 +344,13 @@ export default function Transaction() {
         form.setFieldValue("vehicleSizes", vehicleTypeSize);
         form.setFieldValue("services", selectedServices);
       }
+
+      if (transactionId) {
+        await getTransaction(transactionId)
+      }
     };
     init();
-  }, [bookingId, form]);
+  }, [bookingId, form, transactionId]);
 
   const toggleService = (service: IServiceResponse) => {
     const currentServices = form.getFieldValue("services");
@@ -841,9 +856,94 @@ export default function Transaction() {
             </div>
           </SectionCard>
 
-          {/* STEP 4 — Summary */}
           <SectionCard
             step={4}
+            title="Transaction Notes"
+            subtitle="Additional details for this transaction."
+          >
+            <div className="space-y-4">
+              <form.Field name="discountType">
+                {(field) => (
+                  <Field>
+                    <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
+                      Discount Type
+                    </FieldLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button type="button" className="w-full">
+                          <SelectTrigger
+                            hasValue={field.state.value.length > 0}
+                          >
+                            {field.state.value === "" ? (
+                              <span>Choose discount type...</span>
+                            ) : (
+                              <div className="overflow-x-auto scrollbar-none w-0 flex-1">
+                                <div className="flex gap-2 flex-nowrap min-w-max items-center">
+                                  <Chip
+                                    key={field.state.value}
+                                    label={field.state.value.toUpperCase()}
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </SelectTrigger>
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="backdrop-blur-md border border-white/20 rounded-xl p-3 shadow-lg max-h-80 overflow-y-auto">
+                        <Command>
+                          {Object.entries(DiscountTypeDisplay).map(
+                            ([statusKey, display]) => {
+                              const isSelected =
+                                field.state.value === statusKey;
+                              return (
+                                <CommandItem
+                                  key={statusKey}
+                                  onSelect={() => field.handleChange(statusKey)}
+                                  className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                                >
+                                  <span className="font-bold text-xs uppercase tracking-wider">
+                                    {display}
+                                  </span>
+                                  {isSelected && (
+                                    <Check className="w-4 h-4 text-[#dc143c]" />
+                                  )}
+                                </CommandItem>
+                              );
+                            },
+                          )}
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </Field>
+                )}
+              </form.Field>
+              <form.Field name="notes">
+                {(field) => {
+                  return (
+                    <Field>
+                      <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
+                        Notes
+                      </FieldLabel>
+                      <Textarea
+                        id={field.name}
+                        name={field.name}
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        rows={3}
+                        placeholder="Transaction additional notes"
+                        className="resize-none px-4 rounded-xl bg-white/[0.04] border-white/10 text-white placeholder:text-gray-600 text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
+                      />
+                    </Field>
+                  );
+                }}
+              </form.Field>
+            </div>
+          </SectionCard>
+
+          {/* STEP 4 — Summary */}
+          <SectionCard
+            step={5}
             title="Summary"
             subtitle="Review amounts before submitting."
           >

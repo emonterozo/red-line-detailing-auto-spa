@@ -40,6 +40,11 @@ export const TransactionFromDisplay: Record<TransactionFrom, string> = {
   
 };
 
+export const DiscountTypeDisplay: Record<DiscountType, string> = {
+  promotions: 'Promotions',
+  manual: 'Manual',
+};
+
 export enum RewardType {
   DISCOUNT = 'discount', FREE_SERVICE = 'free_service',
 }

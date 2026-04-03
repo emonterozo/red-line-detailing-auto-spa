@@ -80,7 +80,7 @@ export const formSchema = z.object({
   travelDistance: z.number(),
   totalAmount: z.number(),
   notes: z.string(),
-  status: z.string(),
+  status: z.enum(BookingStatus),
 });
 
 export type FormValues = z.infer<typeof formSchema>;
@@ -93,39 +93,7 @@ const defaultValues: FormValues = {
   travelFee: 0,
   travelDistance: 0,
   notes: "",
-  status: "",
-};
-
-/* ─── Status color map ─── */
-const statusColors: Record<
-  string,
-  { bg: string; border: string; text: string; dot: string }
-> = {
-  [BookingStatus.FOR_CHECKING]: {
-    bg: "bg-amber-500/10",
-    border: "border-amber-500/30",
-    text: "text-amber-400",
-    dot: "bg-amber-400",
-  },
-  [BookingStatus.RESERVED]: {
-    bg: "bg-emerald-500/10",
-    border: "border-emerald-500/30",
-    text: "text-emerald-400",
-    dot: "bg-emerald-400",
-  },
-  [BookingStatus.CANCELLED]: {
-    bg: "bg-red-500/10",
-    border: "border-red-500/30",
-    text: "text-[#ff6b81]",
-    dot: "bg-[#ff6b81]",
-  },
-};
-
-const defaultStatus = {
-  bg: "bg-white/10",
-  border: "border-white/20",
-  text: "text-gray-400",
-  dot: "bg-gray-400",
+  status: BookingStatus.FOR_CHECKING,
 };
 
 function Chip({ label }: Readonly<{ label: string }>) {
@@ -167,7 +135,7 @@ export default function BookingDetails() {
       });
       setLoading(false);
       if (result.success && value.status === BookingStatus.COMPLETED) {
-        router.push(`/admin/transaction?id=${booking?._id}`);
+        router.push(`/admin/transaction?booking_id=${booking?._id}`);
       } else {
         router.back();
       }
@@ -677,68 +645,43 @@ export default function BookingDetails() {
             last
           >
             <form.Field name="status">
-              {(field) => {
-                const style =
-                  statusColors[field.state.value as BookingStatus] ??
-                  defaultStatus;
-                return (
-                  <Field>
-                    <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
-                      Current Status
-                    </FieldLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <button type="button" className="w-full">
-                          <SelectTrigger hasValue={!!field.state.value}>
-                            {field.state.value ? (
-                              <div
-                                className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border ${style.bg} ${style.border}`}
-                              >
-                                <span
-                                  className={`w-1.5 h-1.5 rounded-full ${style.dot}`}
-                                />
-                                <span
-                                  className={`text-sm font-semibold ${style.text}`}
-                                >
-                                  {
-                                    BookingStatusDisplay[
-                                      field.state.value as BookingStatus
-                                    ]
-                                  }
-                                </span>
+              {(field) => (
+                <Field>
+                  <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
+                    Current Status
+                  </FieldLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button type="button" className="w-full">
+                        <SelectTrigger hasValue={field.state.value.length > 0}>
+                          {field.state.value.length > 0 ? (
+                            <div className="overflow-x-auto scrollbar-services w-0 min-w-0 flex-1 py-2 flex-1">
+                              <div className="flex gap-2 flex-nowrap min-w-max items-center">
+                                {BookingStatusDisplay[field.state.value]}
                               </div>
-                            ) : (
-                              <span>Select a status...</span>
-                            )}
-                          </SelectTrigger>
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent className="bg-[#141414] border border-white/10 rounded-2xl p-2 shadow-2xl shadow-black/60 overflow-y-auto">
-                        <Command>
+                            </div>
+                          ) : (
+                            <span>Select a status...</span>
+                          )}
+                        </SelectTrigger>
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="backdrop-blur-md border border-white/20 rounded-xl p-3 shadow-lg max-h-80 overflow-y-auto">
+                      <Command>
+                        <div className="space-y-1">
                           {Object.entries(BookingStatusDisplay).map(
                             ([statusKey, display]) => {
                               const isSelected =
                                 field.state.value === statusKey;
-                              const s =
-                                statusColors[statusKey] ?? defaultStatus;
                               return (
                                 <CommandItem
                                   key={statusKey}
-                                  onSelect={() => field.handleChange(statusKey)}
-                                  className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer hover:bg-white/[0.06] transition-colors"
+                                  onSelect={() => field.handleChange(statusKey as BookingStatus)}
+                                  className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
                                 >
-                                  <div
-                                    className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border ${s.bg} ${s.border}`}
-                                  >
-                                    <span
-                                      className={`w-1.5 h-1.5 rounded-full ${s.dot}`}
-                                    />
-                                    <span
-                                      className={`text-sm font-medium ${s.text}`}
-                                    >
-                                      {display}
-                                    </span>
-                                  </div>
+                                  <span className="font-bold text-xs uppercase tracking-wider">
+                                    {display}
+                                  </span>
                                   {isSelected && (
                                     <Check className="w-4 h-4 text-[#dc143c]" />
                                   )}
@@ -746,36 +689,43 @@ export default function BookingDetails() {
                               );
                             },
                           )}
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                  </Field>
-                );
-              }}
+                        </div>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </Field>
+              )}
             </form.Field>
           </SectionCard>
 
           {/* Submit */}
           <div className="pt-2 flex justify-end">
-            <button
-              type="submit"
-              disabled={loading}
-              className="group relative inline-flex items-center gap-3 px-10 py-4 bg-[#dc143c] hover:bg-[#c01236] active:scale-[0.98] text-white font-bold text-base rounded-2xl transition-all duration-200 shadow-xl shadow-[#dc143c]/30 hover:shadow-[#dc143c]/50 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
-            >
-              {/* shimmer */}
-              <span className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none" />
-              {loading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  Update Booking
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </>
+            <form.Subscribe selector={(state) => state.values.status}>
+              {(status) => (
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="group relative inline-flex items-center gap-3 px-10 py-4 bg-[#dc143c] hover:bg-[#c01236] active:scale-[0.98] text-white font-bold text-base rounded-2xl transition-all duration-200 shadow-xl shadow-[#dc143c]/30 hover:shadow-[#dc143c]/50 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
+                >
+                  {/* shimmer */}
+                  <span className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none" />
+
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      {status === BookingStatus.COMPLETED
+                        ? "Create Transaction"
+                        : "Update Booking"}
+                      <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                    </>
+                  )}
+                </button>
               )}
-            </button>
+            </form.Subscribe>
           </div>
         </form>
       </div>

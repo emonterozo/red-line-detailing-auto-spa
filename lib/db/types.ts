@@ -1,6 +1,7 @@
 import { Types } from "mongoose";
 import {
   BookingStatus,
+  DiscountType,
   InquiryStatus,
   RewardType,
   TransactionFrom,
@@ -128,7 +129,9 @@ export interface ITransaction {
   milestone_discount: number;
   total_amount_paid: number;
   points_earned: number;
-  points_used: number
+  points_used: number,
+  notes: string;
+  discount_type: DiscountType | string
 }
 
 export interface MilestoneCount {
