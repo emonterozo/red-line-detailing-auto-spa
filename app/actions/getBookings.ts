@@ -3,6 +3,7 @@
 import connect from "@/lib/db/mongodb";
 import { IBooking, IBookingDocument } from "@/lib/db/types";
 import Booking from "@/models/Booking";
+import { Types } from "mongoose";
 
 export interface IBookingResponse extends IBooking {
   _id: string;
@@ -18,13 +19,20 @@ export interface IPaginatedBookings {
 
 export const getBookings = async (
   page: number = 1,
-  limit: number = 10
+  limit: number = 10,
+  user_id?: string
 ): Promise<IPaginatedBookings> => {
   await connect();
 
   const skip = (page - 1) * limit;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const query: any = {};
 
-  const bookingsDoc = (await Booking.find({})
+  if (user_id && typeof user_id === "string") {
+    query.user_id = new Types.ObjectId(user_id);
+  }
+
+  const bookingsDoc = (await Booking.find(query)
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit)
@@ -59,7 +67,7 @@ export const getBookings = async (
     };
   });
 
-  const total = await Booking.countDocuments();
+  const total = await Booking.countDocuments(query);
 
   return {
     data: bookingsJson,

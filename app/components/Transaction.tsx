@@ -244,6 +244,7 @@ export default function Transaction() {
           )?.price ?? 0;
         milestone_reward = {
           _id: value.milestoneReward[0]._id,
+          service_id: service_id,
           title: value.milestoneReward[0].service,
           required_progress_count:
             value.milestoneReward[0].required_progress_count,

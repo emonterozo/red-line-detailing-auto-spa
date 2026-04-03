@@ -1,7 +1,7 @@
 import { Schema, Types, model, models } from "mongoose";
 
 import VehicleSize from "./VehicleSize";
-import Service from "./Service";
+import { boolean } from "zod";
 
 const milestoneCountSchema = new Schema({
   _id: { type: Types.ObjectId },
@@ -16,49 +16,22 @@ const milestoneCountSchema = new Schema({
   },
 });
 
-const milestoneClaimedSchema = new Schema({
-  _id: { type: Types.ObjectId },
-  service_id: {
-    type: Schema.Types.ObjectId,
-    ref: Service.modelName,
-    required: true,
-  },
-  price: {
-    type: Number,
-    required: true,
-  },
-  size_id: {
-    type: Schema.Types.ObjectId,
-    ref: VehicleSize.modelName,
-    required: true,
-  },
-  vehicle_model: {
-    type: String,
-    required: true,
-  },
-  discount: {
-    type: Number,
-    required: true,
-  },
-  claimed_at: { type: Date, default: new Date() },
-});
-
 const customerSchema = new Schema({
+  first_name: { type: String, required: true },
+  last_name: { type: String, required: true },
   name: { type: String, required: true },
+  email: { type: String, required: true },
   contact_number: { type: String, required: true },
   social: { type: String, required: true },
   address: { type: String, required: true },
   password: { type: String, required: true },
-  is_temp_password_change: { type: String, default: false },
+  is_verify: { type: Boolean, default: false },
   earned_points: { type: Number, default: 0 },
   milestone_count: {
     type: [milestoneCountSchema],
     required: true,
   },
-  milestone_claimed: {
-    type: [milestoneClaimedSchema],
-    required: true,
-  },
+  verified_at: { type: Date, default: new Date() },
   created_at: { type: Date, default: new Date() },
   updated_at: { type: Date, default: new Date() },
 });

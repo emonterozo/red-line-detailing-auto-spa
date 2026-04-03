@@ -7,6 +7,7 @@ import { Types, UpdateQuery } from "mongoose";
 import Transaction from "@/models/Transaction";
 import Customer from "@/models/Customer";
 import VehicleSize from "@/models/VehicleSize";
+import MilestoneClaimed from "@/models/MilestoneClaimed";
 
 export const createTransaction = async (transactionData: ITransaction) => {
   await connect();
@@ -75,7 +76,8 @@ export const createTransaction = async (transactionData: ITransaction) => {
           customer.earned_points - transactionData.points_used,
         );
         const claimedMilestone = {
-          service_id: transactionData.milestone_reward?._id,
+          user_id: customer._id,
+          service_id: transactionData.milestone_reward?.service_id,
           price: transactionData.milestone_reward?.price,
           size_id: vehicleSize._id,
           vehicle_model: transactionData.vehicle_model,
@@ -94,9 +96,7 @@ export const createTransaction = async (transactionData: ITransaction) => {
         };
 
         if (transactionData.milestone_reward) {
-          update.$push = {
-            milestone_claimed: claimedMilestone,
-          };
+          await MilestoneClaimed.create(claimedMilestone);
         }
 
         await Customer.findByIdAndUpdate(transactionData.user_id, update);

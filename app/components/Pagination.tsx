@@ -18,7 +18,10 @@ export function Pagination({
   return (
     <div className="flex gap-3 justify-end items-center px-5 py-4 border-t border-white/[0.06]">
       <button
-        onClick={() => setPage(Math.max(1, page - 1))}
+        onClick={() => {
+          setPage(Math.max(1, page - 1))
+          setInputPage(Math.max(1, page - 1))
+        }}
         disabled={page === 1}
         className="px-3 py-1.5 text-xs font-semibold text-gray-400 bg-white/[0.04] border border-white/[0.08] rounded-lg hover:border-white/20 hover:text-white disabled:opacity-30 transition-all"
       >
@@ -57,7 +60,10 @@ export function Pagination({
         <span>of {totalPages}</span>
       </div>
       <button
-        onClick={() => setPage(Math.min(totalPages, page + 1))}
+        onClick={() => {
+          setPage(Math.min(totalPages, page + 1))
+          setInputPage(Math.min(totalPages, page + 1))
+        }}
         disabled={page === totalPages}
         className="px-3 py-1.5 text-xs font-semibold text-gray-400 bg-white/[0.04] border border-white/[0.08] rounded-lg hover:border-white/20 hover:text-white disabled:opacity-30 transition-all"
       >

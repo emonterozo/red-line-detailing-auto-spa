@@ -18,8 +18,9 @@ import {
   ICustomerResponse,
   IPaginatedCustomers,
 } from "../actions/getCustomerList";
+import { motion } from "framer-motion";
 
-const RecentCustomers = () => {
+const CustomerTransactions = () => {
   const [customers, setCustomers] = useState<ICustomerResponse[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -35,41 +36,40 @@ const RecentCustomers = () => {
   }, [page]);
 
   return (
-    <section className="mb-8 rounded-2xl border border-white/[0.08] bg-white/[0.02] backdrop-blur-sm overflow-hidden">
-      {/* header */}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.2 }}
+      className="rounded-2xl border border-white/[0.08] bg-white/[0.02] backdrop-blur-sm overflow-hidden"
+    >
       <div className="px-6 py-5 border-b border-white/[0.06] flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
             <Users className="w-4 h-4 text-purple-400" />
           </div>
           <div>
-            <h2 className="text-white font-bold text-base">Customer List</h2>
-            <p className="text-gray-600 text-xs">
-              {customers.length} records shown
-            </p>
+            <h2 className="text-white font-bold text-base">Transactions</h2>
+            <p className="text-gray-600 text-xs">10 records shown</p>
           </div>
         </div>
       </div>
 
-      {/* table */}
       <div className="overflow-x-auto">
         <Table className="w-full">
           <TableHeader>
             <TableRow className="border-b border-white/[0.06] hover:bg-transparent">
-              {["Client Name", "Contact", "Email", "Created", "Status"].map(
-                (h) => (
-                  <TableHead
-                    key={h}
-                    className="px-5 py-3.5 text-gray-600 text-[10px] uppercase tracking-widest font-semibold whitespace-nowrap"
-                  >
-                    {h}
-                  </TableHead>
-                ),
-              )}
+              {["Client Name", "Contact", "Email", "Created"].map((h) => (
+                <TableHead
+                  key={h}
+                  className="px-5 py-3.5 text-gray-600 text-[12px] uppercase tracking-widest font-semibold whitespace-nowrap"
+                >
+                  {h}
+                </TableHead>
+              ))}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {customers.length === 0 ? (
+            {[1].length === 0 ? (
               <TableRow>
                 <TableCell
                   colSpan={8}
@@ -79,43 +79,23 @@ const RecentCustomers = () => {
                 </TableCell>
               </TableRow>
             ) : (
-              customers.map((customer) => (
+              [1].map((customer) => (
                 <TableRow
-                  key={customer._id}
-                  onClick={() => router.push(`/admin/customer/${customer._id}`)}
+                  key={customer}
+                  onClick={() => {}}
                   className="border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors cursor-pointer group"
                 >
                   <TableCell className=" px-5 py-4 text-[#ff6b81] font-semibold text-sm">
-                    {customer.name}
+                    asd
                   </TableCell>
                   <TableCell className="px-5 py-4 text-gray-500 text-sm whitespace-nowrap">
-                    {customer.contact_number}
+                    asd
                   </TableCell>
                   <TableCell className="break-words px-5 py-4 text-gray-400 text-sm ">
-                    {customer.email}
+                    asd
                   </TableCell>
                   <TableCell className="px-5 py-4 text-gray-600 text-sm whitespace-nowrap">
-                    {new Date(customer.created_at).toLocaleString(
-                      "en-US",
-                      TABLE_DATE_FORMAT,
-                    )}
-                  </TableCell>
-                  <TableCell className="px-5 py-4">
-                    {customer.is_verify ? (
-                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
-                          Verified
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-500/10 border border-gray-500/20">
-                        <div className="w-1.5 h-1.5 rounded-full bg-gray-500" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">
-                          Pending
-                        </span>
-                      </div>
-                    )}
+                    asd
                   </TableCell>
                 </TableRow>
               ))
@@ -133,8 +113,8 @@ const RecentCustomers = () => {
         setInputPage={setInputPage}
         setPage={setPage}
       />
-    </section>
+    </motion.div>
   );
 };
 
-export default RecentCustomers;
+export default CustomerTransactions;

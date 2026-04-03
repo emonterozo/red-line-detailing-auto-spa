@@ -13,7 +13,7 @@ import VehicleSize from "@/models/VehicleSize";
 import { hashPassword } from "@/lib/server/utils";
 
 export const createBooking = async (bookingData: IBooking) => {
-  let userId = null
+  let userId = null;
   await connect();
 
   const formattedDate = bookingData.preferred_date.date.toLocaleDateString(
@@ -25,7 +25,6 @@ export const createBooking = async (bookingData: IBooking) => {
       day: "2-digit",
     },
   );
-
 
   try {
     const date = await Schedule.findOne(
@@ -81,14 +80,16 @@ export const createBooking = async (bookingData: IBooking) => {
           const tempPassword = new Types.ObjectId().toString().slice(0, 8);
           const hashedPassword = await hashPassword(tempPassword);
           const newCustomer = new Customer({
-            name: bookingData.name,
+            first_name: "Eric",
+            last_name: "Monterozo",
+            name: "Eric Monterozo",
+            email: "ric.monterozo@gmail.com",
             contact_number: bookingData.contact_number,
             social: bookingData.social,
             address: bookingData.address,
             password: hashedPassword,
-            is_temp_password_change: false,
+            is_verify: false,
             milestone_count: milestoneCount,
-            milestone_claimed: [],
           });
           await newCustomer.save();
           userId = newCustomer._id;
@@ -96,7 +97,7 @@ export const createBooking = async (bookingData: IBooking) => {
 
         const newBooking = new Booking({
           user_id: userId,
-          ...bookingData
+          ...bookingData,
         });
         await newBooking.save();
 

@@ -57,9 +57,6 @@ const RecentInquiries = () => {
             </p>
           </div>
         </div>
-        <button className="flex items-center gap-1.5 text-xs text-[#ff6b81] hover:text-white uppercase tracking-widest transition-colors font-semibold">
-          View All <ChevronRight className="w-3.5 h-3.5" />
-        </button>
       </div>
 
       {/* table */}

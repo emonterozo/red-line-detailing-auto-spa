@@ -120,6 +120,7 @@ export interface ITransaction {
   total_discount: number;
   milestone_reward: {
     _id: string;
+    service_id: string;
     title: string;
     price: number;
     required_progress_count: number;
@@ -128,4 +129,12 @@ export interface ITransaction {
   total_amount_paid: number;
   points_earned: number;
   points_used: number
+}
+
+export interface MilestoneCount {
+  _id: string
+  size_id: string;
+  vehicle_type: VehicleType;
+  vehicle_size: VehicleSize;
+  progress: number
 }

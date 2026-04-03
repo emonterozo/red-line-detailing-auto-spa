@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, CalendarCheck } from "lucide-react";
+import { CalendarCheck, CheckCircle2, ChevronRight, Users } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -9,17 +9,22 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Pagination } from "./Pagination";
+import { PAGE_LIMIT, TABLE_DATE_FORMAT } from "@/lib/constants";
+import {
+  getCustomerList,
+  ICustomerResponse,
+  IPaginatedCustomers,
+} from "../actions/getCustomerList";
+import { motion } from "framer-motion";
 import {
   getBookings,
   IBookingResponse,
   IPaginatedBookings,
 } from "../actions/getBookings";
-import { useEffect, useRef, useState } from "react";
 import { BookingStatus, BookingStatusDisplay } from "@/lib/enums";
-import { useRouter } from "next/navigation";
-import { Pagination } from "./Pagination";
-import { PAGE_LIMIT, TABLE_DATE_FORMAT } from "@/lib/constants";
-
 
 const statusStyle: Record<string, string> = {
   [BookingStatus.FOR_CHECKING]:
@@ -34,7 +39,7 @@ const statusStyle: Record<string, string> = {
     "bg-purple-500/10 text-purple-400 border-purple-500/20",
 };
 
-const RecentBookings = () => {
+const CustomerBookings = ({ userId }: { userId: string }) => {
   const [bookings, setBookings] = useState<IBookingResponse[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -43,30 +48,33 @@ const RecentBookings = () => {
   const router = useRouter();
 
   useEffect(() => {
-    getBookings(page, PAGE_LIMIT).then((result: IPaginatedBookings) => {
-      setBookings(result.data);
-      setTotalPages(result.totalPages);
-    });
-  }, [page]);
+    getBookings(page, PAGE_LIMIT, userId).then(
+      (result: IPaginatedBookings) => {
+        setBookings(result.data);
+        setTotalPages(result.totalPages);
+      },
+    );
+  }, [page, userId]);
 
   return (
-    <section className="mb-8 rounded-2xl border border-white/[0.08] bg-white/[0.02] backdrop-blur-sm overflow-hidden">
-      {/* header */}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.2 }}
+      className="rounded-2xl border border-white/[0.08] bg-white/[0.02] backdrop-blur-sm overflow-hidden"
+    >
       <div className="px-6 py-5 border-b border-white/[0.06] flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl bg-[#dc143c]/15 border border-[#dc143c]/30 flex items-center justify-center">
             <CalendarCheck className="w-4 h-4 text-[#ff6b81]" />
           </div>
           <div>
-            <h2 className="text-white font-bold text-base">Recent Bookings</h2>
-            <p className="text-gray-600 text-xs">
-              {bookings.length} records shown
-            </p>
+            <h2 className="text-white font-bold text-base">Bookings History</h2>
+            <p className="text-gray-600 text-xs">{`${bookings.length} records shown`}</p>
           </div>
         </div>
       </div>
 
-      {/* table */}
       <div className="overflow-x-auto">
         <Table className="w-full">
           <TableHeader>
@@ -122,7 +130,10 @@ const RecentBookings = () => {
                     {booking.time_slot.time}
                   </TableCell>
                   <TableCell className="px-5 py-4 text-gray-600 text-sm whitespace-nowrap">
-                    {new Date(booking.created_at).toLocaleString("en-US", TABLE_DATE_FORMAT)}
+                    {new Date(booking.created_at).toLocaleString(
+                      "en-US",
+                      TABLE_DATE_FORMAT,
+                    )}
                   </TableCell>
                   <TableCell className="px-5 py-4">
                     <span
@@ -147,8 +158,8 @@ const RecentBookings = () => {
         setInputPage={setInputPage}
         setPage={setPage}
       />
-    </section>
+    </motion.div>
   );
 };
 
-export default RecentBookings;
+export default CustomerBookings;

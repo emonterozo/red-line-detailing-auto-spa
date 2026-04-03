@@ -7,7 +7,9 @@ export interface ICustomerResponse {
   _id: string;
   name: string;
   contact_number: string;
+  email: string;
   created_at: Date;
+  is_verify: boolean
 }
 
 export interface IPaginatedCustomers {
@@ -39,6 +41,8 @@ export const getCustomerList = async (
     _id: customer._id.toString(),
     name: customer.name,
     contact_number: customer.contact_number,
+    email: customer.email,
+    is_verify: customer.is_verify,
     created_at: customer.created_at,
   }));
 
