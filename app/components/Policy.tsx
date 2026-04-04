@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import Link from "next/link";
 import {
   Calendar,
@@ -11,13 +10,18 @@ import {
   Wrench,
   CloudRain,
   DollarSign,
-  PlusCircle,
   CheckCircle2,
   ArrowRight,
   ShieldCheck,
-  Info,
 } from "lucide-react";
 import Footer from "../components/Footer";
+import { ReactNode } from "react";
+
+const config = {
+  fee: process.env.NEXT_PUBLIC_TRAVEL_FEE_PER_KM,
+  free_distance: process.env.NEXT_PUBLIC_FREE_TRAVEL_DISTANCE_KM,
+  deposit: process.env.NEXT_PUBLIC_DOWN_PAYMENT_PERCENTAGE,
+};
 
 const PolicyPage = () => {
   const policies = [
@@ -45,17 +49,23 @@ const PolicyPage = () => {
       id: "03",
       icon: <CreditCard className="w-5 h-5" />,
       title: "Reservation Fee",
-      description:
-        "A non-refundable reservation fee of 50% secures your exclusive slot. This fee is deducted from your total service cost.",
-      highlights: ["50% Deposit", "Non-refundable", "Deducted from total"],
+      description: `A non-refundable reservation fee of ${config.deposit}% to secures your exclusive slot. This fee is deducted from your total service cost.`,
+      highlights: [
+        `${config.deposit}% Deposit`,
+        "Non-refundable",
+        "Deducted from total",
+      ],
     },
     {
       id: "04",
       icon: <MapPin className="w-5 h-5" />,
       title: "Travel & Distance",
-      description:
-        "Free within 3km of base. Beyond 3km, a travel fee of ₱30/km applies based on Google Maps driving distance.",
-      highlights: ["Free < 3km", "₱30/km excess", "20km Max radius"],
+      description: `Free within ${config.free_distance}km of base. Beyond ${config.free_distance}km, a travel fee of ₱${config.fee}/km applies based on Google Maps driving distance.`,
+      highlights: [
+        `Free < ${config.free_distance}km`,
+        `₱${config.fee}/km excess`,
+        "20km Max radius",
+      ],
     },
     {
       id: "05",
@@ -71,7 +81,7 @@ const PolicyPage = () => {
       title: "Service Conditions",
       description:
         "We require access to electricity, water, and a dedicated safe work area. We do not provide services on illegal sidewalks.",
-      highlights: ["Water/Power access", "Safe work zone", "No sidewalk work"],
+      highlights: ["Water & Power access", "Safe work zone", "No sidewalk work"],
     },
   ];
 
@@ -194,7 +204,7 @@ const SecondaryPolicy = ({
   title,
   text,
 }: {
-  icon: any;
+  icon: ReactNode;
   title: string;
   text: string;
 }) => (

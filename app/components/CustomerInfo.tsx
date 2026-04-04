@@ -5,13 +5,13 @@ import { VehicleType } from "@/lib/enums";
 import { motion } from "framer-motion";
 import {
   Car,
-  Bike,
   Activity,
   Mail,
   Phone,
   MapPin,
   ShieldCheck,
   Globe,
+  Motorbike,
 } from "lucide-react";
 
 interface CustomerInfoProps {
@@ -110,7 +110,7 @@ export default function CustomerInfo({
                 {milestone.vehicle_type === VehicleType.CAR ? (
                   <Car className="w-5 h-5" />
                 ) : (
-                  <Bike className="w-5 h-5" />
+                  <Motorbike className="w-5 h-5" />
                 )}
               </div>
               <span className="text-[12px] text-gray-600 font-black uppercase tracking-tighter mb-1">

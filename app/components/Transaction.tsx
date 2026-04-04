@@ -113,6 +113,7 @@ export const formSchema = z.object({
   discountType: z.union([z.enum(DiscountType), z.string()]),
   milestoneDiscount: z.number(),
   notes: z.string(),
+  plateNumber: z.string(),
 });
 
 export type FormValues = z.infer<typeof formSchema>;
@@ -131,6 +132,7 @@ const defaultValues: FormValues = {
   discountType: "",
   notes: "",
   milestoneDiscount: 0,
+  plateNumber: "",
 };
 
 function SectionCard({
@@ -183,7 +185,8 @@ function Chip({ label }: Readonly<{ label: string }>) {
   );
 }
 
-const multiplier = Number.parseInt(process.env.NEXT_PUBLIC_PERCENTAGE_LIMIT as string) / 100
+const multiplier =
+  Number.parseInt(process.env.NEXT_PUBLIC_PERCENTAGE_LIMIT as string) / 100;
 
 export default function Transaction() {
   const router = useRouter();
@@ -215,7 +218,8 @@ export default function Transaction() {
   const getPointsEarned = (amount: number) => {
     return (
       Math.floor(
-        amount / Number.parseInt(process.env.NEXT_PUBLIC_PESO_PER_POINTS ?? "100"),
+        amount /
+          Number.parseInt(process.env.NEXT_PUBLIC_PESO_PER_POINTS ?? "100"),
       ) * Number.parseInt(process.env.NEXT_PUBLIC_POINTS_PER_UNIT ?? "2")
     );
   };
@@ -293,6 +297,7 @@ export default function Transaction() {
         points_used: value.totalDiscount,
         discount_type: value.discountType,
         notes: value.notes,
+        plate_number: value.plateNumber,
       });
       setLoading(false);
       toast(result.message, { position: "bottom-right", duration: 5000 });
@@ -331,9 +336,12 @@ export default function Transaction() {
           form.setFieldValue("travelFee", bookingData.travel_fee ?? 0);
           form.setFieldValue("downPayment", bookingData.reservation_fee ?? 0);
           form.setFieldValue("totalAmount", bookingData.total_amount ?? 0);
-          form.setFieldValue("maximumPoints", bookingData.total_amount * multiplier);
+          form.setFieldValue(
+            "maximumPoints",
+            bookingData.total_amount * multiplier,
+          );
           form.setFieldValue("customer", customer);
-          setIsFabVisible(true);
+          setIsFabVisible(customer.length > 0);
         }
 
         const selectedServices = s.filter((item) =>
@@ -354,6 +362,7 @@ export default function Transaction() {
             "vehicleModel",
             transactionData.vehicle_model ?? "",
           );
+          form.setFieldValue("plateNumber", transactionData.plate_number ?? "");
           form.setFieldValue("travelFee", transactionData.travel_fee ?? 0);
           form.setFieldValue(
             "downPayment",
@@ -371,15 +380,30 @@ export default function Transaction() {
           );
           form.setFieldValue("notes", transactionData.notes);
 
-          const rewardService = s.find(
-            (s) => s._id === transactionData.milestone_reward[0].service_id,
-          );
-          const rewardServicePrice =
-            rewardService?.pricing_per_sizes.find(
-              (p) =>
-                p.type === transactionData.vehicle_sizes[0].type &&
-                p.size === transactionData.vehicle_sizes[0].size,
-            )?.price ?? 0;
+          let rewardServicePrice = 0;
+          let milestoneDiscount = 0;
+          if (transactionData.milestone_reward.length > 0) {
+            const rewardService = s.find(
+              (s) => s._id === transactionData.milestone_reward[0].service_id,
+            );
+
+            rewardServicePrice =
+              rewardService?.pricing_per_sizes.find(
+                (p) =>
+                  p.type === transactionData.vehicle_sizes[0].type &&
+                  p.size === transactionData.vehicle_sizes[0].size,
+              )?.price ?? 0;
+
+            milestoneDiscount =
+              transactionData.milestone_reward[0].reward_type ===
+              RewardType.DISCOUNT
+                ? transactionData.milestone_reward[0].discount_amount === 0
+                  ? rewardServicePrice *
+                    (transactionData.milestone_reward[0].discount_percentage /
+                      100)
+                  : transactionData.milestone_reward[0].discount_amount
+                : rewardServicePrice;
+          }
 
           form.setFieldValue(
             "totalAmount",
@@ -389,16 +413,6 @@ export default function Transaction() {
             "maximumPoints",
             (transactionData.total_amount - rewardServicePrice) * multiplier,
           );
-
-          const milestoneDiscount =
-            transactionData.milestone_reward[0].reward_type ===
-            RewardType.DISCOUNT
-              ? transactionData.milestone_reward[0].discount_amount === 0
-                ? rewardServicePrice *
-                  (transactionData.milestone_reward[0].discount_percentage /
-                    100)
-                : transactionData.milestone_reward[0].discount_amount
-              : rewardServicePrice;
 
           form.setFieldValue("milestoneDiscount", milestoneDiscount);
           form.setFieldValue("totalDiscount", transactionData.points_used);
@@ -496,13 +510,13 @@ export default function Transaction() {
         {/* ── Header ── */}
         <div className="mb-14 text-center">
           <h2 className="font-russo text-5xl sm:text-6xl font-extrabold text-white tracking-tight leading-[1.1]">
-            {`${transactionId ? 'Transaction' : 'Create'} `}
+            {`${transactionId ? "Transaction" : "Create"} `}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#dc143c] to-[#ff6b81]">
-              {`${transactionId ? 'Details' : 'Transaction'}`}
+              {`${transactionId ? "Details" : "Transaction"}`}
             </span>
           </h2>
           <p className="mt-4 text-gray-500 text-base max-w-md mx-auto">
-            {`${transactionId ? 'Review transaction summary, customer activity, and applied rewards.' : 'Fill in the details below to log a new service transaction.'}`}
+            {`${transactionId ? "Review transaction summary, customer activity, and applied rewards." : "Fill in the details below to log a new service transaction."}`}
           </p>
         </div>
 
@@ -772,6 +786,28 @@ export default function Transaction() {
                           errors={field.state.meta.errors}
                         />
                       )}
+                    </Field>
+                  );
+                }}
+              </form.Field>
+              <form.Field name="plateNumber">
+                {(field) => {
+                  return (
+                    <Field>
+                      <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
+                        Plate Number
+                      </FieldLabel>
+                      <Input
+                        id={field.name}
+                        name={field.name}
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(e) =>
+                          field.handleChange(e.target.value.toUpperCase())
+                        }
+                        placeholder="e.g. RLD2026"
+                        className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white placeholder:text-gray-600 text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
+                      />
                     </Field>
                   );
                 }}

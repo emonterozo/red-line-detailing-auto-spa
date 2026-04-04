@@ -52,7 +52,7 @@ const Hero = () => {
             >
               <span className="w-2 h-2 bg-[#dc143c] rounded-full animate-pulse shadow-[0_0_12px_#dc143c]"></span>
               <span className="font-russo text-white/80 text-[10px] sm:text-xs font-bold tracking-[0.3em] uppercase">
-                Premium Auto Care Studio
+                Premium Auto Care
               </span>
             </motion.div>
 

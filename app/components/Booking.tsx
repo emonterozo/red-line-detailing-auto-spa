@@ -831,7 +831,7 @@ export default function Booking() {
                       <Label className="leading-relaxed text-md">
                         {`${showError ? "You must you acknowledge and agree to our " : "By checking this box, you acknowledge and agree to our "}`}
                         <Link
-                          href="/policy"
+                          href="/booking-policy"
                           className="text-[#dc143c] hover:underline text-md"
                         >
                           Booking Policy.

@@ -28,6 +28,7 @@ const serviceSchema = new Schema<IService>({
   },
   is_available: { type: Boolean, required: true },
   notes: { type: String, required: true },
+  sort_order: { type: Number, required: true },
 });
 
 const Service = models.Service || model<IService>("Service", serviceSchema);

@@ -1,6 +1,6 @@
 "use client";
 
-import { Bike, Car, Receipt } from "lucide-react";
+import { Car, Motorbike, Receipt } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -118,7 +118,7 @@ const RecentTransactions = () => {
                           {isCar ? (
                             <Car className="w-3 h-3 text-[#ff6b81] flex-shrink-0" />
                           ) : (
-                            <Bike className="w-3 h-3 text-sky-400 flex-shrink-0" />
+                            <Motorbike className="w-3 h-3 text-sky-400 flex-shrink-0" />
                           )}
                           <span
                             className={`text-xs font-bold ${isCar ? "text-[#ff6b81]" : "text-sky-400"}`}

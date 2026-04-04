@@ -34,6 +34,7 @@ export const createTransaction = async (transactionData: ITransaction) => {
       discount_type: transactionData.discount_type,
       notes: transactionData.notes,
       points_earned: transactionData.points_earned,
+      plate_number: transactionData.plate_number
     };
 
     const newTransaction = new Transaction(data);

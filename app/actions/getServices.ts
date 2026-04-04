@@ -28,7 +28,10 @@ export const getServices = async () => {
     is_available: true,
   })
     .populate("pricing_per_sizes.size_id")
+    .sort({ sort_order: 1})
     .lean()) as unknown as IServiceDocument[];
+
+    
 
   const servicesJson: IServiceResponse[] = servicesDoc.map((service) => {
     const formattedPricing = service.pricing_per_sizes.map((size) => {

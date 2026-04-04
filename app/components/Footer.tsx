@@ -3,6 +3,25 @@
 import Link from "next/link";
 import { MapPin, Phone, Instagram, Facebook, ArrowRight } from "lucide-react";
 
+const links = [
+  {
+    title: "Services",
+    href: "/#services",
+  },
+  {
+    title: "Booking Policy",
+    href: "/booking-policy",
+  },
+  {
+    title: "Client Portal",
+    href: "/login",
+  },
+  {
+    title: "Contact",
+    href: "/#contact",
+  },
+]
+
 const Footer = () => {
   return (
     <footer className="relative bg-[#050505] border-t border-white/5 pt-16 pb-8 overflow-hidden">
@@ -30,7 +49,7 @@ const Footer = () => {
                   icon: Facebook,
                   href: "https://www.facebook.com/people/Red-Line-Detailing-Auto-Spa/61586431965530/",
                 },
-                { icon: Instagram, href: "https://instagram.com" },
+                { icon: Instagram, href: "https://www.instagram.com/redlinedetailing.ph" },
                 { icon: "tiktok" },
               ].map((social, i) => (
                 <a
@@ -101,15 +120,15 @@ const Footer = () => {
               Client Area
             </h4>
             <ul className="space-y-3">
-              {["Services", "Booking Policy", "Client Portal", "Contact"].map(
+              {links.map(
                 (item) => (
-                  <li key={item}>
+                  <li key={item.title}>
                     <Link
-                      href={item === "Booking Policy" ? "/policy" : "#"}
+                      href={item.href}
                       className="text-gray-500 text-sm hover:text-white flex items-center gap-2 group transition-all"
                     >
                       <ArrowRight className="w-3 h-3 text-[#dc143c] opacity-0 -ml-5 group-hover:opacity-100 group-hover:ml-0 transition-all" />
-                      {item}
+                      {item.title}
                     </Link>
                   </li>
                 ),
@@ -125,13 +144,13 @@ const Footer = () => {
           </p>
           <div className="flex gap-8">
             <Link
-              href="/policy"
+              href="/"
               className="text-[10px] text-gray-600 hover:text-[#dc143c] font-bold uppercase tracking-[0.2em] transition-colors"
             >
               Privacy Policy
             </Link>
             <Link
-              href="/policy"
+              href="/"
               className="text-[10px] text-gray-600 hover:text-[#dc143c] font-bold uppercase tracking-[0.2em] transition-colors"
             >
               Terms of Service

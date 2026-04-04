@@ -29,6 +29,7 @@ export interface IService {
   pricing_options: string | null;
   is_available: boolean;
   notes: string;
+  sort_order: number
 }
 
 export interface IServiceDocument extends Omit<IService, "pricing_per_sizes"> {
@@ -132,6 +133,7 @@ export interface ITransaction {
   points_used: number,
   notes: string;
   discount_type: DiscountType | string
+  plate_number: string
 }
 
 export interface MilestoneCount {

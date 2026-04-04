@@ -1,11 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-
 "use server";
 
 import connect from "@/lib/db/mongodb";
 import { IVehicleSize } from "@/lib/db/types";
-import { VehicleType, VehicleSize as EVehicleSize, RewardType } from "@/lib/enums";
+import {
+  VehicleType,
+  VehicleSize as EVehicleSize,
+  RewardType,
+} from "@/lib/enums";
 import Booking from "@/models/Booking";
 import Customer from "@/models/Customer";
 import MilestoneClaimed from "@/models/MilestoneClaimed";
@@ -18,27 +21,28 @@ export interface ITransactionDetailsResponse {
   customer: Customer[];
   vehicle_sizes: VehicleSizeProps[];
   vehicle_model: string;
+  plate_number: string;
   services: ServiceProps[];
   travel_fee: number;
   total_amount: number;
   total_discount: number;
   milestone_reward: MilestoneReward[];
   discount_type: string;
-  reservation_fee: number,
+  reservation_fee: number;
   notes: string;
   points_used: number;
 }
 
 export interface ServiceProps {
-  _id: string
-  title: string
-  description: string
-  type: string
-  pricing_options: string | null
-  pricing_per_sizes: PricingPerSize[]
-  price: number
-  is_available: boolean
-  notes: string
+  _id: string;
+  title: string;
+  description: string;
+  type: string;
+  pricing_options: string | null;
+  pricing_per_sizes: PricingPerSize[];
+  price: number;
+  is_available: boolean;
+  notes: string;
 }
 
 export interface PricingPerSize {
@@ -71,8 +75,6 @@ export interface Vehicle {
 export interface VehicleSizeProps extends IVehicleSize {
   _id: string;
 }
-
-
 
 export interface MilestoneReward {
   _id: string;
@@ -159,20 +161,24 @@ export const getTransaction = async (
       transaction_id: transactionDoc._id,
     });
 
-    const reward = await MilestoneReward.findById(claimed.reward_id).populate(
-      "reward_service_id",
-    );
-    
-    milestone_reward.push({
-      _id: reward?._id.toString(),
-      vehicle_type: reward?.vehicle_type,
-      service_id: reward?.reward_service_id._id.toString(),
-      service: reward?.reward_service_id.title,
-      required_progress_count: reward.required_progress_count,
-      discount_percentage: reward.discount_percentage,
-      discount_amount: reward.discount_amount,
-      reward_type: reward.reward_type,
-    });
+    if (claimed) {
+      const reward = await MilestoneReward.findById(claimed.reward_id).populate(
+        "reward_service_id",
+      );
+
+      if (reward) {
+        milestone_reward.push({
+          _id: reward?._id.toString(),
+          vehicle_type: reward?.vehicle_type,
+          service_id: reward?.reward_service_id._id.toString(),
+          service: reward?.reward_service_id.title,
+          required_progress_count: reward.required_progress_count,
+          discount_percentage: reward.discount_percentage,
+          discount_amount: reward.discount_amount,
+          reward_type: reward.reward_type,
+        });
+      }
+    }
   }
 
   // Format nested fields
@@ -188,8 +194,9 @@ export const getTransaction = async (
     discount_type: transactionDoc.discount_type,
     notes: transactionDoc.notes,
     reservation_fee: booking?.reservation_fee ?? 0,
-    points_used: transactionDoc.points_used
-  }
+    points_used: transactionDoc.points_used,
+    plate_number: transactionDoc.plate_number,
+  };
 
   return formattedTransaction;
 };
