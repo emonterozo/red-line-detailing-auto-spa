@@ -19,7 +19,16 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Command, CommandItem } from "@/components/ui/command";
-import { Check } from "lucide-react";
+import {
+  Activity,
+  ArrowRight,
+  Car,
+  Check,
+  Loader2,
+  User,
+  Wrench,
+  Calendar as CalendarIcon,
+} from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -29,6 +38,9 @@ import { getServices, IServiceResponse } from "../actions/getServices";
 import { BookingStatus, ServiceType } from "@/lib/enums";
 import Link from "next/link";
 import { createBooking } from "../actions/createBooking";
+import { motion } from "framer-motion";
+import { SectionCard } from "./SectionCard";
+import { SelectTrigger } from "./SelectTrigger";
 
 const today = new Date();
 today.setHours(23, 59, 59, 59);
@@ -54,37 +66,48 @@ export const serviceSchema = z.object({
 export const formSchema = z.object({
   fullName: z
     .string()
-    .min(5, "Full name must be at least 5 characters.")
-    .max(32, "Full name must be at most 32 characters."),
+    .min(5, "Please enter your full name (at least 5 characters).")
+    .max(32, "Full name can be at most 32 characters."),
+
   contactNumber: z
     .string()
     .trim()
-    .regex(/^09\d{9}$/, "Contact number must be 11 digits and start with 09."),
+    .regex(
+      /^09\d{9}$/,
+      "Please enter a valid contact number (11 digits, starting with 09).",
+    ),
+
   vehicleModel: z
     .string()
-    .min(4, "Vehicle model must be at least 5 characters.")
-    .max(250, "Vehicle model must be at most 250 characters."),
+    .min(5, "Please enter your vehicle model (at least 5 characters).")
+    .max(250, "Vehicle model can be at most 250 characters."),
+
   services: z
     .array(serviceSchema)
-    .min(1, "Choose at least one signature service."),
+    .min(1, "Please select at least one signature service."),
   addOns: z.array(serviceSchema).optional(),
   social: z
-    .url("Enter you profile account url.")
-    .max(250, "Profile account url must be at most 250 characters."),
+    .url("Please enter a valid link (must start with https://).")
+    .optional(),
+
   preferred_date: z
     .date()
     .nullable()
     .refine((val) => val !== null, {
-      message: "Choose a preferred date.",
+      message: "Please choose a preferred date.",
     }) as z.ZodType<Date | null>,
-  timeSlot: z.string().min(1, "Choose a time slot."),
+
+  timeSlot: z.string().min(1, "Please select a time slot."),
+
   address: z
     .string()
-    .min(5, "Address must be at least 5 characters.")
-    .max(250, "Address must be at most 250 characters."),
+    .min(5, "Please enter your address (at least 5 characters).")
+    .max(250, "Address can be at most 250 characters."),
+
   isChecked: z.boolean().refine((val) => val === true, {
-    message: "You must agree before submitting",
+    message: "You must agree to continue.",
   }),
+
   isCreateAccount: z.boolean(),
 });
 
@@ -93,7 +116,7 @@ export type FormValues = z.infer<typeof formSchema>;
 const defaultValues: FormValues = {
   fullName: "",
   contactNumber: "",
-  social: "",
+  social: undefined,
   vehicleModel: "",
   services: [],
   addOns: [],
@@ -103,6 +126,14 @@ const defaultValues: FormValues = {
   isChecked: false,
   isCreateAccount: false,
 };
+
+function Chip({ label }: Readonly<{ label: string }>) {
+  return (
+    <span className="inline-flex items-center px-3 py-1 rounded-full bg-[#dc143c]/20 border border-[#dc143c]/40 text-[#ff6b81] text-sm font-medium">
+      {label}
+    </span>
+  );
+}
 
 export default function Booking() {
   const [services, setServices] = useState<IServiceResponse[]>([]);
@@ -194,20 +225,20 @@ export default function Booking() {
   );
 
   const generateReference = () => {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
-  const date = new Date();
-  const y = date.getFullYear().toString().slice(2);
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
+    const date = new Date();
+    const y = date.getFullYear().toString().slice(2);
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
 
-  let random = "";
-  for (let i = 0; i < 5; i++) {
-    random += chars[Math.floor(Math.random() * chars.length)];
-  }
+    let random = "";
+    for (let i = 0; i < 5; i++) {
+      random += chars[Math.floor(Math.random() * chars.length)];
+    }
 
-  return `RL-${y}${m}${d}-${random}`;
-};
+    return `RL-${y}${m}${d}-${random}`;
+  };
 
   const form = useForm({
     defaultValues,
@@ -230,18 +261,21 @@ export default function Booking() {
       const selectedServices = value.services.map((service) => ({
         _id: service._id,
         title: service.title,
+        type: service.type as ServiceType,
       }));
+
       const selectedAddOns =
         value.addOns?.map((service) => ({
           _id: service._id,
           title: service.title,
+          type: service.type as ServiceType,
         })) ?? [];
 
       const result = await createBooking({
         name: value.fullName,
         contact_number: value.contactNumber,
         vehicle_model: value.vehicleModel,
-        social: value.social,
+        social: value.social ?? '',
         services: selectedServices,
         add_ons: selectedAddOns,
         preferred_date: {
@@ -309,37 +343,46 @@ export default function Booking() {
   });
 
   return (
-    <section className="relative w-full bg-black">
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32">
-        <div className="text-center mb-16 md:mb-20">
-          <h2 className="font-russo text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold text-white leading-[1.1] mb-6">
-            Book An{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#dc143c] via-red-500 to-[#dc143c] bg-[length:200%_auto]">
-              Appointment
+    <section className="min-h-screen bg-[#0a0a0a] relative overflow-hidden">
+      <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] rounded-full bg-[#dc143c]/[0.06] blur-[120px]" />
+      <div className="pointer-events-none absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full bg-[#dc143c]/[0.04] blur-[100px]" />
+
+      <div className="relative max-w-3xl mx-auto px-4 sm:px-6 py-16 md:py-24">
+        {/* ── Header ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center mb-12"
+        >
+          <h2 className="font-russo text-4xl md:text-6xl font-extrabold text-white tracking-tight">
+            BOOKING{" "}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#dc143c] to-[#ff6b81]">
+              DETAILS
             </span>
           </h2>
-
-          <p className="text-gray-400 text-lg sm:text-xl max-w-3xl mx-auto leading-relaxed">
+          <p className="mt-4 text-gray-500 text-base max-w-md mx-auto">
             Fill out your details and we’ll get back to you shortly.
           </p>
-
-          {/* Decorative Line */}
-          <div className="flex items-center justify-center gap-4 mt-8">
-            <div className="w-12 h-[1px] bg-gradient-to-r from-transparent to-[#dc143c]"></div>
-            <div className="w-2 h-2 rotate-45 bg-[#dc143c]"></div>
-            <div className="w-12 h-[1px] bg-gradient-to-l from-transparent to-[#dc143c]"></div>
+          <div className="flex items-center justify-center gap-3 mt-6">
+            <div className="h-[1px] w-12 bg-gradient-to-r from-transparent to-[#dc143c]" />
+            <Activity className="w-4 h-4 text-[#dc143c] animate-pulse" />
+            <div className="h-[1px] w-12 bg-gradient-to-l from-transparent to-[#dc143c]" />
           </div>
-        </div>
-        <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-6 sm:p-8 lg:p-10 shadow-2xl shadow-black/40">
-          <form
-            className="space-y-6"
-            id="booking-form"
-            onSubmit={(e) => {
-              e.preventDefault();
-              form.handleSubmit();
-            }}
+        </motion.div>
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            form.handleSubmit();
+          }}
+          className="space-y-0"
+        >
+          <SectionCard
+            icon={<User className="w-4 h-4" />}
+            title="Customer"
+            subtitle="Who made this booking?"
           >
-            <FieldGroup>
+            <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <form.Field name="fullName">
                   {(field) => {
@@ -348,7 +391,7 @@ export default function Booking() {
 
                     return (
                       <Field>
-                        <FieldLabel className="text-gray-300 uppercase">
+                        <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
                           Full name
                         </FieldLabel>
                         <Input
@@ -358,12 +401,12 @@ export default function Booking() {
                           onBlur={field.handleBlur}
                           onChange={(e) => field.handleChange(e.target.value)}
                           aria-invalid={isInvalid}
-                          placeholder="Enter your full name"
-                          className="!text-base h-14 px-5 rounded-xl bg-white/10 border-white/20 text-white placeholder:text-gray-400 backdrop-blur-sm focus-visible:border-[#dc143c] focus-visible:ring-[#dc143c]/20"
+                          placeholder="Full Name (e.g., Juan Dela Cruz)"
+                          className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
                         />
                         {isInvalid && (
                           <FieldError
-                            className="text-[#dc143c]"
+                            className="text-[#ff6b81] text-xs mt-1"
                             errors={field.state.meta.errors}
                           />
                         )}
@@ -379,7 +422,7 @@ export default function Booking() {
 
                     return (
                       <Field>
-                        <FieldLabel className="text-gray-300 uppercase">
+                        <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
                           Contact Number
                         </FieldLabel>
                         <Input
@@ -391,12 +434,12 @@ export default function Booking() {
                           aria-invalid={isInvalid}
                           type="tel"
                           maxLength={11}
-                          placeholder="Enter your contact number"
-                          className="!text-base h-14 px-5 rounded-xl bg-white/10 border-white/20 text-white placeholder:text-gray-400 backdrop-blur-sm focus-visible:border-[#dc143c] focus-visible:ring-[#dc143c]/20"
+                          placeholder="Contact Number (e.g., 09123456789)"
+                          className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
                         />
                         {isInvalid && (
                           <FieldError
-                            className="text-[#dc143c]"
+                            className="text-[#ff6b81] text-xs mt-1"
                             errors={field.state.meta.errors}
                           />
                         )}
@@ -405,6 +448,48 @@ export default function Booking() {
                   }}
                 </form.Field>
               </div>
+              <form.Field name="social">
+                {(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
+                  return (
+                    <Field>
+                      <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
+                        FB, IG or Tiktok Profile URL
+                      </FieldLabel>
+                      <Input
+                        id={field.name}
+                        name={field.name}
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        aria-invalid={isInvalid}
+                        placeholder="Optional: Profile or Social URL (e.g., https://instagram.com/redlinedetailing.ph)"
+                        className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
+                      />
+                      <FieldDescription>
+                        We will use this an additional way to contact you, and
+                        to send you a confirmation of your booking.
+                      </FieldDescription>
+                      {isInvalid && (
+                        <FieldError
+                          className="text-[#ff6b81] text-xs mt-1"
+                          errors={field.state.meta.errors}
+                        />
+                      )}
+                    </Field>
+                  );
+                }}
+              </form.Field>
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            icon={<Car className="w-4 h-4" />}
+            title="Vehicle & Location"
+            subtitle="What and where?"
+          >
+            <div className="space-y-4">
               <form.Field name="vehicleModel">
                 {(field) => {
                   const isInvalid =
@@ -412,7 +497,7 @@ export default function Booking() {
 
                   return (
                     <Field>
-                      <FieldLabel className="text-gray-300 uppercase">
+                      <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
                         Vehicle Model
                       </FieldLabel>
                       <Input
@@ -422,12 +507,12 @@ export default function Booking() {
                         onBlur={field.handleBlur}
                         onChange={(e) => field.handleChange(e.target.value)}
                         aria-invalid={isInvalid}
-                        placeholder="Enter your vehicle model"
-                        className="!text-base h-14 px-5 rounded-xl bg-white/10 border-white/20 text-white placeholder:text-gray-400 backdrop-blur-sm focus-visible:border-[#dc143c] focus-visible:ring-[#dc143c]/20"
+                        placeholder="Vehicle Model (e.g., Toyota Vios 2020)"
+                        className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
                       />
                       {isInvalid && (
                         <FieldError
-                          className="text-[#dc143c]"
+                          className="text-[#ff6b81] text-xs mt-1"
                           errors={field.state.meta.errors}
                         />
                       )}
@@ -435,33 +520,35 @@ export default function Booking() {
                   );
                 }}
               </form.Field>
-              <form.Field name="social">
+
+              <form.Field name="address">
                 {(field) => {
                   const isInvalid =
                     field.state.meta.isTouched && !field.state.meta.isValid;
 
                   return (
                     <Field>
-                      <FieldLabel className="text-gray-300 uppercase">
-                        Messenger or Tiktok Profile URL
+                      <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
+                        Complete Address
                       </FieldLabel>
-                      <Input
+                      <Textarea
                         id={field.name}
                         name={field.name}
                         value={field.state.value}
                         onBlur={field.handleBlur}
                         onChange={(e) => field.handleChange(e.target.value)}
                         aria-invalid={isInvalid}
-                        placeholder="Enter your profile url"
-                        className="!text-base h-14 px-5 rounded-xl bg-white/10 border-white/20 text-white placeholder:text-gray-400 backdrop-blur-sm focus-visible:border-[#dc143c] focus-visible:ring-[#dc143c]/20"
+                        rows={5}
+                        maxLength={250}
+                        placeholder="Complete Address, landmarks & special instructions"
+                        className="px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2 resize-none"
                       />
-                      <FieldDescription>
-                        We will use this an additional way to contact you, and
-                        to send you a confirmation of your booking.
-                      </FieldDescription>
+                      <Label className="block text-right text-gray-400 mt-1 text-sm">
+                        {250 - field.state.value.length}/250 characters
+                      </Label>
                       {isInvalid && (
                         <FieldError
-                          className="text-[#dc143c]"
+                          className="text-[#ff6b81] text-xs mt-1"
                           errors={field.state.meta.errors}
                         />
                       )}
@@ -469,156 +556,15 @@ export default function Booking() {
                   );
                 }}
               </form.Field>
+            </div>
+          </SectionCard>
 
-              <form.Field name="services">
-                {(field) => {
-                  const isInvalid =
-                    field.state.meta.isTouched && !field.state.meta.isValid;
-
-                  return (
-                    <Field>
-                      <FieldLabel className="text-gray-300 uppercase">
-                        Signature Services
-                      </FieldLabel>
-                      <Popover>
-                        <PopoverTrigger
-                          className={`w-full h-14 px-5 rounded-xl bg-white/10 border border-white/20 backdrop-blur-md text-base flex items-center ${field.state.value.length > 0 ? "text-white" : "text-gray-400"}`}
-                        >
-                          <div className="flex-1 overflow-x-auto scrollbar-services my-1">
-                            <div className="flex flex-nowrap gap-3 min-w-max items-center">
-                              {field.state.value.length > 0 ? (
-                                field.state.value.map((item) => (
-                                  <div
-                                    key={item._id}
-                                    className="relative px-5 py-2 rounded-full bg-gradient-to-br from-[#DC143C] to-[#8B0E2A] border border-[#DC143C]/40 text-white text-sm tracking-wide font-medium shadow-[0_4px_20px_rgba(220,20,60,0.35)]"
-                                  >
-                                    {item.title}
-                                  </div>
-                                ))
-                              ) : (
-                                <div>Choose a signature services</div>
-                              )}
-                            </div>
-                          </div>
-                        </PopoverTrigger>
-
-                        <PopoverContent className=" backdrop-blur-md border border-white/20 rounded-xl p-3 shadow-lg overflow-y-auto">
-                          <Command>
-                            {services
-                              .filter(
-                                (service) =>
-                                  service.type === ServiceType.SERVICE,
-                              )
-                              .map((service) => {
-                                const isSelected = field.state.value.find(
-                                  (item) => item._id === service._id,
-                                );
-                                return (
-                                  <CommandItem
-                                    key={service._id}
-                                    onSelect={() =>
-                                      toggleService(
-                                        service,
-                                        ServiceType.SERVICE,
-                                      )
-                                    }
-                                    className={`flex justify-between items-center px-4 py-3 rounded-xl cursor-pointer transition-colors duration-200`}
-                                  >
-                                    <span>{service.title}</span>
-                                    {isSelected && (
-                                      <Check className="w-5 h-5 text-[#dc143c]" />
-                                    )}
-                                  </CommandItem>
-                                );
-                              })}
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
-                      <FieldDescription>
-                        You may select multiple services, but only one of
-                        Premium Wash or Decontamination Wash can be chosen at a
-                        time.
-                      </FieldDescription>
-                      {isInvalid && (
-                        <FieldError
-                          className="text-[#dc143c]"
-                          errors={field.state.meta.errors}
-                        />
-                      )}
-                    </Field>
-                  );
-                }}
-              </form.Field>
-
-              <form.Field name="addOns">
-                {(field) => {
-                  return (
-                    <Field>
-                      <FieldLabel className="text-gray-300 uppercase">
-                        Add Ons
-                      </FieldLabel>
-                      <Popover>
-                        <PopoverTrigger
-                          className={`w-full h-14 px-5 rounded-xl bg-white/10 border-white/20 backdrop-blur-sm text-base flex items-center justify-between ${(field.state.value ?? []).length > 0 ? "text-white" : "text-gray-400"}`}
-                        >
-                          <div className="flex-1 overflow-x-auto scrollbar-services my-1">
-                            <div className="flex flex-nowrap gap-3 min-w-max items-center">
-                              {(field.state.value ?? []).length > 0 ? (
-                                field.state.value?.map((item) => (
-                                  <div
-                                    key={item._id}
-                                    className="relative px-5 py-2 rounded-full bg-gradient-to-br from-[#DC143C] to-[#8B0E2A] border border-[#DC143C]/40 text-white text-sm tracking-wide font-medium shadow-[0_4px_20px_rgba(220,20,60,0.35)]"
-                                  >
-                                    {item.title}
-                                  </div>
-                                ))
-                              ) : (
-                                <div>Choose an add ons services</div>
-                              )}
-                            </div>
-                          </div>
-                        </PopoverTrigger>
-
-                        <PopoverContent className="backdrop-blur-md border border-white/20 rounded-xl p-3 shadow-lg overflow-y-auto">
-                          <Command>
-                            {services
-                              .filter(
-                                (service) =>
-                                  service.type === ServiceType.ADD_ONS,
-                              )
-                              .map((service) => {
-                                const isSelected = field.state.value?.find(
-                                  (item) => item._id === service._id,
-                                );
-                                return (
-                                  <CommandItem
-                                    key={service._id}
-                                    onSelect={() =>
-                                      toggleService(
-                                        service,
-                                        ServiceType.ADD_ONS,
-                                      )
-                                    }
-                                    className={`flex justify-between items-center px-4 py-3 rounded-xl cursor-pointer transition-colors duration-200`}
-                                  >
-                                    <span>{service.title}</span>
-                                    {isSelected && (
-                                      <Check className="w-5 h-5 text-[#dc143c]" />
-                                    )}
-                                  </CommandItem>
-                                );
-                              })}
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
-                      <FieldDescription>
-                        You may select multiple add ons services.
-                      </FieldDescription>
-                    </Field>
-                  );
-                }}
-              </form.Field>
-
+          <SectionCard
+            icon={<CalendarIcon className="w-4 h-4" />}
+            title="Schedule"
+            subtitle="When is this happening?"
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <form.Field name="preferred_date">
                 {(field) => {
                   const isInvalid =
@@ -626,25 +572,33 @@ export default function Booking() {
 
                   return (
                     <Field>
-                      <FieldLabel className="text-gray-300 uppercase">
+                      <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
                         Preferred Date
                       </FieldLabel>
                       <Popover
                         open={isCalendarOpen}
                         onOpenChange={setIsCalendarOpen}
                       >
-                        <PopoverTrigger
-                          className={` h-14 px-5 rounded-xl bg-white/10 border-white/20 backdrop-blur-sm text-base flex items-center justify-between ${
-                            field.state.value ? "text-white" : "text-gray-400"
-                          }`}
-                        >
-                          {field.state.value
-                            ? field.state.value.toLocaleDateString("en-US", {
-                                dateStyle: "full",
-                              })
-                            : "Choose your preferred date"}
+                        <PopoverTrigger asChild>
+                          <button type="button" className="w-full">
+                            <SelectTrigger hasValue={!!field.state.value}>
+                              {field.state.value ? (
+                                <div className="overflow-x-auto scrollbar-services w-0 min-w-0 flex-1 py-2 flex-1">
+                                  <div className="flex gap-2 flex-nowrap min-w-max items-center">
+                                    {field.state.value.toLocaleDateString(
+                                      "en-US",
+                                      {
+                                        dateStyle: "full",
+                                      },
+                                    )}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span>Pick your preferred date</span>
+                              )}
+                            </SelectTrigger>
+                          </button>
                         </PopoverTrigger>
-
                         <PopoverContent className="backdrop-blur-md border border-white/20 rounded-xl p-3 shadow-lg overflow-y-auto">
                           <Calendar
                             className="w-full"
@@ -702,7 +656,7 @@ export default function Booking() {
                         </PopoverContent>
                         {isInvalid && (
                           <FieldError
-                            className="text-[#dc143c]"
+                            className="text-[#ff6b81] text-xs mt-1"
                             errors={field.state.meta.errors}
                           />
                         )}
@@ -711,7 +665,6 @@ export default function Booking() {
                   );
                 }}
               </form.Field>
-
               <form.Field name="timeSlot">
                 {(field) => {
                   const isInvalid =
@@ -721,26 +674,29 @@ export default function Booking() {
 
                   return (
                     <Field>
-                      <FieldLabel className="text-gray-300 uppercase">
+                      <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
                         Time Slot
                       </FieldLabel>
                       <Popover
                         open={isSlotPickerOpen}
                         onOpenChange={() => setIsSlotPickerOpen(!!dateValue)}
                       >
-                        <PopoverTrigger
-                          className={`w-full h-14 px-5 rounded-xl bg-white/10 border-white/20 backdrop-blur-sm text-base flex items-center justify-between ${
-                            field.state.value === ""
-                              ? "text-gray-400"
-                              : "text-white"
-                          }`}
-                        >
-                          {field.state.value === ""
-                            ? "Choose your preferred time slot"
-                            : field.state.value}
+                        <PopoverTrigger asChild>
+                          <button type="button" className="w-full">
+                            <SelectTrigger hasValue={!!field.state.value}>
+                              {field.state.value ? (
+                                <div className="overflow-x-auto scrollbar-services w-0 min-w-0 flex-1 py-2 flex-1">
+                                  <div className="flex gap-2 flex-nowrap min-w-max items-center">
+                                    {field.state.value}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span>Select a convenient time slot</span>
+                              )}
+                            </SelectTrigger>
+                          </button>
                         </PopoverTrigger>
-
-                        <PopoverContent className=" backdrop-blur-md border border-white/20 rounded-xl p-3 shadow-lg overflow-y-auto">
+                        <PopoverContent className="backdrop-blur-md border border-white/20 rounded-xl p-3 shadow-lg overflow-y-auto">
                           <Command>
                             {slots.map((slot) => {
                               const isSelected =
@@ -764,46 +720,93 @@ export default function Booking() {
                             })}
                           </Command>
                         </PopoverContent>
+                        {isInvalid && (
+                          <FieldError
+                            className="text-[#ff6b81] text-xs mt-1"
+                            errors={field.state.meta.errors}
+                          />
+                        )}
                       </Popover>
-                      {isInvalid && (
-                        <FieldError
-                          className="text-[#dc143c]"
-                          errors={field.state.meta.errors}
-                        />
-                      )}
                     </Field>
                   );
                 }}
               </form.Field>
+            </div>
+          </SectionCard>
 
-              <form.Field name="address">
+          <SectionCard
+            icon={<Wrench className="w-4 h-4" />}
+            title="Services"
+            subtitle="What's being performed?"
+          >
+            <div className="space-y-4">
+              <form.Field name="services">
                 {(field) => {
                   const isInvalid =
                     field.state.meta.isTouched && !field.state.meta.isValid;
 
                   return (
                     <Field>
-                      <FieldLabel className="text-gray-300 uppercase">
-                        Complete Address
+                      <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
+                        Signature Services
                       </FieldLabel>
-                      <Textarea
-                        id={field.name}
-                        name={field.name}
-                        value={field.state.value}
-                        onBlur={field.handleBlur}
-                        onChange={(e) => field.handleChange(e.target.value)}
-                        aria-invalid={isInvalid}
-                        rows={5}
-                        maxLength={250}
-                        placeholder="Enter your complete address, landmarks, and any specific instructions for our team."
-                        className="!text-base  px-5 rounded-xl bg-white/10 border-white/20 text-white placeholder:text-gray-400 backdrop-blur-sm focus-visible:border-[#dc143c] focus-visible:ring-[#dc143c]/20 resize-none"
-                      />
-                      <Label className="block text-right text-gray-400 mt-1 text-sm">
-                        {250 - field.state.value.length}/250 characters
-                      </Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button type="button" className="w-full">
+                            <SelectTrigger
+                              hasValue={field.state.value.length > 0}
+                            >
+                              {field.state.value.length > 0 ? (
+                                <div className="overflow-x-auto scrollbar-services w-0 min-w-0 flex-1 py-2 flex-1">
+                                  <div className="flex gap-2 flex-nowrap min-w-max items-center">
+                                    {field.state.value.map((item) => (
+                                      <Chip key={item._id} label={item.title} />
+                                    ))}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span>
+                                  Choose at least one signature service
+                                </span>
+                              )}
+                            </SelectTrigger>
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="backdrop-blur-md border border-white/20 rounded-xl p-3 shadow-lg max-h-80 overflow-y-auto">
+                          <Command>
+                            {services
+                              .filter(
+                                (service) =>
+                                  service.type === ServiceType.SERVICE,
+                              )
+                              .map((service) => {
+                                const isSelected = field.state.value.find(
+                                  (item) => item._id === service._id,
+                                );
+                                return (
+                                  <CommandItem
+                                    key={service._id}
+                                    onSelect={() =>
+                                      toggleService(
+                                        service,
+                                        ServiceType.SERVICE,
+                                      )
+                                    }
+                                    className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                                  >
+                                    <span>{service.title}</span>
+                                    {isSelected && (
+                                      <Check className="w-4 h-4 text-[#dc143c]" />
+                                    )}
+                                  </CommandItem>
+                                );
+                              })}
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
                       {isInvalid && (
                         <FieldError
-                          className="text-[#dc143c]"
+                          className="text-[#ff6b81] text-xs mt-1"
                           errors={field.state.meta.errors}
                         />
                       )}
@@ -811,113 +814,163 @@ export default function Booking() {
                   );
                 }}
               </form.Field>
-
-              <form.Field name="isChecked">
+              <form.Field name="addOns">
                 {(field) => {
-                  const showError =
-                    form.state.submissionAttempts && !field.state.value;
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
 
                   return (
-                    <Field orientation="horizontal">
-                      <Checkbox
-                        id={field.name}
-                        name={field.name}
-                        className={`w-5 h-5 border-white/50 rounded-s border-white/50`}
-                        checked={field.state.value}
-                        onCheckedChange={(checked: boolean) =>
-                          form.setFieldValue("isChecked", checked)
-                        }
-                      />
-                      <Label className="leading-relaxed text-md">
-                        {`${showError ? "You must you acknowledge and agree to our " : "By checking this box, you acknowledge and agree to our "}`}
-                        <Link
-                          href="/booking-policy"
-                          className="text-[#dc143c] hover:underline text-md"
-                        >
-                          Booking Policy.
-                        </Link>
-                      </Label>
+                    <Field>
+                      <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
+                        Add Ons
+                      </FieldLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button type="button" className="w-full">
+                            <SelectTrigger
+                              hasValue={
+                                !!field.state.value &&
+                                field.state.value.length > 0
+                              }
+                            >
+                              {field.state.value &&
+                              field.state.value.length > 0 ? (
+                                <div className="overflow-x-auto scrollbar-services w-0 min-w-0 flex-1 py-2 flex-1">
+                                  <div className="flex gap-2 flex-nowrap min-w-max items-center">
+                                    {field.state.value.map((item) => (
+                                      <Chip key={item._id} label={item.title} />
+                                    ))}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span>Add optional add-on services</span>
+                              )}
+                            </SelectTrigger>
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="backdrop-blur-md border border-white/20 rounded-xl p-3 shadow-lg max-h-80 overflow-y-auto">
+                          <Command>
+                            {services
+                              .filter(
+                                (service) =>
+                                  service.type === ServiceType.ADD_ONS,
+                              )
+                              .map((service) => {
+                                const isSelected = field.state.value?.find(
+                                  (item) => item._id === service._id,
+                                );
+                                return (
+                                  <CommandItem
+                                    key={service._id}
+                                    onSelect={() =>
+                                      toggleService(
+                                        service,
+                                        ServiceType.ADD_ONS,
+                                      )
+                                    }
+                                    className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                                  >
+                                    <span>{service.title}</span>
+                                    {isSelected && (
+                                      <Check className="w-4 h-4 text-[#dc143c]" />
+                                    )}
+                                  </CommandItem>
+                                );
+                              })}
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      {isInvalid && (
+                        <FieldError
+                          className="text-[#ff6b81] text-xs mt-1"
+                          errors={field.state.meta.errors}
+                        />
+                      )}
                     </Field>
                   );
                 }}
               </form.Field>
+            </div>
+          </SectionCard>
 
-              <form.Field name="isCreateAccount">
-                {(field) => {
-                  return (
-                    <Field orientation="horizontal">
-                      <Checkbox
-                        id={field.name}
-                        name={field.name}
-                        className={`w-5 h-5 border-white/50 rounded-s border-white/50`}
-                        checked={field.state.value}
-                        onCheckedChange={(checked: boolean) =>
-                          form.setFieldValue("isCreateAccount", checked)
-                        }
-                      />
-                      <Label className="leading-relaxed text-md">
-                        Create an account for faster bookings and exclusive
-                        perks{" "}
-                        <Link
-                          href="/benefits"
-                          className="text-[#dc143c] hover:underline text-md"
-                        >
-                          See Benefits.
-                        </Link>
-                      </Label>
-                    </Field>
-                  );
-                }}
-              </form.Field>
-            </FieldGroup>
+          <form.Field name="isChecked">
+            {(field) => {
+              const showError = !!(
+                form.state.submissionAttempts && !field.state.value
+              );
 
+              return (
+                <div className="ml-5 flex items-start gap-3 py-2 transition-all duration-300 mb-5">
+                  <div className="pt-1">
+                    <Checkbox
+                      id={field.name}
+                      name={field.name}
+                      className={`w-5 h-5 rounded-md transition-all duration-300 ${
+                        showError
+                          ? "border-[#dc143c] bg-[#dc143c]/10"
+                          : "border-white/30 bg-white/5 data-[state=checked]:bg-[#dc143c]"
+                      }`}
+                      checked={field.state.value}
+                      onCheckedChange={(checked: boolean) =>
+                        form.setFieldValue("isChecked", checked)
+                      }
+                    />
+                  </div>
+
+                  <Label
+                    htmlFor={field.name}
+                    className={`text-sm md:text-base leading-relaxed cursor-pointer select-none transition-colors ${
+                      showError ? "text-white" : "text-gray-400"
+                    }`}
+                  >
+                    {/* Using a ternary here is safer than && to avoid ghost zeros */}
+                    {showError ? (
+                      <span className="text-[#dc143c] font-black uppercase tracking-widest text-[10px] mr-2">
+                        Required:
+                      </span>
+                    ) : null}
+
+                    {showError
+                      ? "You must acknowledge and agree to our "
+                      : "By checking this box, you acknowledge and agree to our "}
+
+                    <Link
+                      href="/booking-policy"
+                      target="_blank"
+                      className="text-[#dc143c] hover:text-red-400 underline underline-offset-8 decoration-[#dc143c]/20 font-bold"
+                    >
+                      Booking Policy.
+                    </Link>
+                  </Label>
+                </div>
+              );
+            }}
+          </form.Field>
+
+          {/* Submit */}
+          <div className="pt-2 flex justify-end">
             <button
               type="submit"
-              className="group w-full md:w-auto md:px-16 py-4 bg-[#dc143c] hover:bg-red-700 text-white font-bold text-lg rounded-xl transition-all duration-300 shadow-[0_0_30px_rgba(220,20,60,0.3)] hover:shadow-[0_0_40px_rgba(220,20,60,0.5)] hover:-translate-y-0.5 flex items-center justify-center gap-3 disabled:opacity-50"
               disabled={loading}
+              className="group relative inline-flex items-center gap-3 px-10 py-4 bg-[#dc143c] hover:bg-[#c01236] active:scale-[0.98] text-white font-bold text-base rounded-2xl transition-all duration-200 shadow-xl shadow-[#dc143c]/30 hover:shadow-[#dc143c]/50 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
             >
+              {/* shimmer */}
+              <span className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none" />
+
               {loading ? (
-                <svg
-                  className="w-5 h-5 animate-spin text-white"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                  ></path>
-                </svg>
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Saving...
+                </>
               ) : (
                 <>
-                  <span>Submit Booking</span>
-                  <svg
-                    className="w-5 h-5 group-hover:translate-x-1 transition-transform"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M17 8l4 4m0 0l-4 4m4-4H3"
-                    />
-                  </svg>
+                  Create Transaction
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </>
               )}
             </button>
-          </form>
-        </div>
+          </div>
+        </form>
       </div>
     </section>
   );

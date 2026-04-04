@@ -28,6 +28,7 @@ import { IBooking } from "@/lib/db/types";
 import {
   BookingStatus,
   BookingStatusDisplay,
+  ServiceType,
   VehicleSize,
   VehicleType,
 } from "@/lib/enums";
@@ -80,6 +81,8 @@ export const formSchema = z.object({
   travelDistance: z.number(),
   totalAmount: z.number(),
   notes: z.string(),
+  social: z.string(),
+  address: z.string(),
   status: z.enum(BookingStatus),
 });
 
@@ -93,6 +96,8 @@ const defaultValues: FormValues = {
   travelFee: 0,
   travelDistance: 0,
   notes: "",
+  social: "",
+  address: "",
   status: BookingStatus.FOR_CHECKING,
 };
 
@@ -104,8 +109,9 @@ function Chip({ label }: Readonly<{ label: string }>) {
   );
 }
 
-const dpMultiplier = Number.parseInt(process.env.NEXT_PUBLIC_DOWN_PAYMENT_PERCENTAGE as string) / 100
-
+const dpMultiplier =
+  Number.parseInt(process.env.NEXT_PUBLIC_DOWN_PAYMENT_PERCENTAGE as string) /
+  100;
 
 /* ─── Main component ─── */
 export default function BookingDetails() {
@@ -123,7 +129,13 @@ export default function BookingDetails() {
     defaultValues,
     validators: { onSubmit: formSchema },
     onSubmit: async ({ value }) => {
-      setLoading(true);
+      
+       const selectedServices = value.services.map((service) => ({
+        _id: service._id,
+        title: service.title,
+        type: service.type as ServiceType
+      }));
+
       const result = await updateBooking({
         bookingId: booking?._id ?? "",
         sizeId: value.vehicleSizes[0]._id,
@@ -135,6 +147,9 @@ export default function BookingDetails() {
         totalAmount: value.totalAmount,
         notes: value.notes,
         status: value.status,
+        address: value.address,
+        social: value.social,
+        services: selectedServices
       });
       setLoading(false);
       if (result.success && value.status === BookingStatus.COMPLETED) {
@@ -152,6 +167,8 @@ export default function BookingDetails() {
           [getServices(), getBooking(bookingId.toString()), getVehicleSizes()],
         );
         let selectedServiceIds: string[] = [];
+
+        
 
         if (bookingData?.services && bookingData.add_ons) {
           const result = [...bookingData.services, ...bookingData.add_ons].map(
@@ -175,13 +192,15 @@ export default function BookingDetails() {
         form.setFieldValue("travelFee", bookingData?.travel_fee ?? 0);
         form.setFieldValue("totalAmount", bookingData?.total_amount ?? 0);
         form.setFieldValue("notes", bookingData?.notes ?? "");
+        form.setFieldValue("social", bookingData?.social ?? "");
+        form.setFieldValue("address", bookingData?.address ?? "");
         form.setFieldValue(
           "status",
           bookingData?.status ?? BookingStatus.FOR_CHECKING,
         );
         form.setFieldValue("services", selectedServices);
         form.setFieldValue("vehicleSizes", vehicleTypeSize);
-        form.setFieldValue("travelDistance", bookingData?.travel_distance ?? 0)
+        form.setFieldValue("travelDistance", bookingData?.travel_distance ?? 0);
       }
     };
     init();
@@ -287,10 +306,27 @@ export default function BookingDetails() {
                   value={booking?.contact_number ?? ""}
                 />
               </div>
-              <ReadOnlyField
-                label="Social Account"
-                value={booking?.social ?? ""}
-              />
+              <form.Field name="social">
+                {(field) => (
+                  <Field>
+                    <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
+                      Social Account
+                    </FieldLabel>
+                    <Input
+                      id={field.name}
+                      name={field.name}
+                      value={field.state.value}
+                      placeholder="Social account url"
+                      onBlur={field.handleBlur}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        field.handleChange(v);
+                      }}
+                      className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
+                    />
+                  </Field>
+                )}
+              </form.Field>
             </div>
           </SectionCard>
 
@@ -372,17 +408,28 @@ export default function BookingDetails() {
                 label="Vehicle Model"
                 value={booking?.vehicle_model ?? ""}
               />
-              <Field>
-                <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
-                  Complete Address
-                </FieldLabel>
-                <Textarea
-                  readOnly
-                  rows={3}
-                  value={booking?.address ?? ""}
-                  className="px-4 py-3 rounded-xl bg-white/[0.03] border-white/[0.08] text-white text-sm resize-none focus-visible:ring-0"
-                />
-              </Field>
+              <form.Field name="address">
+                {(field) => (
+                  <Field>
+                    <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
+                      Complete Address
+                    </FieldLabel>
+                    <Textarea
+                      rows={3}
+                      id={field.name}
+                      name={field.name}
+                      value={field.state.value}
+                      placeholder="Social account url"
+                      onBlur={field.handleBlur}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        field.handleChange(v);
+                      }}
+                      className="px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2 resize-none"
+                    />
+                  </Field>
+                )}
+              </form.Field>
             </div>
           </SectionCard>
 
@@ -488,7 +535,7 @@ export default function BookingDetails() {
                 {(field) => (
                   <Field>
                     <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
-                      Reservation Fee
+                      Deposit Amount Paid
                     </FieldLabel>
                     <Input
                       id={field.name}
@@ -551,7 +598,7 @@ export default function BookingDetails() {
                 {(field) => (
                   <Field>
                     <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
-                      Total Amount
+                      Services Total Amount
                     </FieldLabel>
                     <Input
                       id={field.name}
@@ -592,7 +639,7 @@ export default function BookingDetails() {
                     </div>
                     <div className="flex justify-between items-center px-4 py-3">
                       <span className="text-gray-500 text-sm">
-                        Reservation Fee
+                        Deposit Amount Paid
                       </span>
                       <span className="text-white font-medium text-sm">
                         ₱{fee.toLocaleString()}
@@ -680,7 +727,11 @@ export default function BookingDetails() {
                               return (
                                 <CommandItem
                                   key={statusKey}
-                                  onSelect={() => field.handleChange(statusKey as BookingStatus)}
+                                  onSelect={() =>
+                                    field.handleChange(
+                                      statusKey as BookingStatus,
+                                    )
+                                  }
                                   className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
                                 >
                                   <span className="font-bold text-xs uppercase tracking-wider">
