@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, ChevronRight } from "lucide-react";
+import { X, ChevronRight, ArrowUpRight, Info, Car, Motorbike } from "lucide-react";
 import Link from "next/link";
 
 import SectionContainer from "./SectionContainer";
 import { getServices, IServiceResponse } from "../actions/getServices";
-import { ServiceType } from "@/lib/enums";
+import { ServiceType, VehicleType } from "@/lib/enums";
 import { trackVisit } from "../actions/trackVisit";
 
 const Services = () => {
@@ -166,97 +166,146 @@ const Services = () => {
       )}
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6">
           {/* Backdrop */}
           <button
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+            className="absolute inset-0 bg-black/88 backdrop-blur-xl"
             onClick={() => setIsModalOpen(false)}
-          ></button>
+          />
 
-          {/* Modal Container */}
-          <div className="relative w-full max-w-2xl bg-gradient-to-b from-[#1a1a1a] to-[#0a0a0a] border border-white/[0.08] rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
-            {/* Modal Glow Effect */}
-            <div className="absolute inset-0 bg-gradient-to-br from-[#dc143c]/5 via-transparent to-transparent pointer-events-none"></div>
+          {/* Modal */}
+          <div className="relative w-full max-w-lg max-h-[85vh] flex flex-col bg-[#0c0c0c] border border-white/10 rounded-[28px] shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+            {/* Top red line accent */}
+            <div className="h-[3px] bg-gradient-to-r from-[#dc143c] via-[#ff6b81] to-transparent flex-shrink-0" />
 
             {/* Header */}
-            <div className="relative p-8 pb-4 flex justify-between items-center border-b border-white/[0.08]">
+            <div className="px-7 pt-6 pb-5 border-b border-white/[0.07] flex items-start justify-between gap-4 flex-shrink-0">
               <div>
-                <h2 className="text-2xl font-bold text-white">
-                  Service Pricing
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#dc143c]/12 border border-[#dc143c]/25 mb-3">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#dc143c]" />
+                  <span className="text-[10px] font-bold text-[#ff6b81] uppercase tracking-widest">
+                    Service Pricing
+                  </span>
+                </div>
+                <h2 className="text-[22px] font-extrabold text-white tracking-tight leading-tight mb-1">
+                  {selectedService?.title}
                 </h2>
-                <p className="text-gray-400 text-sm mt-1">
-                  Prices by vehicle size and type
+                <p className="text-xs text-white/30">
+                  Rates tailored to your vehicle size
                 </p>
               </div>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="p-2 rounded-full hover:bg-white/10 transition-colors text-gray-400 hover:text-white"
+                className="flex-shrink-0 w-9 h-9 rounded-xl bg-white/[0.05] border border-white/10 text-white/40 hover:text-white hover:bg-white/10 hover:border-white/20 flex items-center justify-center transition-all duration-200 group"
               >
-                <X className="w-6 h-6" />
+                <X className="w-4 h-4 group-hover:rotate-90 transition-transform duration-200" />
               </button>
             </div>
 
-            {/* Table Content */}
-            <div className="relative p-6">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-white/[0.08]">
-                    <th className="pb-4 text-sm font-semibold text-gray-500 uppercase tracking-wider">
-                      Vehicle Type
-                    </th>
-                    <th className="pb-4 text-sm font-semibold text-gray-500 uppercase tracking-wider text-right">
-                      Price
-                    </th>
-                  </tr>
-                </thead>
-                {selectedService &&
-                selectedService.pricing_per_sizes.length > 0 ? (
-                  <tbody className="divide-y divide-white/[0.05]">
-                    {selectedService.pricing_per_sizes.map((item) => (
-                      <tr
+            {/* Scrollable content */}
+            <div className="flex-1 overflow-y-auto px-7 py-5 space-y-2 custom-scrollbar scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+              {/* Column labels */}
+              <div className="flex justify-between px-1 mb-3">
+                <span className="text-[10px] font-bold text-white/20 uppercase tracking-widest">
+                  Vehicle Class
+                </span>
+                <span className="text-[10px] font-bold text-white/20 uppercase tracking-widest">
+                  Price
+                </span>
+              </div>
+
+              {selectedService && !selectedService.pricing_options ? (
+                selectedService.pricing_per_sizes
+                  .filter(item => item.type === VehicleType.CAR)
+                  .map((item, idx) => {
+                    const isFirst = false
+                    return (
+                      <div
                         key={item._id}
-                        className="group hover:bg-white/[0.02] transition-colors duration-300"
+                        style={{ animationDelay: `${idx * 50}ms` }}
+                        className={`flex items-center justify-between px-4 py-3.5 rounded-2xl border transition-all duration-200 animate-in fade-in slide-in-from-left-3 group
+                    ${
+                      isFirst
+                        ? "bg-[#dc143c]/8 border-[#dc143c]/25 hover:bg-[#dc143c]/12"
+                        : "bg-white/[0.02] border-white/[0.07] hover:bg-white/[0.04] hover:border-white/15"
+                    }`}
                       >
-                        <td className="py-5 pl-2">
-                          <span className="text-sm md:text-base text-white font-medium group-hover:text-[#dc143c] transition-colors duration-300">
-                            {item.vehicle.toUpperCase()}
+                        <div className="flex items-center gap-3">
+                          {/* icon box */}
+                          <div
+                            className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 border
+                      ${
+                        isFirst
+                          ? "bg-[#dc143c]/15 border-[#dc143c]/30"
+                          : "bg-white/[0.04] border-white/[0.08]"
+                      }`}
+                          >
+                            {item.type === VehicleType.CAR ? <Car
+                              className={`w-4 h-4 ${isFirst ? "text-[#ff6b81]" : "text-white/35"}`}
+                            /> : <Motorbike
+                              className={`w-4 h-4 ${isFirst ? "text-[#ff6b81]" : "text-white/35"}`}
+                            />}
+                          </div>
+                          <div>
+                            <p
+                              className={`text-sm font-bold leading-none mb-0.5 ${isFirst ? "text-white" : "text-white/75"}`}
+                            >
+                              {item.description.toUpperCase()}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {isFirst && (
+                            <span className="text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-md bg-[#dc143c]/15 border border-[#dc143c]/30 text-[#ff6b81]">
+                              Popular
+                            </span>
+                          )}
+                          <span
+                            className={`text-lg font-extrabold tabular-nums ${isFirst ? "text-[#ff6b81]" : "text-white/75"}`}
+                          >
+                            ₱{item.price.toLocaleString()}
                           </span>
-                        </td>
-                        <td className="py-5 pr-2 text-right">
-                          <span className="text-lg font-bold text-white group-hover:text-[#dc143c] transition-colors duration-300">
-                            {`₱${item.price.toLocaleString()}`}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                ) : (
-                  <tbody className="divide-y divide-white/[0.05]">
-                    <tr className="group hover:bg-white/[0.02] transition-colors duration-300">
-                      <td colSpan={3} className="py-5 text-center">
-                        <span className="inline-flex items-center justify-center w-full text-sm md:text-base text-white font-medium group-hover:text-[#dc143c] transition-colors duration-300">
-                          {`Flat rate of ₱${selectedService?.price.toLocaleString()} ${selectedService?.pricing_options}`}
-                        </span>
-                      </td>
-                    </tr>
-                  </tbody>
-                )}
-              </table>
+                        </div>
+                      </div>
+                    );
+                  })
+              ) : (
+                <div className="py-10 flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-white/[0.01]">
+                  <span className="text-4xl font-extrabold text-white mb-2 tabular-nums">
+                    ₱{selectedService?.price.toLocaleString()}
+                  </span>
+                  <span className="text-[10px] text-white/30 uppercase tracking-widest font-bold">
+                    {selectedService?.pricing_options}
+                  </span>
+                </div>
+              )}
+
+              {/* Note */}
+              {selectedService?.notes && (
+                <div className="flex gap-3 items-start p-4 rounded-xl bg-[#dc143c]/5 border border-[#dc143c]/15 mt-2">
+                  <Info className="w-3.5 h-3.5 text-[#dc143c] flex-shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-white/35 leading-relaxed">
+                    {selectedService.notes}
+                  </p>
+                </div>
+              )}
             </div>
 
-            {selectedService?.notes !== "" && (
-              <div className="w-full my-5 text-center text-sm md:text-base text-white font-medium">
-                {selectedService?.notes}
-              </div>
-            )}
-
-            {/* Footer */}
-            <div className="relative p-6 pt-0 mt-2">
+            {/* Footer CTA */}
+            <div className="px-7 pb-6 pt-4 border-t border-white/[0.07] bg-[#080808] flex-shrink-0">
               <Link
                 href="/booking"
-                className="w-full py-4 px-6 rounded-xl bg-[#dc143c] hover:bg-red-700 text-white font-bold text-lg rounded-xl transition-all duration-300 shadow-[0_0_30px_rgba(220,20,60,0.3)] hover:shadow-[0_0_40px_rgba(220,20,60,0.5)] hover:-translate-y-0.5 flex items-center justify-center"
+                className="group flex items-center justify-between h-[52px] px-5 bg-[#dc143c] hover:bg-[#c01236] active:scale-[0.98] rounded-2xl transition-all duration-200 shadow-lg shadow-[#dc143c]/25 overflow-hidden relative"
               >
-                Book Now
+                <span className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none" />
+                <span className="text-white font-extrabold text-sm tracking-wide relative">
+                  Book This Service
+                </span>
+                <div className="flex items-center gap-3 relative">
+                  <span className="w-px h-5 bg-white/20" />
+                  <ArrowUpRight className="w-4 h-4 text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                </div>
               </Link>
             </div>
           </div>

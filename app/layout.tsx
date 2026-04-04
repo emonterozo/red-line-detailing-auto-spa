@@ -1,4 +1,4 @@
-import { Analytics } from "@vercel/analytics/next"
+import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import { Russo_One, Poppins } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
@@ -30,7 +30,14 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${russoOne.variable} ${poppins.variable}`}>
         {children}
-        <Toaster />
+        <Toaster
+          toastOptions={{
+            unstyled: true,
+            classNames: {
+              toast: "!bg-transparent !border-0 !shadow-none !p-0",
+            },
+          }}
+        />
         <Analytics />
       </body>
     </html>

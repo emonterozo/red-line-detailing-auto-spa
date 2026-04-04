@@ -2,6 +2,22 @@ export enum ServiceType {
   SERVICE = 'service', ADD_ONS = 'add-ons', 
 }
 
+export enum VehicleType {
+  CAR = 'car', MOTORCYCLE = 'motorcycle',
+}
+
+export enum VehicleSize {
+  SM = 'sm', MD = 'md', LG = 'lg', XL = 'xl', XXL = 'xxl',
+}
+
+export const VehicleSizeDisplay: Record<VehicleSize, string> = {
+  sm: 'Small',
+  md: 'Medium',
+  lg: 'Large',
+  xl: 'Large',
+  xxl: 'Extra-Large',
+};
+
 export enum InquiryStatus {
   NEW = 'new', COMPLETED = 'completed', REJECTED = 'rejected',
 }
@@ -26,3 +42,25 @@ export const BookingStatusDisplay: Record<BookingStatus, string> = {
   refunded: 'Refunded'
 };
 
+export const TransactionFromDisplay: Record<TransactionFrom, string> = {
+  booking: 'Booking',
+  "walk-in": 'Walk-In',
+  
+};
+
+export const DiscountTypeDisplay: Record<DiscountType, string> = {
+  promotions: 'Promotions',
+  manual: 'Manual',
+};
+
+export enum RewardType {
+  DISCOUNT = 'discount', FREE_SERVICE = 'free_service',
+}
+
+export enum TransactionFrom {
+  BOOKING = 'booking', WALK_IN = 'walk-in',
+}
+
+export enum DiscountType {
+  PROMOTIONS = "promotions", MANUAL = 'manual'
+}

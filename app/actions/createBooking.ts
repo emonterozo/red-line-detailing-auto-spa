@@ -10,6 +10,7 @@ import { Types } from "mongoose";
 import { bookingTemple } from "../template/booking";
 
 export const createBooking = async (bookingData: IBooking) => {
+  const userId = null;
   await connect();
 
   const formattedDate = bookingData.preferred_date.date.toLocaleDateString(
@@ -51,14 +52,16 @@ export const createBooking = async (bookingData: IBooking) => {
         { "time_slots.$": 1 },
       );
       if (schedule) {
-        const newBooking = new Booking(bookingData);
+        const newBooking = new Booking({
+          user_id: userId,
+          ...bookingData,
+        });
         await newBooking.save();
 
         await Schedule.findOneAndUpdate(
           {
             _id: new Types.ObjectId(bookingData.preferred_date._id),
             "time_slots._id": new Types.ObjectId(bookingData.time_slot._id),
-            "time_slots.is_available": true,
           },
           {
             $set: {
@@ -93,10 +96,10 @@ export const createBooking = async (bookingData: IBooking) => {
           },
         });
 
-        const subject = `${new Types.ObjectId().toString()}, Booking from Website`;
+        const subject = `Booking Created on Website – Ref: #${bookingData.reference_number}`;
 
         await transporter.sendMail({
-          from: `Booking from <${process.env.EMAIL_USER}>`,
+          from: `Red Line Detailing <${process.env.EMAIL_USER}>`,
           to: [process.env.EMAIL_USER, process.env.PERSONAL_EMAIL].join(","),
           subject: subject,
           html: html,

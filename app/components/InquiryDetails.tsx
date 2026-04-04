@@ -1,263 +1,230 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "@tanstack/react-form";
-import * as z from "zod";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Field, FieldLabel } from "@/components/ui/field";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Command, CommandItem } from "@/components/ui/command";
-import { Check } from "lucide-react";
 import {
-  InquiryStatus,
-  InquiryStatusDisplay,
-} from "@/lib/enums";
+  Check,
+  User,
+  MessageSquare,
+  Activity,
+  Settings,
+  ArrowRight,
+  Loader2,
+} from "lucide-react";
+import { InquiryStatus, InquiryStatusDisplay } from "@/lib/enums";
 import { useParams, useRouter } from "next/navigation";
 import { getInquiry } from "../actions/getInquiry";
 import { updateInquiry } from "../actions/updateInquiry";
-
-export const formSchema = z.object({
-  name: z.string(),
-  email: z.string(),
-  message: z.string(),
-  contactNumber: z.string(),
-  status: z.string(),
-});
-
-export type FormValues = z.infer<typeof formSchema>;
-
-const defaultValues: FormValues = {
-  name: "",
-  email: "",
-  message: "",
-  contactNumber: "",
-  status: "",
-};
+import { motion } from "framer-motion";
+import { Textarea } from "@/components/ui/textarea";
+import { SectionCard } from "./SectionCard";
+import { ReadOnlyField } from "./ReadOnlyField";
+import { SelectTrigger } from "./SelectTrigger";
 
 export default function InquiryDetails() {
   const router = useRouter();
   const params = useParams();
   const inquiryId = params.id;
+  const [loading, setLoading] = useState(false);
+  const [inquiry, setInquiry] = useState({
+    name: "",
+    email: "",
+    message: "",
+    contactNumber: "",
+  });
 
   const form = useForm({
-    defaultValues,
+    defaultValues: {
+      status: "",
+    },
     onSubmit: async ({ value }) => {
-      await updateInquiry(inquiryId?.toString() ?? '', value.status as InquiryStatus)
+      setLoading(true);
+      await updateInquiry(
+        inquiryId?.toString() ?? "",
+        value.status as InquiryStatus,
+      );
+      setLoading(false);
       router.back();
     },
   });
-  const fetchInquiry = async (id: string) => {
-    const response = await getInquiry(id);
-    return response;
-  };
 
   useEffect(() => {
     const init = async () => {
       if (inquiryId) {
-        const inquiryData = await fetchInquiry(inquiryId.toString());
-        form.setFieldValue("name", inquiryData?.name ?? "");
-        form.setFieldValue("email", inquiryData?.email ?? "");
-        form.setFieldValue("message", inquiryData?.message ?? "");
-        form.setFieldValue("contactNumber", inquiryData?.contact_number ?? "");
-        form.setFieldValue("status", inquiryData?.status ?? InquiryStatus.NEW);
+        const data = await getInquiry(inquiryId.toString());
+        setInquiry({
+          name: data?.name ?? "",
+          email: data?.email ?? "",
+          message: data?.message ?? "",
+          contactNumber: data?.contact_number ?? "",
+        });
+        form.setFieldValue("status", data?.status ?? InquiryStatus.NEW);
       }
     };
-
     init();
-  }, [inquiryId, form]);
+  }, [form, inquiryId]);
 
   return (
-    <section className="relative w-full bg-black">
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32">
-        <div className="text-center mb-16 md:mb-20">
-          <h2 className="font-russo text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold text-white leading-[1.1] mb-6">
-            Inquiry{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#dc143c] via-red-500 to-[#dc143c] bg-[length:200%_auto]">
-              Details
+    <section className="min-h-screen bg-[#0a0a0a] relative overflow-hidden">
+      {/* Ambient Glows */}
+      <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] rounded-full bg-[#dc143c]/[0.08] blur-[140px]" />
+
+      <div className="relative max-w-3xl mx-auto px-4 sm:px-6 py-16 md:py-24">
+        {/* ── Header ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center mb-16"
+        >
+          <h2 className="font-russo text-4xl md:text-6xl font-extrabold text-white tracking-tight">
+            INQUIRY{" "}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#dc143c] to-[#ff6b81]">
+              DETAILS
             </span>
           </h2>
-
-          {/* Decorative Line */}
-          <div className="flex items-center justify-center gap-4 mt-8">
-            <div className="w-12 h-[1px] bg-gradient-to-r from-transparent to-[#dc143c]"></div>
-            <div className="w-2 h-2 rotate-45 bg-[#dc143c]"></div>
-            <div className="w-12 h-[1px] bg-gradient-to-l from-transparent to-[#dc143c]"></div>
+          <p className="mt-4 text-gray-500 text-base max-w-md mx-auto">
+            Review customer inquiry details and manage its status.
+          </p>
+          <div className="flex items-center justify-center gap-3 mt-6">
+            <div className="h-[1px] w-12 bg-gradient-to-r from-transparent to-[#dc143c]" />
+            <Activity className="w-4 h-4 text-[#dc143c] animate-pulse" />
+            <div className="h-[1px] w-12 bg-gradient-to-l from-transparent to-[#dc143c]" />
           </div>
-        </div>
-        <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-6 sm:p-8 lg:p-10 shadow-2xl shadow-black/40">
-          <form
-            className="space-y-6"
-            id="booking-form"
-            onSubmit={(e) => {
-              e.preventDefault();
-              form.handleSubmit();
-            }}
+        </motion.div>
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            form.handleSubmit();
+          }}
+          className="space-y-0"
+        >
+          <SectionCard
+            icon={<User className="w-4 h-4" />}
+            title="Lead Information"
+            subtitle="Contact details provided by the client."
           >
-            <FieldGroup>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <form.Field name="name">
-                  {(field) => {
-                    return (
-                      <Field>
-                        <FieldLabel className="text-gray-300 uppercase">
-                          Full name
-                        </FieldLabel>
-                        <Input
-                          readOnly
-                          id={field.name}
-                          name={field.name}
-                          value={field.state.value}
-                          onBlur={field.handleBlur}
-                          onChange={(e) => field.handleChange(e.target.value)}
-                          className="!text-base h-14 px-5 rounded-xl bg-white/10 border-white/20 text-white placeholder:text-gray-400 backdrop-blur-sm "
-                        />
-                      </Field>
-                    );
-                  }}
-                </form.Field>
-                <form.Field name="contactNumber">
-                  {(field) => {
-                    return (
-                      <Field>
-                        <FieldLabel className="text-gray-300 uppercase">
-                          Contact Number
-                        </FieldLabel>
-                        <Input
-                          readOnly
-                          id={field.name}
-                          name={field.name}
-                          value={field.state.value}
-                          onBlur={field.handleBlur}
-                          onChange={(e) => field.handleChange(e.target.value)}
-                          className="!text-base h-14 px-5 rounded-xl bg-white/10 border-white/20 text-white placeholder:text-gray-400 backdrop-blur-sm "
-                        />
-                      </Field>
-                    );
-                  }}
-                </form.Field>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <ReadOnlyField label="Full Name" value={inquiry.name} />
+              <ReadOnlyField
+                label="Contact Number"
+                value={inquiry.contactNumber}
+              />
+              <div className="md:col-span-2">
+                <ReadOnlyField label="Email Address" value={inquiry.email} />
               </div>
+            </div>
+          </SectionCard>
 
-              <form.Field name="email">
-                {(field) => {
-                  return (
-                    <Field>
-                      <FieldLabel className="text-gray-300 uppercase">
-                        Contact Number
-                      </FieldLabel>
-                      <Input
-                        readOnly
-                        id={field.name}
-                        name={field.name}
-                        value={field.state.value}
-                        onBlur={field.handleBlur}
-                        onChange={(e) => field.handleChange(e.target.value)}
-                        className="!text-base h-14 px-5 rounded-xl bg-white/10 border-white/20 text-white placeholder:text-gray-400 backdrop-blur-sm "
-                      />
-                    </Field>
-                  );
-                }}
-              </form.Field>
-              <form.Field name="message">
-                {(field) => {
-                  return (
-                    <Field>
-                      <FieldLabel className="text-gray-300 uppercase">
-                        Message
-                      </FieldLabel>
-                      <Textarea
-                      readOnly
-                        id={field.name}
-                        name={field.name}
-                        value={field.state.value}
-                        onBlur={field.handleBlur}
-                        onChange={(e) => field.handleChange(e.target.value)}
-                        rows={5}
-                        maxLength={250}
-                        placeholder="Enter booking message"
-                        className="!text-base  px-5 rounded-xl bg-white/10 border-white/20 text-white placeholder:text-gray-400 backdrop-blur-sm resize-none"
-                      />
-                    </Field>
-                  );
-                }}
-              </form.Field>
+          <SectionCard
+            icon={<MessageSquare className="w-4 h-4" />}
+            title="Inquiry Content"
+            subtitle="The specific request or message."
+          >
+            <Field>
+              <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
+                Message Body
+              </FieldLabel>
+              <Textarea
+                readOnly
+                value={inquiry.message}
+                rows={5}
+                className="px-4 rounded-xl bg-white/[0.04] border-white/10 text-white placeholder:text-gray-600 text-sm
+             focus-visible:outline-none focus-visible:ring-0 focus-visible:border-white/10 resize-none"
+              />
+            </Field>
+          </SectionCard>
 
-              <form.Field name="status">
-                {(field) => {
-                  return (
-                    <Field>
-                      <FieldLabel className="text-gray-300 uppercase">
-                        Status
-                      </FieldLabel>
-                      <Popover>
-                        <PopoverTrigger
-                          className={`w-full h-14 px-5 rounded-xl bg-white/10 border-white/20 backdrop-blur-sm text-base flex items-center justify-between text-white`}
-                        >
-                          {
-                            InquiryStatusDisplay[
-                              field.state.value as InquiryStatus
-                            ]
-                          }
-                        </PopoverTrigger>
+          <SectionCard
+            icon={<Settings className="w-4 h-4" />}
+            title="Action Center"
+            subtitle="Update the status and finalize."
+            last
+          >
+            <form.Field name="status">
+              {(field) => (
+                <Field>
+                  <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
+                    Current Status
+                  </FieldLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button type="button" className="w-full">
+                        <SelectTrigger hasValue={field.state.value.length > 0}>
+                          {field.state.value.length > 0 ? (
+                            <div className="overflow-x-auto scrollbar-services w-0 min-w-0 flex-1 py-2 flex-1">
+                              <div className="flex gap-2 flex-nowrap min-w-max items-center">
+                                {field.state.value.toUpperCase()}
+                              </div>
+                            </div>
+                          ) : (
+                            <span>Choose services...</span>
+                          )}
+                        </SelectTrigger>
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="backdrop-blur-md border border-white/20 rounded-xl p-3 shadow-lg max-h-80 overflow-y-auto">
+                      <Command>
+                        <div className="space-y-1">
+                          {Object.entries(InquiryStatusDisplay).map(
+                            ([statusKey, display]) => {
+                              const isSelected =
+                                field.state.value === statusKey;
+                              return (
+                                <CommandItem
+                                  key={statusKey}
+                                  onSelect={() => field.handleChange(statusKey)}
+                                  className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                                >
+                                  <span className="font-bold text-xs uppercase tracking-wider">
+                                    {display}
+                                  </span>
+                                  {isSelected && (
+                                    <Check className="w-4 h-4 text-[#dc143c]" />
+                                  )}
+                                </CommandItem>
+                              );
+                            },
+                          )}
+                        </div>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </Field>
+              )}
+            </form.Field>
+          </SectionCard>
 
-                        <PopoverContent className=" backdrop-blur-md border border-white/20 rounded-xl p-3 shadow-lg overflow-y-auto">
-                          <Command>
-                            {Object.entries(InquiryStatusDisplay).map(
-                              ([statusKey, display]) => {
-                                const isSelected =
-                                  field.state.value === statusKey;
-
-                                return (
-                                  <CommandItem
-                                    key={statusKey}
-                                    onSelect={() => {
-                                      field.handleChange(statusKey);
-                                    }}
-                                    className={`flex justify-between items-center px-4 py-3 rounded-xl cursor-pointer transition-colors duration-200 text-gray-500`}
-                                  >
-                                    <span>{display}</span>
-                                    {isSelected && (
-                                      <Check className="w-5 h-5 text-[#dc143c]" />
-                                    )}
-                                  </CommandItem>
-                                );
-                              },
-                            )}
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
-                    </Field>
-                  );
-                }}
-              </form.Field>
-            </FieldGroup>
-
+          {/* Submit */}
+          <div className="pt-2 flex justify-end">
             <button
               type="submit"
-              form="booking-form"
-              className="group w-full md:w-auto md:px-16 py-4 bg-[#dc143c] hover:bg-red-700 text-white font-bold text-lg rounded-xl transition-all duration-300 shadow-[0_0_30px_rgba(220,20,60,0.3)] hover:shadow-[0_0_40px_rgba(220,20,60,0.5)] hover:-translate-y-0.5 flex items-center justify-center gap-3"
+              disabled={loading}
+              className="group relative inline-flex items-center gap-3 px-10 py-4 bg-[#dc143c] hover:bg-[#c01236] active:scale-[0.98] text-white font-bold text-base rounded-2xl transition-all duration-200 shadow-xl shadow-[#dc143c]/30 hover:shadow-[#dc143c]/50 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
             >
-              <span>Update Inquiry</span>
-              <svg
-                className="w-5 h-5 group-hover:translate-x-1 transition-transform"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M17 8l4 4m0 0l-4 4m4-4H3"
-                />
-              </svg>
+              {/* shimmer */}
+              <span className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none" />
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  Update Inquiry
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </>
+              )}
             </button>
-          </form>
-        </div>
+          </div>
+        </form>
       </div>
     </section>
   );

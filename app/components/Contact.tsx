@@ -16,21 +16,25 @@ import { Label } from "@/components/ui/label";
 import { createInquiry } from "../actions/createInquiry";
 import { InquiryStatus } from "@/lib/enums";
 import { useState } from "react";
+import { Activity } from "lucide-react";
 
 const formSchema = z.object({
   fullName: z
     .string()
-    .min(5, "Full name must be at least 5 characters.")
-    .max(32, "Full name must be at most 32 characters."),
+    .min(5, "Please enter your full name (at least 5 characters).")
+    .max(32, "Full name can be at most 32 characters."),
   email: z.email("Please enter a valid email address."),
   contactNumber: z
     .string()
     .trim()
-    .regex(/^09\d{9}$/, "Contact number must be 11 digits and start with 09."),
+    .regex(
+      /^09\d{9}$/,
+      "Please enter a valid contact number (11 digits, starting with 09).",
+    ),
   message: z
     .string()
-    .min(5, "Message must be at least 5 characters.")
-    .max(250, "Message must be at most 250 characters."),
+    .min(5, "Enter your message (min. 5 characters).")
+    .max(250, "Message can be at most 250 characters."),
 });
 
 const Contact = () => {
@@ -67,23 +71,26 @@ const Contact = () => {
   });
 
   return (
-    <section id="contact" className="relative w-full bg-black">
-      {/* Background Image with Overlay */}
-      <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{
-          backgroundImage:
-            "url('https://images.unsplash.com/photo-1710078064201-e4b068f6936d?ixlib=rb-4.0.3&q=80&w=2070&auto=format&fit=crop')",
-        }}
-      >
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-xs"></div>
-      </div>
+    <section
+      id="contact"
+      className="relative min-h-screen w-full bg-[#050505] flex flex-col items-center justify-center px-6 overflow-hidden font-sans selection:bg-[#dc143c]/30"
+    >
+      {/* 1. BRANDED AMBIENCE & UPDATED RED BACKGROUND */}
+      {/* Deep Red Background Gradient - Adds richer tone */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,#1a0508_0%,#050505_100%)] pointer-events-none" />
+
+      {/* Primary Red Ambient Glows */}
+      <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-[#dc143c]/15 blur-[150px] rounded-full pointer-events-none animate-pulse" />
+      <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-[#dc143c]/10 blur-[150px] rounded-full pointer-events-none animate-pulse delay-700" />
+
+      {/* Precision Grid Overlay */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_80%,transparent_100%)] pointer-events-none" />
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32">
         <div className="text-center mb-16 md:mb-20">
           <h2 className="font-russo text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold text-white leading-[1.1] mb-6">
             Get In{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#dc143c] via-red-500 to-[#dc143c] bg-[length:200%_auto]">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#dc143c] via-[#ff4d6d] to-[#dc143c] bg-[length:200%_auto] animate-gradient">
               Touch
             </span>
           </h2>
@@ -93,15 +100,15 @@ const Contact = () => {
           </p>
 
           {/* Decorative Line */}
-          <div className="flex items-center justify-center gap-4 mt-8">
-            <div className="w-12 h-[1px] bg-gradient-to-r from-transparent to-[#dc143c]"></div>
-            <div className="w-2 h-2 rotate-45 bg-[#dc143c]"></div>
-            <div className="w-12 h-[1px] bg-gradient-to-l from-transparent to-[#dc143c]"></div>
+          <div className="flex items-center justify-center gap-3 mt-6">
+            <div className="h-[1px] w-12 bg-gradient-to-r from-transparent to-[#dc143c]" />
+            <Activity className="w-4 h-4 text-[#dc143c] animate-pulse" />
+            <div className="h-[1px] w-12 bg-gradient-to-l from-transparent to-[#dc143c]" />
           </div>
         </div>
 
         {/* Contact Form Card */}
-        <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-6 sm:p-8 lg:p-10 shadow-2xl shadow-black/40">
+        <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-5 backdrop-blur-sm">
           <form
             className="space-y-6"
             id="contact-form"
@@ -120,7 +127,7 @@ const Contact = () => {
                     <Field data-invalid={isInvalid}>
                       <FieldLabel
                         htmlFor={field.name}
-                        className="text-gray-300 uppercase"
+                        className="text-gray-500 text-xs uppercase tracking-widest"
                       >
                         Full name
                       </FieldLabel>
@@ -132,12 +139,12 @@ const Contact = () => {
                         onBlur={field.handleBlur}
                         onChange={(e) => field.handleChange(e.target.value)}
                         aria-invalid={isInvalid}
-                        placeholder="Enter your full name"
-                        className="!text-base h-14 px-5 rounded-xl bg-white/10 border-white/20 text-white placeholder:text-gray-400 backdrop-blur-sm focus-visible:border-[#dc143c] focus-visible:ring-[#dc143c]/20"
+                        placeholder="Full Name (e.g., Juan Dela Cruz)"
+                        className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
                       />
                       {isInvalid && (
                         <FieldError
-                          className="text-[#dc143c]"
+                          className="text-[#ff6b81] text-xs mt-1"
                           errors={field.state.meta.errors}
                         />
                       )}
@@ -156,7 +163,7 @@ const Contact = () => {
                       <Field data-invalid={isInvalid}>
                         <FieldLabel
                           htmlFor="email"
-                          className="text-gray-300 uppercase"
+                          className="text-gray-500 text-xs uppercase tracking-widest"
                         >
                           Email address
                         </FieldLabel>
@@ -167,12 +174,12 @@ const Contact = () => {
                           onBlur={field.handleBlur}
                           onChange={(e) => field.handleChange(e.target.value)}
                           type="email"
-                          placeholder="Enter your email address"
-                          className="!text-base h-14 px-5 rounded-xl bg-white/10 border-white/20 text-white placeholder:text-gray-400 backdrop-blur-sm focus-visible:border-[#dc143c] focus-visible:ring-[#dc143c]/20"
+                          placeholder="Enter your email (e.g., juan@email.com)"
+                          className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
                         />
                         {isInvalid && (
                           <FieldError
-                            className="text-[#dc143c]"
+                            className="text-[#ff6b81] text-xs mt-1"
                             errors={field.state.meta.errors}
                           />
                         )}
@@ -190,7 +197,7 @@ const Contact = () => {
                       <Field data-invalid={isInvalid}>
                         <FieldLabel
                           htmlFor="phone"
-                          className="text-gray-300 uppercase"
+                          className="text-gray-500 text-xs uppercase tracking-widest"
                         >
                           Contact Number
                         </FieldLabel>
@@ -201,13 +208,13 @@ const Contact = () => {
                           onBlur={field.handleBlur}
                           onChange={(e) => field.handleChange(e.target.value)}
                           type="tel"
-                          placeholder="Enter your contact number"
+                          placeholder="Contact Number (e.g., 09123456789)"
                           maxLength={11}
-                          className="!text-base h-14 px-5 rounded-xl bg-white/10 border-white/20 text-white placeholder:text-gray-400 backdrop-blur-sm focus-visible:border-[#dc143c] focus-visible:ring-[#dc143c]/20"
+                          className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
                         />
                         {isInvalid && (
                           <FieldError
-                            className="text-[#dc143c]"
+                            className="text-[#ff6b81] text-xs mt-1"
                             errors={field.state.meta.errors}
                           />
                         )}
@@ -224,8 +231,8 @@ const Contact = () => {
 
                   return (
                     <Field data-invalid={isInvalid}>
-                      <FieldLabel className="text-gray-300 uppercase">
-                        Your Message
+                      <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
+                        Message
                       </FieldLabel>
                       <Textarea
                         id={field.name}
@@ -234,8 +241,8 @@ const Contact = () => {
                         onBlur={field.handleBlur}
                         onChange={(e) => field.handleChange(e.target.value)}
                         rows={5}
-                        placeholder="Tell us about your vehicle and the service you're interested in..."
-                        className="!text-base  px-5 rounded-xl bg-white/10 border-white/20 text-white placeholder:text-gray-400 backdrop-blur-sm focus-visible:border-[#dc143c] focus-visible:ring-[#dc143c]/20 resize-none "
+                        placeholder="Tell us about your vehicle and the service you need"
+                        className="px-4 py-3 rounded-xl bg-white/[0.04] border-white/10 text-white placeholder:text-gray-600 text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2 resize-none"
                         maxLength={250}
                       />
                       <Label className="block text-right text-gray-400 mt-1 text-sm">
@@ -243,7 +250,7 @@ const Contact = () => {
                       </Label>
                       {isInvalid && (
                         <FieldError
-                          className="text-[#dc143c]"
+                          className="text-[#ff6b81] text-xs mt-1"
                           errors={field.state.meta.errors}
                         />
                       )}
@@ -255,7 +262,7 @@ const Contact = () => {
 
             <button
               type="submit"
-              className="group w-full md:w-auto md:px-16 py-4 bg-[#dc143c] hover:bg-red-700 text-white font-bold text-lg rounded-xl transition-all duration-300 shadow-[0_0_30px_rgba(220,20,60,0.3)] hover:shadow-[0_0_40px_rgba(220,20,60,0.5)] hover:-translate-y-0.5 flex items-center justify-center gap-3 disabled:opacity-50"
+              className="group relative inline-flex items-center gap-3 px-10 py-4 bg-[#dc143c] hover:bg-[#c01236] active:scale-[0.98] text-white font-bold text-base rounded-2xl transition-all duration-200 shadow-xl shadow-[#dc143c]/30 hover:shadow-[#dc143c]/50 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
               disabled={loading}
             >
               {loading ? (

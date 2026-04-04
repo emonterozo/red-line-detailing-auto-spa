@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useForm } from "@tanstack/react-form";
 import * as z from "zod";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -12,29 +12,114 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Command, CommandItem } from "@/components/ui/command";
-import { Check } from "lucide-react";
+import {
+  Check,
+  User,
+  Car,
+  Calendar,
+  Wrench,
+  FileText,
+  CreditCard,
+  ArrowRight,
+  Loader2,
+  Activity,
+} from "lucide-react";
 import { IBooking } from "@/lib/db/types";
-import { BookingStatus, BookingStatusDisplay } from "@/lib/enums";
+import {
+  BookingStatus,
+  BookingStatusDisplay,
+  ServiceType,
+  VehicleSize,
+  VehicleType,
+} from "@/lib/enums";
 import { useParams, useRouter } from "next/navigation";
 import { getBooking } from "../actions/getBooking";
 import { updateBooking } from "../actions/updateBooking";
+import {
+  getVehicleSizes,
+  IVehicleSizesResponse,
+} from "../actions/getVehicleSizes";
+import { getServices, IServiceResponse } from "../actions/getServices";
+import { motion } from "framer-motion";
+import { SectionCard } from "./SectionCard";
+import { ReadOnlyField } from "./ReadOnlyField";
+import { SelectTrigger } from "./SelectTrigger";
+
+const config = {
+  fee: process.env.NEXT_PUBLIC_TRAVEL_FEE_PER_KM,
+  free_distance: process.env.NEXT_PUBLIC_FREE_TRAVEL_DISTANCE_KM,
+  deposit: process.env.NEXT_PUBLIC_DOWN_PAYMENT_PERCENTAGE,
+};
+
+export const pricingPerSizeSchema = z.object({
+  _id: z.string(),
+  type: z.string(),
+  size: z.string(),
+  size_id: z.string(),
+  description: z.string(),
+  price: z.number(),
+});
+
+export const serviceSchema = z.object({
+  _id: z.string(),
+  title: z.string(),
+  description: z.string(),
+  type: z.string(),
+  pricing_per_sizes: z.array(pricingPerSizeSchema),
+  price: z.number(),
+  pricing_options: z.string().nullable(),
+});
+
+export const vehicleSizeSchema = z.object({
+  _id: z.string(),
+  size: z.enum(VehicleSize),
+  type: z.enum(VehicleType),
+  description: z.string(),
+});
 
 export const formSchema = z.object({
+  vehicleSizes: z
+    .array(vehicleSizeSchema)
+    .min(1, "Choose a vehicle type & size."),
+  services: z.array(serviceSchema).min(1, "Choose at least one service."),
   reservationFee: z.number(),
+  travelFee: z.number(),
+  travelDistance: z.number(),
   totalAmount: z.number(),
   notes: z.string(),
-  status: z.string(),
+  social: z.string(),
+  address: z.string(),
+  status: z.enum(BookingStatus),
 });
 
 export type FormValues = z.infer<typeof formSchema>;
 
 const defaultValues: FormValues = {
+  vehicleSizes: [],
+  services: [],
   reservationFee: 0,
   totalAmount: 0,
+  travelFee: 0,
+  travelDistance: 0,
   notes: "",
-  status: "",
+  social: "",
+  address: "",
+  status: BookingStatus.FOR_CHECKING,
 };
 
+function Chip({ label }: Readonly<{ label: string }>) {
+  return (
+    <span className="inline-flex items-center px-3 py-1 rounded-full bg-[#dc143c]/20 border border-[#dc143c]/40 text-[#ff6b81] text-sm font-medium">
+      {label}
+    </span>
+  );
+}
+
+const dpMultiplier =
+  Number.parseInt(process.env.NEXT_PUBLIC_DOWN_PAYMENT_PERCENTAGE as string) /
+  100;
+
+/* ─── Main component ─── */
 export default function BookingDetails() {
   const router = useRouter();
   const params = useParams();
@@ -42,343 +127,667 @@ export default function BookingDetails() {
   const [booking, setBooking] = useState<(IBooking & { _id: string }) | null>(
     null,
   );
+  const [vehicleSizes, setVehicleSizes] = useState<IVehicleSizesResponse[]>([]);
+  const [services, setServices] = useState<IServiceResponse[]>([]);
+  const [loading, setLoading] = useState(false);
+
   const form = useForm({
     defaultValues,
+    validators: { onSubmit: formSchema },
     onSubmit: async ({ value }) => {
-      await updateBooking({
+      const selectedServices = value.services.map((service) => {
+        const price =
+          service.pricing_per_sizes.find(
+            (item) => item.size_id === value.vehicleSizes[0]._id,
+          )?.price ?? 0;
+        return {
+          _id: service._id,
+          title: service.title,
+          type: service.type as ServiceType,
+          price,
+        };
+      });
+
+      const result = await updateBooking({
         bookingId: booking?._id ?? "",
+        sizeId: value.vehicleSizes[0]._id,
         scheduleId: booking?.preferred_date._id ?? "",
         timeSlotId: booking?.time_slot._id ?? "",
         reservationFee: value.reservationFee,
+        travelFee: value.travelFee,
+        travelDistance: value.travelDistance,
         totalAmount: value.totalAmount,
         notes: value.notes,
         status: value.status,
+        address: value.address,
+        social: value.social,
+        services: selectedServices,
       });
-      router.back();
+      setLoading(false);
+      if (result.success && value.status === BookingStatus.COMPLETED) {
+        router.push(`/admin/transaction?booking_id=${booking?._id}`);
+      } else {
+        router.back();
+      }
     },
   });
-  const fetchBooking = async (id: string) => {
-    const response = await getBooking(id);
-    return response;
-  };
 
   useEffect(() => {
     const init = async () => {
       if (bookingId) {
-        const bookingData = await fetchBooking(bookingId.toString());
+        const [servicesData, bookingData, vehicleSizesData] = await Promise.all(
+          [getServices(), getBooking(bookingId.toString()), getVehicleSizes()],
+        );
+        let selectedServiceIds: string[] = [];
+
+        if (bookingData?.services && bookingData.add_ons) {
+          const result = [...bookingData.services, ...bookingData.add_ons].map(
+            (item) => item._id,
+          );
+          selectedServiceIds = result;
+        }
+
+        const selectedServices = servicesData.filter((item) =>
+          selectedServiceIds.includes(item._id),
+        );
+
+        const vehicleTypeSize = vehicleSizesData.filter(
+          (item) => item._id === bookingData?.size_id,
+        );
+
+        setServices(servicesData);
+        setVehicleSizes(vehicleSizesData);
         setBooking(bookingData);
         form.setFieldValue("reservationFee", bookingData?.reservation_fee ?? 0);
+        form.setFieldValue("travelFee", bookingData?.travel_fee ?? 0);
         form.setFieldValue("totalAmount", bookingData?.total_amount ?? 0);
         form.setFieldValue("notes", bookingData?.notes ?? "");
+        form.setFieldValue("social", bookingData?.social ?? "");
+        form.setFieldValue("address", bookingData?.address ?? "");
         form.setFieldValue(
           "status",
           bookingData?.status ?? BookingStatus.FOR_CHECKING,
         );
+        form.setFieldValue("services", selectedServices);
+        form.setFieldValue("vehicleSizes", vehicleTypeSize);
+        form.setFieldValue("travelDistance", bookingData?.travel_distance ?? 0);
       }
     };
-
     init();
   }, [bookingId, form]);
 
+  const toggleService = (service: IServiceResponse) => {
+    const currentServices = form.getFieldValue("services");
+
+    let newServices;
+
+    if (currentServices.includes(service)) {
+      newServices = currentServices.filter((s) => s !== service);
+    } else if (service.title === "Premium Detailer Wash") {
+      newServices = [
+        ...currentServices.filter(
+          (s) => s.title !== "Full Decontamination Wash",
+        ),
+        service,
+      ];
+    } else if (service.title === "Full Decontamination Wash") {
+      newServices = [
+        ...currentServices.filter((s) => s.title !== "Premium Detailer Wash"),
+        service,
+      ];
+    } else {
+      newServices = [...currentServices, service];
+    }
+
+    let total = 0;
+
+    newServices.forEach((service) => {
+      const pricing = service.pricing_per_sizes.find(
+        (p) => p.type === "car" && p.size === "sm",
+      );
+
+      if (pricing) {
+        total += pricing.price;
+      }
+    });
+
+    form.setFieldValue("totalAmount", total);
+    form.setFieldValue("services", newServices);
+  };
+
+  const onSelectVehicleTypeSize = (size: IVehicleSizesResponse) => {
+    const selectedServices = form.getFieldValue("services");
+    const price = selectedServices.reduce((total, service) => {
+      const pricing = service.pricing_per_sizes.find(
+        (p) => p.size_id === size._id,
+      );
+      return total + (pricing?.price ?? 0);
+    }, 0);
+    form.setFieldValue("totalAmount", price);
+  };
+
   return (
-    <section className="relative w-full bg-black">
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32">
-        <div className="text-center mb-16 md:mb-20">
-          <h2 className="font-russo text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold text-white leading-[1.1] mb-6">
-            Booking{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#dc143c] via-red-500 to-[#dc143c] bg-[length:200%_auto]">
-              Details
+    <section className="min-h-screen bg-[#0a0a0a] relative overflow-hidden">
+      {/* ambient glow */}
+      <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] rounded-full bg-[#dc143c]/[0.06] blur-[120px]" />
+      <div className="pointer-events-none absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full bg-[#dc143c]/[0.04] blur-[100px]" />
+
+      <div className="relative max-w-3xl mx-auto px-4 sm:px-6 py-16 md:py-24">
+        {/* ── Header ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center mb-12"
+        >
+          <h2 className="font-russo text-4xl md:text-6xl font-extrabold text-white tracking-tight">
+            BOOKING{" "}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#dc143c] to-[#ff6b81]">
+              DETAILS
             </span>
           </h2>
-
-          {/* Decorative Line */}
-          <div className="flex items-center justify-center gap-4 mt-8">
-            <div className="w-12 h-[1px] bg-gradient-to-r from-transparent to-[#dc143c]"></div>
-            <div className="w-2 h-2 rotate-45 bg-[#dc143c]"></div>
-            <div className="w-12 h-[1px] bg-gradient-to-l from-transparent to-[#dc143c]"></div>
+          <p className="mt-4 text-gray-500 text-base max-w-md mx-auto">
+            Review booking information and update status.
+          </p>
+          <div className="flex items-center justify-center gap-3 mt-6">
+            <div className="h-[1px] w-12 bg-gradient-to-r from-transparent to-[#dc143c]" />
+            <Activity className="w-4 h-4 text-[#dc143c] animate-pulse" />
+            <div className="h-[1px] w-12 bg-gradient-to-l from-transparent to-[#dc143c]" />
           </div>
-        </div>
-        <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-6 sm:p-8 lg:p-10 shadow-2xl shadow-black/40">
-          <form
-            className="space-y-6"
-            id="booking-form"
-            onSubmit={(e) => {
-              e.preventDefault();
-              form.handleSubmit();
-            }}
+        </motion.div>
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            form.handleSubmit();
+          }}
+          className="space-y-0"
+        >
+          {/* SECTION 1 — Customer Info */}
+          <SectionCard
+            icon={<User className="w-4 h-4" />}
+            title="Customer"
+            subtitle="Who made this booking?"
           >
-            <FieldGroup>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <Field>
-                  <FieldLabel className="text-gray-300 uppercase">
-                    Full name
-                  </FieldLabel>
-                  <Input
-                    readOnly
-                    value={booking?.name ?? ""}
-                    className="!text-base h-14 px-5 rounded-xl bg-white/10 border-white/20 text-white placeholder:text-gray-400 backdrop-blur-sm "
-                  />
-                </Field>
-
-                <Field>
-                  <FieldLabel className="text-gray-300 uppercase">
-                    Contact Number
-                  </FieldLabel>
-                  <Input
-                    readOnly
-                    value={booking?.contact_number ?? ""}
-                    className="!text-base h-14 px-5 rounded-xl bg-white/10 border-white/20 text-white placeholder:text-gray-400 backdrop-blur-sm "
-                  />
-                </Field>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 min-[480px]:grid-cols-2 gap-4">
+                <ReadOnlyField label="Full Name" value={booking?.name ?? ""} />
+                <ReadOnlyField
+                  label="Contact Number"
+                  value={booking?.contact_number ?? ""}
+                />
               </div>
-              <Field>
-                <FieldLabel className="text-gray-300 uppercase">
-                  Vehicle Model
-                </FieldLabel>
-                <Input
-                  readOnly
-                  value={booking?.vehicle_model ?? ""}
-                  className="!text-base h-14 px-5 rounded-xl bg-white/10 border-white/20 text-white placeholder:text-gray-400 backdrop-blur-sm "
-                />
-              </Field>
-              <Field>
-                <FieldLabel className="text-gray-300 uppercase">
-                  Social Account
-                </FieldLabel>
-                <Input
-                  readOnly
-                  value={booking?.social ?? ""}
-                  className="!text-base h-14 px-5 rounded-xl bg-white/10 border-white/20 text-white placeholder:text-gray-400 backdrop-blur-sm "
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel className="text-gray-300 uppercase">
-                  Signature Services
-                </FieldLabel>
-                <div
-                  className={`w-full h-14 px-5 rounded-xl bg-white/10 border border-white/20 backdrop-blur-md text-base flex items-center text-white`}
-                >
-                  <div className="flex-1 overflow-x-auto scrollbar-services">
-                    <div className="flex flex-nowrap gap-3 min-w-max items-center mb-1">
-                      {booking &&
-                        booking.services.length > 0 &&
-                        booking.services.map((item) => (
-                          <div
-                            key={item._id}
-                            className="relative px-5 py-2 rounded-full bg-gradient-to-br from-[#DC143C] to-[#8B0E2A] border border-[#DC143C]/40 text-white text-sm tracking-wide font-medium shadow-[0_4px_20px_rgba(220,20,60,0.35)]"
-                          >
-                            {item.title}
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                </div>
-              </Field>
-
-              <Field>
-                <FieldLabel className="text-gray-300 uppercase">
-                  Add Ons
-                </FieldLabel>
-                <div
-                  className={`w-full h-14 px-5 rounded-xl bg-white/10 border border-white/20 backdrop-blur-md text-base flex items-center text-white`}
-                >
-                  <div className="flex-1 overflow-x-auto scrollbar-services my-1">
-                    <div className="flex flex-nowrap gap-3 min-w-max items-center">
-                      {booking &&
-                        booking.services.length > 0 &&
-                        booking.add_ons.map((item) => (
-                          <div
-                            key={item._id}
-                            className="relative px-5 py-2 rounded-full bg-gradient-to-br from-[#DC143C] to-[#8B0E2A] border border-[#DC143C]/40 text-white text-sm tracking-wide font-medium shadow-[0_4px_20px_rgba(220,20,60,0.35)]"
-                          >
-                            {item.title}
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                </div>
-              </Field>
-
-              <Field>
-                <FieldLabel className="text-gray-300 uppercase">
-                  Preferred Date
-                </FieldLabel>
-                <Input
-                  readOnly
-                  value={booking?.preferred_date.date.toDateString() ?? ""}
-                  className="!text-base h-14 px-5 rounded-xl bg-white/10 border-white/20 text-white placeholder:text-gray-400 backdrop-blur-sm "
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel className="text-gray-300 uppercase">
-                  Time Slot
-                </FieldLabel>
-                <Input
-                  readOnly
-                  value={booking?.time_slot.time ?? ""}
-                  className="!text-base h-14 px-5 rounded-xl bg-white/10 border-white/20 text-white placeholder:text-gray-400 backdrop-blur-sm "
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel className="text-gray-300 uppercase">
-                  Complete Address
-                </FieldLabel>
-                <Textarea
-                  readOnly
-                  rows={5}
-                  maxLength={250}
-                  value={booking?.address ?? ""}
-                  className="!text-base  px-5 rounded-xl bg-white/10 border-white/20 text-white placeholder:text-gray-400 backdrop-blur-sm  resize-none"
-                />
-              </Field>
-              <form.Field name="reservationFee">
-                {(field) => {
-                  return (
-                    <Field>
-                      <FieldLabel className="text-gray-300 uppercase">
-                        Reservation Fee
-                      </FieldLabel>
-                      <Input
-                        id={field.name}
-                        name={field.name}
-                        value={field.state.value}
-                        onBlur={field.handleBlur}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          field.handleChange(
-                            value === "" ? 0 : parseInt(value),
-                          );
-                        }}
-                        className="!text-base h-14 px-5 rounded-xl bg-white/10 border-white/20 text-white placeholder:text-gray-400 backdrop-blur-sm focus-visible:border-[#dc143c] focus-visible:ring-[#dc143c]/20"
-                      />
-                    </Field>
-                  );
-                }}
+              <form.Field name="social">
+                {(field) => (
+                  <Field>
+                    <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
+                      Social Account
+                    </FieldLabel>
+                    <Input
+                      id={field.name}
+                      name={field.name}
+                      value={field.state.value}
+                      placeholder="Social account url"
+                      onBlur={field.handleBlur}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        field.handleChange(v);
+                      }}
+                      className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
+                    />
+                  </Field>
+                )}
               </form.Field>
+            </div>
+          </SectionCard>
 
-              <form.Field name="totalAmount">
+          {/* SECTION 2 — Vehicle & Address */}
+          <SectionCard
+            icon={<Car className="w-4 h-4" />}
+            title="Vehicle & Location"
+            subtitle="What and where?"
+          >
+            <div className="space-y-4">
+              <form.Field name="vehicleSizes">
                 {(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
                   return (
                     <Field>
-                      <FieldLabel className="text-gray-300 uppercase">
-                        Total Amount
-                      </FieldLabel>
-                      <Input
-                        id={field.name}
-                        name={field.name}
-                        value={field.state.value}
-                        onBlur={field.handleBlur}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          field.handleChange(
-                            value === "" ? 0 : parseInt(value),
-                          );
-                        }}
-                        className="!text-base h-14 px-5 rounded-xl bg-white/10 border-white/20 text-white placeholder:text-gray-400 backdrop-blur-sm focus-visible:border-[#dc143c] focus-visible:ring-[#dc143c]/20"
-                      />
-                    </Field>
-                  );
-                }}
-              </form.Field>
-
-              <form.Field name="notes">
-                {(field) => {
-                  return (
-                    <Field>
-                      <FieldLabel className="text-gray-300 uppercase">
-                        Notes
-                      </FieldLabel>
-                      <Textarea
-                        id={field.name}
-                        name={field.name}
-                        value={field.state.value}
-                        onBlur={field.handleBlur}
-                        onChange={(e) => field.handleChange(e.target.value)}
-                        rows={5}
-                        maxLength={250}
-                        placeholder="Enter booking notes"
-                        className="!text-base  px-5 rounded-xl bg-white/10 border-white/20 text-white placeholder:text-gray-400 backdrop-blur-sm focus-visible:border-[#dc143c] focus-visible:ring-[#dc143c]/20 resize-none"
-                      />
-                    </Field>
-                  );
-                }}
-              </form.Field>
-
-              <form.Field name="status">
-                {(field) => {
-                  return (
-                    <Field>
-                      <FieldLabel className="text-gray-300 uppercase">
-                        Status
+                      <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
+                        Vehicle Type & Size
                       </FieldLabel>
                       <Popover>
-                        <PopoverTrigger
-                          className={`w-full h-14 px-5 rounded-xl bg-white/10 border-white/20 backdrop-blur-sm text-base flex items-center justify-between text-white`}
-                        >
-                          {
-                            BookingStatusDisplay[
-                              field.state.value as BookingStatus
-                            ]
-                          }
+                        <PopoverTrigger asChild>
+                          <button type="button" className="w-full">
+                            <SelectTrigger
+                              hasValue={field.state.value.length > 0}
+                            >
+                              {field.state.value.length > 0 ? (
+                                <div className="overflow-x-auto scrollbar-services w-0 min-w-0 flex-1 py-2 flex-1">
+                                  <div className="flex gap-2 flex-nowrap min-w-max items-center">
+                                    {field.state.value.map((item) => (
+                                      <Chip
+                                        key={item._id}
+                                        label={`${item.type.toUpperCase()} • ${item.description.toUpperCase()}`}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span>Choose vehicle type & size...</span>
+                              )}
+                            </SelectTrigger>
+                          </button>
                         </PopoverTrigger>
-
-                        <PopoverContent className=" backdrop-blur-md border border-white/20 rounded-xl p-3 shadow-lg overflow-y-auto">
+                        <PopoverContent className="backdrop-blur-md border border-white/20 rounded-xl p-3 shadow-lg max-h-80 overflow-y-auto">
                           <Command>
-                            {Object.entries(BookingStatusDisplay).map(
-                              ([statusKey, display]) => {
-                                const isSelected =
-                                  field.state.value === statusKey;
-
-                                return (
-                                  <CommandItem
-                                    key={statusKey}
-                                    onSelect={() => {
-                                      field.handleChange(statusKey);
-                                    }}
-                                    className={`flex justify-between items-center px-4 py-3 rounded-xl cursor-pointer transition-colors duration-200 text-gray-500`}
-                                  >
-                                    <span>{display}</span>
-                                    {isSelected && (
-                                      <Check className="w-5 h-5 text-[#dc143c]" />
-                                    )}
-                                  </CommandItem>
-                                );
-                              },
-                            )}
+                            {vehicleSizes.map((size) => {
+                              const isSelected = field.state.value.find(
+                                (item) => item._id === size._id,
+                              );
+                              return (
+                                <CommandItem
+                                  key={size._id}
+                                  onSelect={() => {
+                                    field.setValue([size]);
+                                    onSelectVehicleTypeSize(size);
+                                  }}
+                                  className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                                >
+                                  <span className="text-sm">{`${size.type.toUpperCase()} • ${size.description.toUpperCase()}`}</span>
+                                  {isSelected && (
+                                    <Check className="w-4 h-4 text-[#dc143c]" />
+                                  )}
+                                </CommandItem>
+                              );
+                            })}
                           </Command>
                         </PopoverContent>
                       </Popover>
+                      {isInvalid && (
+                        <FieldError
+                          className="text-[#ff6b81] text-xs mt-1"
+                          errors={field.state.meta.errors}
+                        />
+                      )}
                     </Field>
                   );
                 }}
               </form.Field>
-            </FieldGroup>
+              <ReadOnlyField
+                label="Vehicle Model"
+                value={booking?.vehicle_model ?? ""}
+              />
+              <form.Field name="address">
+                {(field) => (
+                  <Field>
+                    <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
+                      Complete Address
+                    </FieldLabel>
+                    <Textarea
+                      rows={3}
+                      id={field.name}
+                      name={field.name}
+                      value={field.state.value}
+                      placeholder="Social account url"
+                      onBlur={field.handleBlur}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        field.handleChange(v);
+                      }}
+                      className="px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2 resize-none"
+                    />
+                  </Field>
+                )}
+              </form.Field>
+            </div>
+          </SectionCard>
 
-            <button
-              type="submit"
-              form="booking-form"
-              className="group w-full md:w-auto md:px-16 py-4 bg-[#dc143c] hover:bg-red-700 text-white font-bold text-lg rounded-xl transition-all duration-300 shadow-[0_0_30px_rgba(220,20,60,0.3)] hover:shadow-[0_0_40px_rgba(220,20,60,0.5)] hover:-translate-y-0.5 flex items-center justify-center gap-3"
-            >
-              <span>Update Booking</span>
-              <svg
-                className="w-5 h-5 group-hover:translate-x-1 transition-transform"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+          {/* SECTION 3 — Schedule */}
+          <SectionCard
+            icon={<Calendar className="w-4 h-4" />}
+            title="Schedule"
+            subtitle="When is this happening?"
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <ReadOnlyField
+                label="Preferred Date"
+                value={
+                  booking?.preferred_date?.date
+                    ? new Date(booking.preferred_date.date).toDateString()
+                    : ""
+                }
+              />
+              <ReadOnlyField
+                label="Time Slot"
+                value={booking?.time_slot?.time ?? ""}
+              />
+            </div>
+          </SectionCard>
+
+          {/* SECTION 4 — Services */}
+          <SectionCard
+            icon={<Wrench className="w-4 h-4" />}
+            title="Services"
+            subtitle="What's being performed?"
+          >
+            <form.Field name="services">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
+                return (
+                  <Field>
+                    <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
+                      Availed Services
+                    </FieldLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button type="button" className="w-full">
+                          <SelectTrigger
+                            hasValue={field.state.value.length > 0}
+                          >
+                            {field.state.value.length > 0 ? (
+                              <div className="overflow-x-auto scrollbar-services w-0 min-w-0 flex-1 py-2 flex-1">
+                                <div className="flex gap-2 flex-nowrap min-w-max items-center">
+                                  {field.state.value.map((item) => (
+                                    <Chip key={item._id} label={item.title} />
+                                  ))}
+                                </div>
+                              </div>
+                            ) : (
+                              <span>Choose services...</span>
+                            )}
+                          </SelectTrigger>
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="backdrop-blur-md border border-white/20 rounded-xl p-3 shadow-lg max-h-80 overflow-y-auto">
+                        <Command>
+                          {services.map((service) => {
+                            const isSelected = field.state.value.find(
+                              (item) => item._id === service._id,
+                            );
+                            return (
+                              <CommandItem
+                                key={service._id}
+                                onSelect={() => toggleService(service)}
+                                className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                              >
+                                <span className="text-sm">{service.title}</span>
+                                {isSelected && (
+                                  <Check className="w-4 h-4 text-[#dc143c]" />
+                                )}
+                              </CommandItem>
+                            );
+                          })}
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                    {isInvalid && (
+                      <FieldError
+                        className="text-[#ff6b81] text-xs mt-1"
+                        errors={field.state.meta.errors}
+                      />
+                    )}
+                  </Field>
+                );
+              }}
+            </form.Field>
+          </SectionCard>
+
+          {/* SECTION 5 — Financials & Notes */}
+          <SectionCard
+            icon={<CreditCard className="w-4 h-4" />}
+            title="Financials & Notes"
+            subtitle="Fee breakdown and internal notes."
+          >
+            <div className="space-y-4">
+              <form.Field name="reservationFee">
+                {(field) => (
+                  <Field>
+                    <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
+                      Deposit Amount Paid
+                    </FieldLabel>
+                    <Input
+                      id={field.name}
+                      name={field.name}
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        field.handleChange(v === "" ? 0 : Number.parseInt(v));
+                      }}
+                      className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
+                    />
+                  </Field>
+                )}
+              </form.Field>
+              <form.Field name="travelDistance">
+                {(field) => (
+                  <Field>
+                    <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
+                      Travel Distance
+                    </FieldLabel>
+                    <Input
+                      id={field.name}
+                      name={field.name}
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        const distance = v === "" ? 0 : Number.parseInt(v);
+
+                        const fee = Math.max(
+                          0,
+                          (distance -
+                            Number.parseInt(config.free_distance ?? "0")) *
+                            Number.parseInt(config.fee ?? "0"),
+                        );
+                        field.handleChange(distance);
+                        form.setFieldValue("travelFee", fee);
+                      }}
+                      className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
+                    />
+                  </Field>
+                )}
+              </form.Field>
+              <form.Field name="travelFee">
+                {(field) => (
+                  <ReadOnlyField
+                    label="Travel Fee"
+                    value={field.state.value.toLocaleString()}
+                  />
+                )}
+              </form.Field>
+
+              <form.Field name="totalAmount">
+                {(field) => (
+                  <Field>
+                    <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
+                      Services Total Amount
+                    </FieldLabel>
+                    <Input
+                      id={field.name}
+                      name={field.name}
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        field.handleChange(v === "" ? 0 : Number.parseInt(v));
+                      }}
+                      className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
+                    />
+                  </Field>
+                )}
+              </form.Field>
+
+              {/* Amount summary row */}
+              <form.Subscribe
+                selector={(s) => ({
+                  fee: s.values.reservationFee,
+                  total: s.values.totalAmount,
+                  travelFee: s.values.travelFee,
+                })}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M17 8l4 4m0 0l-4 4m4-4H3"
-                />
-              </svg>
-            </button>
-          </form>
-        </div>
+                {({ fee, total, travelFee }) => (
+                  <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] divide-y divide-white/[0.06]">
+                    <div className="flex justify-between items-center px-4 py-3">
+                      <span className="text-gray-500 text-sm">
+                        {`Reservation Deposit - ${dpMultiplier * 100}%`}
+                      </span>
+                      <span className="text-white font-medium text-sm">
+                        ₱
+                        {Math.max(
+                          0,
+                          (total + travelFee) * dpMultiplier,
+                        ).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center px-4 py-3">
+                      <span className="text-gray-500 text-sm">
+                        Deposit Amount Paid
+                      </span>
+                      <span className="text-white font-medium text-sm">
+                        ₱{fee.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center px-4 py-3">
+                      <span className="text-gray-500 text-sm">
+                        Remaining Balance
+                      </span>
+                      <span className="text-white font-medium text-sm">
+                        ₱{Math.max(0, total + travelFee - fee).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center px-4 py-3 bg-[#dc143c]/10 rounded-b-xl">
+                      <span className="text-white font-semibold text-sm">
+                        Total Amount
+                      </span>
+                      <span className="text-[#ff6b81] font-bold text-lg">
+                        ₱{Math.max(0, total + travelFee).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </form.Subscribe>
+
+              <form.Field name="notes">
+                {(field) => (
+                  <Field>
+                    <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
+                      Notes
+                    </FieldLabel>
+                    <Textarea
+                      id={field.name}
+                      name={field.name}
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      rows={4}
+                      maxLength={250}
+                      placeholder="Enter booking notes..."
+                      className="px-4 py-3 rounded-xl bg-white/[0.04] border-white/10 text-white placeholder:text-gray-600 text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2 resize-none"
+                    />
+                  </Field>
+                )}
+              </form.Field>
+            </div>
+          </SectionCard>
+
+          {/* SECTION 6 — Status */}
+          <SectionCard
+            icon={<FileText className="w-4 h-4" />}
+            title="Status"
+            subtitle="Update the current booking status."
+            last
+          >
+            <form.Field name="status">
+              {(field) => (
+                <Field>
+                  <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
+                    Current Status
+                  </FieldLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button type="button" className="w-full">
+                        <SelectTrigger hasValue={field.state.value.length > 0}>
+                          {field.state.value.length > 0 ? (
+                            <div className="overflow-x-auto scrollbar-services w-0 min-w-0 flex-1 py-2 flex-1">
+                              <div className="flex gap-2 flex-nowrap min-w-max items-center">
+                                {BookingStatusDisplay[field.state.value]}
+                              </div>
+                            </div>
+                          ) : (
+                            <span>Select a status...</span>
+                          )}
+                        </SelectTrigger>
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="backdrop-blur-md border border-white/20 rounded-xl p-3 shadow-lg max-h-80 overflow-y-auto">
+                      <Command>
+                        <div className="space-y-1">
+                          {Object.entries(BookingStatusDisplay).map(
+                            ([statusKey, display]) => {
+                              const isSelected =
+                                field.state.value === statusKey;
+                              return (
+                                <CommandItem
+                                  key={statusKey}
+                                  onSelect={() =>
+                                    field.handleChange(
+                                      statusKey as BookingStatus,
+                                    )
+                                  }
+                                  className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                                >
+                                  <span className="font-bold text-xs uppercase tracking-wider">
+                                    {display}
+                                  </span>
+                                  {isSelected && (
+                                    <Check className="w-4 h-4 text-[#dc143c]" />
+                                  )}
+                                </CommandItem>
+                              );
+                            },
+                          )}
+                        </div>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </Field>
+              )}
+            </form.Field>
+          </SectionCard>
+
+          {/* Submit */}
+          <div className="pt-2 flex justify-end">
+            <form.Subscribe selector={(state) => state.values.status}>
+              {(status) => (
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="group relative inline-flex items-center gap-3 px-10 py-4 bg-[#dc143c] hover:bg-[#c01236] active:scale-[0.98] text-white font-bold text-base rounded-2xl transition-all duration-200 shadow-xl shadow-[#dc143c]/30 hover:shadow-[#dc143c]/50 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
+                >
+                  {/* shimmer */}
+                  <span className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none" />
+
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      {status === BookingStatus.COMPLETED
+                        ? "Create Transaction"
+                        : "Update Booking"}
+                      <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                    </>
+                  )}
+                </button>
+              )}
+            </form.Subscribe>
+          </div>
+        </form>
       </div>
     </section>
   );
