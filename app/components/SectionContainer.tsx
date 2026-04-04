@@ -1,3 +1,5 @@
+import { Activity } from "lucide-react";
+
 type SectionContainerProps = {
   id: string;
   title: string;
@@ -5,7 +7,7 @@ type SectionContainerProps = {
   description: string;
   children: React.ReactNode;
   className?: string;
-  showAmbientGlow?: boolean
+  showAmbientGlow?: boolean;
 };
 
 const SectionContainer = ({
@@ -21,7 +23,9 @@ const SectionContainer = ({
     <section id={id} className={`${className} relative`}>
       {/* 1. BACKGROUND LAYER - Pushed to the very back using z-0 */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-        {showAmbientGlow && <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,#1a0508_0%,#050505_100%)]" />}
+        {showAmbientGlow && (
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,#1a0508_0%,#050505_100%)]" />
+        )}
 
         <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-[#dc143c]/15 blur-[150px] rounded-full animate-pulse" />
         <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-[#dc143c]/10 blur-[150px] rounded-full animate-pulse delay-700" />
@@ -46,10 +50,10 @@ const SectionContainer = ({
           </p>
 
           {/* Decorative Line */}
-          <div className="flex items-center justify-center gap-4 mt-8">
-            <div className="w-12 h-[1px] bg-gradient-to-r from-transparent to-[#dc143c]"></div>
-            <div className="w-2 h-2 rotate-45 bg-[#dc143c]"></div>
-            <div className="w-12 h-[1px] bg-gradient-to-l from-transparent to-[#dc143c]"></div>
+          <div className="flex items-center justify-center gap-3 mt-6">
+            <div className="h-[1px] w-12 bg-gradient-to-r from-transparent to-[#dc143c]" />
+            <Activity className="w-4 h-4 text-[#dc143c] animate-pulse" />
+            <div className="h-[1px] w-12 bg-gradient-to-l from-transparent to-[#dc143c]" />
           </div>
         </div>
 

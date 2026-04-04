@@ -51,6 +51,7 @@ import {
   IVehicleSizesResponse,
 } from "../actions/getVehicleSizes";
 import { showToast } from "@/lib/toast";
+import { useRouter } from "next/navigation";
 
 const config = {
   fee: process.env.NEXT_PUBLIC_TRAVEL_FEE_PER_KM,
@@ -163,6 +164,7 @@ function Chip({ label }: Readonly<{ label: string }>) {
 }
 
 export default function Booking() {
+  const router = useRouter();
   const [services, setServices] = useState<IServiceResponse[]>([]);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [schedules, setSchedules] = useState<ISchedulesResponse[]>([]);
@@ -288,18 +290,35 @@ export default function Booking() {
         (item) => item.time === value.timeSlot,
       );
 
-      const selectedServices = value.services.map((service) => ({
-        _id: service._id,
-        title: service.title,
-        type: service.type as ServiceType,
-      }));
+      const selectedServices = value.services.map((service) => {
+        const price =
+          service.pricing_per_sizes.find(
+            (item) => item.size_id === value.vehicleSizes[0]._id,
+          )?.price ?? 0;
 
-      const selectedAddOns =
-        value.addOns?.map((service) => ({
+        return {
           _id: service._id,
           title: service.title,
           type: service.type as ServiceType,
-        })) ?? [];
+          price: price,
+        };
+      });
+
+      const selectedAddOns =
+        value.addOns?.map((service) => {
+          const price =
+            service.pricing_per_sizes.find(
+              (item) => item.size_id === value.vehicleSizes[0]._id,
+            )?.price ?? 0;
+          return {
+            _id: service._id,
+            title: service.title,
+            type: service.type as ServiceType,
+            price: price,
+          };
+        }) ?? [];
+
+      const reference = generateReference();
 
       const result = await createBooking({
         name: value.fullName,
@@ -325,7 +344,7 @@ export default function Booking() {
           value.vehicleSizes,
         ),
         travel_distance: 0,
-        reference_number:generateReference(),
+        reference_number: reference,
         notes: "",
         created_at: new Date(),
         updated_at: new Date(),
@@ -366,6 +385,7 @@ export default function Booking() {
         setSchedules(data);
         setSlots([]);
         if (result.success) {
+          router.push(`/booking/${reference}`);
           form.reset();
         }
       }
@@ -507,7 +527,7 @@ export default function Booking() {
                         onBlur={field.handleBlur}
                         onChange={(e) => field.handleChange(e.target.value)}
                         aria-invalid={isInvalid}
-                        placeholder="Optional: Profile or Social URL (e.g., https://instagram.com/redlinedetailing.ph)"
+                        placeholder="Optional: Social account URL (e.g., https://instagram.com/redlinedetailing.ph)"
                         className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
                       />
                       <FieldDescription>

@@ -2,11 +2,12 @@ import { Schema, Types, model, models } from "mongoose";
 
 import { IBooking } from "@/lib/db/types";
 import { BookingStatus, ServiceType } from "@/lib/enums";
+import VehicleSize from "./VehicleSize";
 
 
 const bookingSchema = new Schema<IBooking>({
   user_id: { type: Types.ObjectId, default: null },
-  size_id: { type: Types.ObjectId, default: null },
+  size_id: { type: Types.ObjectId, ref: VehicleSize.modelName, default: null },
   name: { type: String, required: true },
   contact_number: { type: String, required: true },
   vehicle_model: { type: String, default: null },
@@ -17,6 +18,7 @@ const bookingSchema = new Schema<IBooking>({
         _id: { type: Types.ObjectId },
         title: { type: String, required: true },
         type:  { type: String, enum: ServiceType, required: true },
+        price: { type: Number, default: 0, required: true }
       }),
     ],
     required: true,
@@ -27,6 +29,7 @@ const bookingSchema = new Schema<IBooking>({
         _id: { type: Types.ObjectId },
         title: { type: String, required: true },
         type:  { type: String, enum: ServiceType, required: true },
+        price: { type: Number, default: 0, required: true }
       }),
     ],
     required: true,

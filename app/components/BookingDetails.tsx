@@ -135,12 +135,18 @@ export default function BookingDetails() {
     defaultValues,
     validators: { onSubmit: formSchema },
     onSubmit: async ({ value }) => {
-      
-       const selectedServices = value.services.map((service) => ({
-        _id: service._id,
-        title: service.title,
-        type: service.type as ServiceType
-      }));
+      const selectedServices = value.services.map((service) => {
+        const price =
+          service.pricing_per_sizes.find(
+            (item) => item.size_id === value.vehicleSizes[0]._id,
+          )?.price ?? 0;
+        return {
+          _id: service._id,
+          title: service.title,
+          type: service.type as ServiceType,
+          price,
+        };
+      });
 
       const result = await updateBooking({
         bookingId: booking?._id ?? "",
@@ -155,7 +161,7 @@ export default function BookingDetails() {
         status: value.status,
         address: value.address,
         social: value.social,
-        services: selectedServices
+        services: selectedServices,
       });
       setLoading(false);
       if (result.success && value.status === BookingStatus.COMPLETED) {
@@ -173,8 +179,6 @@ export default function BookingDetails() {
           [getServices(), getBooking(bookingId.toString()), getVehicleSizes()],
         );
         let selectedServiceIds: string[] = [];
-
-        
 
         if (bookingData?.services && bookingData.add_ons) {
           const result = [...bookingData.services, ...bookingData.add_ons].map(
@@ -575,13 +579,8 @@ export default function BookingDetails() {
                         const fee = Math.max(
                           0,
                           (distance -
-                            Number.parseInt(
-                              config.free_distance ??
-                                "0",
-                            )) *
-                            Number.parseInt(
-                              config.fee ?? "0",
-                            ),
+                            Number.parseInt(config.free_distance ?? "0")) *
+                            Number.parseInt(config.fee ?? "0"),
                         );
                         field.handleChange(distance);
                         form.setFieldValue("travelFee", fee);

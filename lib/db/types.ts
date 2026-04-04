@@ -79,8 +79,8 @@ export interface IBooking {
   contact_number: string;
   vehicle_model: string;
   social: string;
-  services: { _id: string; title: string, type: ServiceType }[];
-  add_ons: { _id: string; title: string, type: ServiceType }[];
+  services: { _id: string; title: string, type: ServiceType, price: number }[];
+  add_ons: { _id: string; title: string, type: ServiceType, price: number }[];
   preferred_date: { _id: string; date: Date };
   time_slot: { _id: string; time: string };
   address: string;

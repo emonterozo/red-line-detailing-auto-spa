@@ -26,7 +26,6 @@ export const updateBooking = async (request: UpdateBookingRequest) => {
   await connect();
 
   try {
-    console.log(request.services);
 
     const add_ons = request.services.filter(
       (item) => item.type === ServiceType.ADD_ONS,

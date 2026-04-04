@@ -8,9 +8,6 @@ import Booking from "@/models/Booking";
 import Schedule from "@/models/Schedule";
 import { Types } from "mongoose";
 import { bookingTemple } from "../template/booking";
-import Customer from "@/models/Customer";
-import VehicleSize from "@/models/VehicleSize";
-import { hashPassword } from "@/lib/server/utils";
 
 export const createBooking = async (bookingData: IBooking) => {
   const userId = null;
@@ -65,7 +62,6 @@ export const createBooking = async (bookingData: IBooking) => {
           {
             _id: new Types.ObjectId(bookingData.preferred_date._id),
             "time_slots._id": new Types.ObjectId(bookingData.time_slot._id),
-            "time_slots.is_available": true,
           },
           {
             $set: {
@@ -81,33 +77,33 @@ export const createBooking = async (bookingData: IBooking) => {
           .map((item) => item.title)
           .join(", ");
 
-        // const html = await bookingTemple(
-        //   bookingData.name,
-        //   bookingData.contact_number,
-        //   bookingData.vehicle_model,
-        //   bookingData.social,
-        //   formattedDate,
-        //   bookingData.time_slot.time,
-        //   `The client has selected the following signature services: ${servicesString}`,
-        //   `The client has selected the following add-ons services: ${addOnsString === "" ? "N/A" : addOnsString}`,
-        // );
+        const html = await bookingTemple(
+          bookingData.name,
+          bookingData.contact_number,
+          bookingData.vehicle_model,
+          bookingData.social,
+          formattedDate,
+          bookingData.time_slot.time,
+          `The client has selected the following signature services: ${servicesString}`,
+          `The client has selected the following add-ons services: ${addOnsString === "" ? "N/A" : addOnsString}`,
+        );
 
-        // const transporter = nodemailer.createTransport({
-        //   service: "gmail",
-        //   auth: {
-        //     user: process.env.EMAIL_USER,
-        //     pass: process.env.EMAIL_PASS,
-        //   },
-        // });
+        const transporter = nodemailer.createTransport({
+          service: "gmail",
+          auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS,
+          },
+        });
 
-        // const subject = `${new Types.ObjectId().toString()}, Booking from Website`;
+        const subject = `Booking Created on Website – Ref: #${bookingData.reference_number}`;
 
-        // await transporter.sendMail({
-        //   from: `Booking from <${process.env.EMAIL_USER}>`,
-        //   to: [process.env.EMAIL_USER, process.env.PERSONAL_EMAIL].join(","),
-        //   subject: subject,
-        //   html: html,
-        // });
+        await transporter.sendMail({
+          from: `Red Line Detailing <${process.env.EMAIL_USER}>`,
+          to: [process.env.EMAIL_USER, process.env.PERSONAL_EMAIL].join(","),
+          subject: subject,
+          html: html,
+        });
 
         return {
           success: true,
