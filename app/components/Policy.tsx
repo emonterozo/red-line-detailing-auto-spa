@@ -49,7 +49,7 @@ const PolicyPage = () => {
       id: "03",
       icon: <CreditCard className="w-5 h-5" />,
       title: "Reservation Fee",
-      description: `A non-refundable reservation fee of ${config.deposit}% to secures your exclusive slot. This fee is deducted from your total service cost.`,
+      description: `A non-refundable reservation fee of ${config.deposit}% to secures your exclusive slot. This fee is deducted from your total service cost and includes the travel fee.`,
       highlights: [
         `${config.deposit}% Deposit`,
         "Non-refundable",

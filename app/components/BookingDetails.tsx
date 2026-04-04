@@ -45,6 +45,12 @@ import { SectionCard } from "./SectionCard";
 import { ReadOnlyField } from "./ReadOnlyField";
 import { SelectTrigger } from "./SelectTrigger";
 
+const config = {
+  fee: process.env.NEXT_PUBLIC_TRAVEL_FEE_PER_KM,
+  free_distance: process.env.NEXT_PUBLIC_FREE_TRAVEL_DISTANCE_KM,
+  deposit: process.env.NEXT_PUBLIC_DOWN_PAYMENT_PERCENTAGE,
+};
+
 export const pricingPerSizeSchema = z.object({
   _id: z.string(),
   type: z.string(),
@@ -570,11 +576,11 @@ export default function BookingDetails() {
                           0,
                           (distance -
                             Number.parseInt(
-                              process.env.NEXT_PUBLIC_FREE_TRAVEL_DISTANCE_KM ??
+                              config.free_distance ??
                                 "0",
                             )) *
                             Number.parseInt(
-                              process.env.NEXT_PUBLIC_TRAVEL_FEE_PER_KM ?? "0",
+                              config.fee ?? "0",
                             ),
                         );
                         field.handleChange(distance);

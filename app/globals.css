@@ -71,6 +71,11 @@
   scrollbar-color: rgba(255, 255, 255, 0.1) rgba(0, 0, 0, 0.2);
 }
 
+@keyframes shrinkBar {
+  from { width: 100%; }
+  to   { width: 0%; }
+}
+
   @media (pointer: coarse) {
     .scrollbar-services {
       overflow: auto; /* keep scroll functional */

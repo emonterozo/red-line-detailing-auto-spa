@@ -6,15 +6,10 @@ const About = () => {
       id="about"
       title="Redefining"
       secondaryTitle="Perfection"
-      description=""
+      description="We don't just clean vehicles — we refine, protect, and elevate them
+          beyond the ordinary."
+     showAmbientGlow
     >
-      {/* Main Description */}
-      <div className="text-center mb-12">
-        <p className="text-white text-xl sm:text-2xl font-semibold leading-relaxed max-w-3xl mx-auto">
-          {`We don't just clean vehicles — we refine, protect, and elevate them
-          beyond the ordinary.`}
-        </p>
-      </div>
 
       {/* Cards Container - Side by Side on Tablet+ */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 mx-4 md:mx-10">
@@ -43,7 +38,10 @@ const About = () => {
               Passionate Team
             </h3>
             <p className="text-gray-400 text-sm sm:text-base leading-relaxed">
-              Our team is passionate about car detailing and takes pride in every vehicle we service. We focus on precision, care, and attention to every detail to ensure each car leaves looking its best. Every job is handled with dedication and professionalism.
+              Our team is passionate about car detailing and takes pride in
+              every vehicle we service. We focus on precision, care, and
+              attention to every detail to ensure each car leaves looking its
+              best. Every job is handled with dedication and professionalism.
             </p>
           </div>
         </div>

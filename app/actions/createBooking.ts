@@ -13,7 +13,7 @@ import VehicleSize from "@/models/VehicleSize";
 import { hashPassword } from "@/lib/server/utils";
 
 export const createBooking = async (bookingData: IBooking) => {
-  let userId = null;
+  const userId = null;
   await connect();
 
   const formattedDate = bookingData.preferred_date.date.toLocaleDateString(
@@ -55,46 +55,6 @@ export const createBooking = async (bookingData: IBooking) => {
         { "time_slots.$": 1 },
       );
       if (schedule) {
-        if (bookingData.is_create_account) {
-          const existingCustomer = await Customer.findOne({
-            contact_number: bookingData.contact_number,
-          });
-
-          if (existingCustomer) {
-            return {
-              success: false,
-              field: "contact_number",
-              message:
-                "Failed to create an account. A customer with the same contact number already exists. Please use a different contact number or log in to your existing account to make a booking.",
-            };
-          }
-
-          const vehicleSizes = await VehicleSize.find().lean();
-
-          const milestoneCount = vehicleSizes.map((size) => ({
-            _id: new Types.ObjectId(),
-            size_id: size._id,
-            progress: 0,
-          }));
-
-          const tempPassword = new Types.ObjectId().toString().slice(0, 8);
-          const hashedPassword = await hashPassword(tempPassword);
-          const newCustomer = new Customer({
-            first_name: "Eric",
-            last_name: "Monterozo",
-            name: "Eric Monterozo",
-            email: "ric.monterozo@gmail.com",
-            contact_number: bookingData.contact_number,
-            social: bookingData.social,
-            address: bookingData.address,
-            password: hashedPassword,
-            is_verify: false,
-            milestone_count: milestoneCount,
-          });
-          await newCustomer.save();
-          userId = newCustomer._id;
-        }
-
         const newBooking = new Booking({
           user_id: userId,
           ...bookingData,

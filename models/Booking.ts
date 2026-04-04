@@ -1,7 +1,7 @@
 import { Schema, Types, model, models } from "mongoose";
 
 import { IBooking } from "@/lib/db/types";
-import { BookingStatus } from "@/lib/enums";
+import { BookingStatus, ServiceType } from "@/lib/enums";
 
 
 const bookingSchema = new Schema<IBooking>({
@@ -16,6 +16,7 @@ const bookingSchema = new Schema<IBooking>({
       new Schema({
         _id: { type: Types.ObjectId },
         title: { type: String, required: true },
+        type:  { type: String, enum: ServiceType, required: true },
       }),
     ],
     required: true,
@@ -25,6 +26,7 @@ const bookingSchema = new Schema<IBooking>({
       new Schema({
         _id: { type: Types.ObjectId },
         title: { type: String, required: true },
+        type:  { type: String, enum: ServiceType, required: true },
       }),
     ],
     required: true,
@@ -51,7 +53,6 @@ const bookingSchema = new Schema<IBooking>({
   travel_distance: { type: Number, default: 0, required: true },
   reference_number: { type: String, required: true, unique: true },
   notes: { type: String, default: null },
-  is_create_account: { type: Boolean, default: false },
   created_at: { type: Date, default: new Date() },
   updated_at: { type: Date, default: new Date() },
 });

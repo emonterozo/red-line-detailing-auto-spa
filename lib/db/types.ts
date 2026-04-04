@@ -4,6 +4,7 @@ import {
   DiscountType,
   InquiryStatus,
   RewardType,
+  ServiceType,
   TransactionFrom,
   VehicleSize,
   VehicleType,
@@ -13,6 +14,8 @@ export interface IVehicleSize {
   type: VehicleType;
   size: VehicleSize;
   description: string;
+  sort_order: number,
+  is_active: true
 }
 
 export interface IPricingPerSize {
@@ -76,8 +79,8 @@ export interface IBooking {
   contact_number: string;
   vehicle_model: string;
   social: string;
-  services: { _id: string; title: string }[];
-  add_ons: { _id: string; title: string }[];
+  services: { _id: string; title: string, type: ServiceType }[];
+  add_ons: { _id: string; title: string, type: ServiceType }[];
   preferred_date: { _id: string; date: Date };
   time_slot: { _id: string; time: string };
   address: string;
@@ -88,7 +91,6 @@ export interface IBooking {
   travel_distance: number;
   reference_number: string;
   notes: string;
-  is_create_account: boolean;
   created_at: Date;
   updated_at: Date;
 }

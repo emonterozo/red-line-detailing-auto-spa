@@ -16,6 +16,8 @@ const vehicleSizeSchema = new Schema<IVehicleSize>(
       required: true,
     },
     description: { type: String, required: true },
+    sort_order: { type: Number, required: true },
+    is_active: { type: Boolean, required: true },
   },
   {
     collection: "vehicle_sizes",

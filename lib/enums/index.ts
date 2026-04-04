@@ -10,6 +10,14 @@ export enum VehicleSize {
   SM = 'sm', MD = 'md', LG = 'lg', XL = 'xl', XXL = 'xxl',
 }
 
+export const VehicleSizeDisplay: Record<VehicleSize, string> = {
+  sm: 'Small',
+  md: 'Medium',
+  lg: 'Large',
+  xl: 'Large',
+  xxl: 'Extra-Large',
+};
+
 export enum InquiryStatus {
   NEW = 'new', COMPLETED = 'completed', REJECTED = 'rejected',
 }

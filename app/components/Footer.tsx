@@ -16,15 +16,14 @@ const links = [
     title: "Client Portal",
     href: "/login",
   },
-  {
-    title: "Contact",
-    href: "/#contact",
-  },
-]
+];
 
 const Footer = () => {
   return (
-    <footer className="relative bg-[#050505] border-t border-white/5 pt-16 pb-8 overflow-hidden">
+    <footer
+      id="contact"
+      className="relative bg-[#050505] border-t border-white/5 pt-16 pb-8 overflow-hidden"
+    >
       {/* Decorative Background Logo Watermark */}
 
       <div className="max-w-7xl mx-auto px-6 relative z-10">
@@ -49,7 +48,10 @@ const Footer = () => {
                   icon: Facebook,
                   href: "https://www.facebook.com/people/Red-Line-Detailing-Auto-Spa/61586431965530/",
                 },
-                { icon: Instagram, href: "https://www.instagram.com/redlinedetailing.ph" },
+                {
+                  icon: Instagram,
+                  href: "https://www.instagram.com/redlinedetailing.ph",
+                },
                 { icon: "tiktok" },
               ].map((social, i) => (
                 <a
@@ -112,6 +114,21 @@ const Footer = () => {
                 </div>
               </div>
             </div>
+
+            {/* Added Social Text Block */}
+            <div className="pt-6 mt-6 border-t border-white/[0.05]">
+              <p className="text-sm leading-relaxed text-gray-500 font-medium">
+                Got questions? Connect with us instantly—we’re just one message
+                away. Reach out through our social accounts or{" "}
+                <a
+                  className="text-white hover:text-[#dc143c]  hover:decoration-[#dc143c]"
+                  href="https://www.facebook.com/people/Red-Line-Detailing-Auto-Spa/61586431965530/"
+                >
+                  send us a message
+                </a>{" "}
+                anytime.
+              </p>
+            </div>
           </div>
 
           {/* Quick Links Column */}
@@ -120,19 +137,17 @@ const Footer = () => {
               Client Area
             </h4>
             <ul className="space-y-3">
-              {links.map(
-                (item) => (
-                  <li key={item.title}>
-                    <Link
-                      href={item.href}
-                      className="text-gray-500 text-sm hover:text-white flex items-center gap-2 group transition-all"
-                    >
-                      <ArrowRight className="w-3 h-3 text-[#dc143c] opacity-0 -ml-5 group-hover:opacity-100 group-hover:ml-0 transition-all" />
-                      {item.title}
-                    </Link>
-                  </li>
-                ),
-              )}
+              {links.map((item) => (
+                <li key={item.title}>
+                  <Link
+                    href={item.href}
+                    className="text-gray-500 text-sm hover:text-white flex items-center gap-2 group transition-all"
+                  >
+                    <ArrowRight className="w-3 h-3 text-[#dc143c] opacity-0 -ml-5 group-hover:opacity-100 group-hover:ml-0 transition-all" />
+                    {item.title}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
         </div>
