@@ -15,6 +15,7 @@ import { notFound, useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { getBooking, IBookingResponse } from "../actions/getBooking";
 import { BookingStatusDisplay, VehicleType } from "@/lib/enums";
+import FullScreenLoader from "./FullScreenLoader";
 
 const formattedDate = (date: Date) => {
   return date.toLocaleString("en-US", {
@@ -35,6 +36,7 @@ export default function BookingConfirmation() {
   const isValid = /^RL-\d{6}-[A-Z0-9]{5}$/.test(bookingReference as string);
   const [isOpen, setIsOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const [isLoading, setIsLoading] = useState(true)
 
   // Close when clicking outside
   useEffect(() => {
@@ -56,15 +58,18 @@ export default function BookingConfirmation() {
 
   useEffect(() => {
     const init = async () => {
+      setIsLoading(true)
       if (bookingReference && typeof bookingReference === "string") {
         const bookingData = await getBooking(bookingReference);
         setBooking(bookingData);
+        setIsLoading(false)
       }
     };
     init();
   }, [bookingReference]);
   return (
     <section className="min-h-screen bg-[#0a0a0a] relative overflow-hidden">
+      {isLoading && <FullScreenLoader />}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,#1a0508_0%,#050505_100%)]" />
       <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] rounded-full bg-[#dc143c]/[0.06] blur-[120px]" />
       <div className="pointer-events-none absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full bg-[#dc143c]/[0.04] blur-[100px]" />
