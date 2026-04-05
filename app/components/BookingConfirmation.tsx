@@ -17,6 +17,11 @@ import { getBooking, IBookingResponse } from "../actions/getBooking";
 import { BookingStatusDisplay, VehicleType } from "@/lib/enums";
 import FullScreenLoader from "./FullScreenLoader";
 
+const config = {
+  fee: process.env.NEXT_PUBLIC_TRAVEL_FEE_PER_KM,
+  free_distance: process.env.NEXT_PUBLIC_FREE_TRAVEL_DISTANCE_KM,
+};
+
 const formattedDate = (date: Date) => {
   return date.toLocaleString("en-US", {
     weekday: undefined,
@@ -36,7 +41,7 @@ export default function BookingConfirmation() {
   const isValid = /^RL-\d{6}-[A-Z0-9]{5}$/.test(bookingReference as string);
   const [isOpen, setIsOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(true);
 
   // Close when clicking outside
   useEffect(() => {
@@ -58,11 +63,11 @@ export default function BookingConfirmation() {
 
   useEffect(() => {
     const init = async () => {
-      setIsLoading(true)
+      setIsLoading(true);
       if (bookingReference && typeof bookingReference === "string") {
         const bookingData = await getBooking(bookingReference);
         setBooking(bookingData);
-        setIsLoading(false)
+        setIsLoading(false);
       }
     };
     init();
@@ -123,7 +128,7 @@ export default function BookingConfirmation() {
                     className={`sm:hidden relative flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 ${
                       isOpen
                         ? "bg-amber-500/20 border-amber-500/50 outline-none"
-                        : "bg-amber-500/5 border border-white/10"
+                        : "bg-amber-500/30 border border-white/10"
                     }`}
                   >
                     <Info
@@ -131,7 +136,7 @@ export default function BookingConfirmation() {
                       className={isOpen ? "text-amber-400" : "text-white/40"}
                     />
                     {!isOpen && (
-                      <span className="absolute inset-0 rounded-full bg-amber-500/20 animate-ping opacity-20" />
+                      <span className="absolute inset-0 rounded-full bg-amber-500/40 animate-ping [animation-duration:0.6s] opacity-30" />
                     )}
                   </button>
 
@@ -263,14 +268,30 @@ export default function BookingConfirmation() {
                         </span>
                       </div>
                     ))}
+                    <div className="flex justify-between items-center px-5 py-4 hover:bg-white/[0.01] transition-colors">
+                      <div>
+                        <p className="text-white/90 text-sm font-bold tracking-tight">
+                          Travel Fee
+                        </p>
+                      </div>
+                      <span className="text-white font-mono text-sm font-bold">
+                        {`+ ₱${config.fee}/km`}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="relative px-5 py-5 bg-gradient-to-b from-white/[0.04] to-transparent border-t border-white/[0.1]">
                     <div className="flex justify-between items-center">
-                      <div className="flex flex-col">
+                      <div className="flex flex-col gap-1">
                         <span className="text-white/40 text-[14px] font-black uppercase tracking-[0.3em]">
-                          Gross Total
+                          <span className="sm:hidden">Est. Total</span>
+                          <span className="hidden sm:inline">
+                            Estimated Total
+                          </span>
                         </span>
+                        <p className="text-white/60 text-[10px] italic font-medium leading-tight">
+                          * Excluded Travel fee
+                        </p>
                       </div>
                       <div className="flex flex-col items-end">
                         <span className="text-[#ff6b81] font-russo text-2xl tracking-tighter shadow-sm">

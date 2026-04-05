@@ -1084,7 +1084,7 @@ export default function Booking() {
                         <span className="text-gray-500 text-sm">
                           Travel Fee
                         </span>
-                        <span className="text-white font-medium">{`+ ₱${config.fee}/km > ${config.free_distance}km`}</span>
+                        <span className="text-white font-medium">{`+ ₱${config.fee}/km`}</span>
                       </div>
                       <div className="mt-2 flex justify-between items-center py-3 px-3 rounded-xl bg-[#dc143c]/10 border border-[#dc143c]/20">
                         <span className="text-white font-semibold">
