@@ -106,7 +106,7 @@ export const formSchema = z.object({
 
   vehicleModel: z
     .string()
-    .min(5, "Please enter your vehicle model (at least 5 characters).")
+    .min(2, "Please enter your vehicle model (at least 2 characters).")
     .max(250, "Vehicle model can be at most 250 characters."),
 
   services: z
