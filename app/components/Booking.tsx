@@ -106,7 +106,7 @@ export const formSchema = z.object({
 
   vehicleModel: z
     .string()
-    .min(5, "Please enter your vehicle model (at least 5 characters).")
+    .min(2, "Please enter your vehicle model (at least 2 characters).")
     .max(250, "Vehicle model can be at most 250 characters."),
 
   services: z
@@ -1084,7 +1084,7 @@ export default function Booking() {
                         <span className="text-gray-500 text-sm">
                           Travel Fee
                         </span>
-                        <span className="text-white font-medium">{`+ ₱${config.fee}/km > ${config.free_distance}km`}</span>
+                        <span className="text-white font-medium">{`+ ₱${config.fee}/km`}</span>
                       </div>
                       <div className="mt-2 flex justify-between items-center py-3 px-3 rounded-xl bg-[#dc143c]/10 border border-[#dc143c]/20">
                         <span className="text-white font-semibold">
