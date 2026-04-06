@@ -1,4 +1,11 @@
-import { Schema, Types, model, models } from "mongoose";
+import {
+  HydratedDocument,
+  InferSchemaType,
+  Schema,
+  Types,
+  model,
+  models,
+} from "mongoose";
 
 import {
   VehicleType,
@@ -6,11 +13,24 @@ import {
   TransactionFrom,
   DiscountType,
 } from "@/lib/enums";
-import Customer from "./Customer";
-import Booking from "./Booking";
+import Customer, { TCustomerDoc } from "./Customer";
+import Booking, { TBookingDoc } from "./Booking";
+import Promotion, { TPromotionDoc } from "./Promotion";
+
+export type TTransaction = InferSchemaType<typeof transactionSchema>;
+export type TTransactionDoc = HydratedDocument<TTransaction>;
+
+export type TransactionWithPopulatedData = Omit<
+  TTransactionDoc,
+  "customer_id" | "booking_id" | "promotion_id"
+> & {
+  customer_id: TCustomerDoc;
+  booking_id: TBookingDoc;
+  promotion_id: TPromotionDoc;
+};
 
 const transactionSchema = new Schema({
-  user_id: {
+  customer_id: {
     type: Schema.Types.ObjectId,
     ref: Customer.modelName,
     default: null,
@@ -58,8 +78,11 @@ const transactionSchema = new Schema({
     enum: [...Object.values(DiscountType), ""],
     default: "",
   },
-  notes: { type: String },
-  plate_number: { type: String },
+  notes: { type: String, default: null },
+  plate_number: { type: String, default: null },
+  referral_code_used: { type: String },
+  promotion_id: { type: Schema.Types.ObjectId, ref: Promotion.modelName },
+  promo_code_used: { type: String, default: null },
   created_at: { type: Date, default: new Date() },
   updated_at: { type: Date, default: new Date() },
 });

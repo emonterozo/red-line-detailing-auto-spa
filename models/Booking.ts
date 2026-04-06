@@ -1,38 +1,57 @@
-import { Schema, Types, model, models } from "mongoose";
+import {
+  HydratedDocument,
+  InferSchemaType,
+  Schema,
+  Types,
+  model,
+  models,
+} from "mongoose";
 
-import { IBooking } from "@/lib/db/types";
 import { BookingStatus, ServiceType } from "@/lib/enums";
-import VehicleSize from "./VehicleSize";
+import VehicleSize, { TVehicleSizeDoc } from "./VehicleSize";
+import Customer, { TCustomerDoc } from "./Customer";
+import Promotion, { TPromotionDoc } from "./Promotion";
 
+export type TBooking = InferSchemaType<typeof bookingSchema>;
+export type TBookingDoc = HydratedDocument<TBooking>;
 
-const bookingSchema = new Schema<IBooking>({
-  user_id: { type: Types.ObjectId, default: null },
-  size_id: { type: Types.ObjectId, ref: VehicleSize.modelName, default: null },
+export type BookingWithPopulatedData = Omit<
+  TBookingDoc,
+  "customer_id" | "size_id" | "promotion_id"
+> & {
+  customer_id: TCustomerDoc;
+  size_id: TVehicleSizeDoc;
+  promotion_id: TPromotionDoc;
+};
+
+const serviceSchema = new Schema({
+  title: { type: String, required: true },
+  type: { type: String, enum: ServiceType, required: true },
+  price: { type: Number, default: 0, required: true },
+});
+
+const bookingSchema = new Schema({
+  customer_id: {
+    type: Schema.Types.ObjectId,
+    ref: Customer.modelName,
+    default: null,
+  },
+  size_id: {
+    type: Schema.Types.ObjectId,
+    ref: VehicleSize.modelName,
+    required: true,
+  },
   name: { type: String, required: true },
   contact_number: { type: String, required: true },
-  vehicle_model: { type: String, default: null },
+  vehicle_model: { type: String, required: true },
   social: { type: String, default: null },
   services: {
-    type: [
-      new Schema({
-        _id: { type: Types.ObjectId },
-        title: { type: String, required: true },
-        type:  { type: String, enum: ServiceType, required: true },
-        price: { type: Number, default: 0, required: true }
-      }),
-    ],
+    type: [serviceSchema],
     required: true,
   },
   add_ons: {
-    type: [
-      new Schema({
-        _id: { type: Types.ObjectId },
-        title: { type: String, required: true },
-        type:  { type: String, enum: ServiceType, required: true },
-        price: { type: Number, default: 0, required: true }
-      }),
-    ],
-    required: true,
+    type: [serviceSchema],
+    default: [],
   },
   preferred_date: {
     type: new Schema({
@@ -48,18 +67,23 @@ const bookingSchema = new Schema<IBooking>({
     }),
     required: true,
   },
-  address: { type: String, default: null },
+  address: { type: String, required: true },
   status: { type: String, enum: BookingStatus, required: true },
   reservation_fee: { type: Number, default: 0, required: true },
   total_amount: { type: Number, default: 0, required: true },
   travel_fee: { type: Number, default: 0, required: true },
   travel_distance: { type: Number, default: 0, required: true },
+  discount: { type: Number, default: 0, required: true },
+  point_used: { type: Number, default: 0, required: true },
   reference_number: { type: String, required: true, unique: true },
+  referral_code_used: { type: String, default: null },
+  promotion_id: { type: Schema.Types.ObjectId, ref: Promotion.modelName, default: null },
+  promo_code_used: { type: String, default: null },
   notes: { type: String, default: null },
   created_at: { type: Date, default: new Date() },
   updated_at: { type: Date, default: new Date() },
 });
 
-const Booking = models.Booking || model<IBooking>("Booking", bookingSchema);
+const Booking = models.Booking || model("Booking", bookingSchema);
 
 export default Booking;

@@ -1,9 +1,17 @@
-import { Schema, model, models } from "mongoose";
+import {
+  HydratedDocument,
+  InferSchemaType,
+  Schema,
+  model,
+  models,
+} from "mongoose";
 
-import { IInquiry } from "@/lib/db/types";
 import { InquiryStatus } from "@/lib/enums";
 
-const serviceSchema = new Schema<IInquiry>({
+export type TInquiry = InferSchemaType<typeof inquirySchema>;
+export type TInquiryDoc = HydratedDocument<TInquiry>;
+
+const inquirySchema = new Schema({
   name: { type: String, required: true },
   contact_number: { type: String, required: true },
   email: { type: String, required: true },
@@ -18,6 +26,6 @@ const serviceSchema = new Schema<IInquiry>({
   updated_at: { type: Date, default: Date.now },
 });
 
-const Inquiry = models.Inquiry || model<IInquiry>("Inquiry", serviceSchema);
+const Inquiry = models.Inquiry || model("Inquiry", inquirySchema);
 
 export default Inquiry;

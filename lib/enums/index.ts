@@ -64,3 +64,11 @@ export enum TransactionFrom {
 export enum DiscountType {
   PROMOTIONS = "promotions", MANUAL = 'manual'
 }
+
+export enum ReferralStatus {
+  PENDING = "pending", COMPLETED = "completed"
+}
+
+export enum PromotionType {
+  POINTS = "points", DISCOUNT = "discount"
+}

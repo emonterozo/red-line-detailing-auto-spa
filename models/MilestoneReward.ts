@@ -1,13 +1,29 @@
-import { Schema, Types, model, models } from "mongoose";
+import {
+  HydratedDocument,
+  InferSchemaType,
+  Schema,
+  model,
+  models,
+} from "mongoose";
 
-import { IMilestoneReward } from "@/lib/db/types";
 import { RewardType, VehicleType } from "@/lib/enums";
-import Service from "./Service";
+import Service, { TServiceDoc } from "./Service";
 
-const milestoneRewardSchema = new Schema<IMilestoneReward>(
+export type TMilestoneReward = InferSchemaType<typeof milestoneRewardSchema>;
+export type TMilestoneRewardDoc = HydratedDocument<TMilestoneReward>;
+
+export type MilestoneRewardWithPopulatedData = Omit<
+  TMilestoneRewardDoc,
+  "service_id" | "reward_service_id"
+> & {
+  service_id: TServiceDoc;
+  reward_service_id: TServiceDoc;
+};
+
+const milestoneRewardSchema = new Schema(
   {
     service_id: {
-      type: Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: Service.modelName,
       required: true,
     },
@@ -17,11 +33,13 @@ const milestoneRewardSchema = new Schema<IMilestoneReward>(
     discount_percentage: { type: Number, default: 0 },
     discount_amount: { type: Number, default: 0 },
     reward_service_id: {
-      type: Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: Service.modelName,
       required: true,
     },
-    is_active: { type: Boolean, required: true },
+    is_active: { type: Boolean, default: true, required: true },
+    created_at: { type: Date, default: Date.now },
+    updated_at: { type: Date, default: Date.now },
   },
   {
     collection: "milestone_rewards",
@@ -29,7 +47,6 @@ const milestoneRewardSchema = new Schema<IMilestoneReward>(
 );
 
 const MilestoneReward =
-  models.MilestoneReward ||
-  model<IMilestoneReward>("MilestoneReward", milestoneRewardSchema);
+  models.MilestoneReward || model("MilestoneReward", milestoneRewardSchema);
 
 export default MilestoneReward;
