@@ -1,26 +1,37 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, ChevronRight, ArrowUpRight, Info, Car, Motorbike } from "lucide-react";
+import {
+  X,
+  ChevronRight,
+  ArrowUpRight,
+  Info,
+  Car,
+  Motorbike,
+} from "lucide-react";
 import Link from "next/link";
 
 import SectionContainer from "./SectionContainer";
-import { getServices, IServiceResponse } from "../actions/getServices";
+import { getServices, ServiceResponse } from "../actions/getServices";
 import { ServiceType, VehicleType } from "@/lib/enums";
 import { trackVisit } from "../actions/trackVisit";
+import ServiceSkeleton from "./ServiceSkeleton";
 
 const Services = () => {
-  const [services, setServices] = useState<IServiceResponse[]>([]);
+  const [services, setServices] = useState<ServiceResponse[]>([]);
   const [isAddOnsVisible, setIsAddOnsVisible] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedService, setSelectedService] =
-    useState<IServiceResponse | null>(null);
+    useState<ServiceResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchServices = async () => {
+      setIsLoading(true);
       await trackVisit();
       const response = await getServices();
       setServices(response);
+      setIsLoading(false);
     };
 
     fetchServices();
@@ -33,8 +44,9 @@ const Services = () => {
       secondaryTitle="Signature Services"
       description="Experience the pinnacle of automotive care with our meticulously crafted detailing packages."
     >
-      {/* Services Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-10 mx-4 md:mx-10">
+        {isLoading &&
+          Array.from({ length: 4 }).map((_, i) => <ServiceSkeleton key={i} />)}
         {services
           .filter((service) => service.type === ServiceType.SERVICE)
           .map((service, index) => (
@@ -167,18 +179,14 @@ const Services = () => {
 
       {isModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6">
-          {/* Backdrop */}
           <button
-            className="absolute inset-0 bg-black/88 backdrop-blur-xl"
+            className="absolute inset-0 bg-black/60 backdrop-blur-md"
             onClick={() => setIsModalOpen(false)}
           />
 
-          {/* Modal */}
           <div className="relative w-full max-w-lg max-h-[85vh] flex flex-col bg-[#0c0c0c] border border-white/10 rounded-[28px] shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
-            {/* Top red line accent */}
             <div className="h-[3px] bg-gradient-to-r from-[#dc143c] via-[#ff6b81] to-transparent flex-shrink-0" />
 
-            {/* Header */}
             <div className="px-7 pt-6 pb-5 border-b border-white/[0.07] flex items-start justify-between gap-4 flex-shrink-0">
               <div>
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#dc143c]/12 border border-[#dc143c]/25 mb-3">
@@ -202,9 +210,7 @@ const Services = () => {
               </button>
             </div>
 
-            {/* Scrollable content */}
             <div className="flex-1 overflow-y-auto px-7 py-5 space-y-2 custom-scrollbar scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-              {/* Column labels */}
               <div className="flex justify-between px-1 mb-3">
                 <span className="text-[10px] font-bold text-white/20 uppercase tracking-widest">
                   Vehicle Class
@@ -216,9 +222,9 @@ const Services = () => {
 
               {selectedService && !selectedService.pricing_options ? (
                 selectedService.pricing_per_sizes
-                  .filter(item => item.type === VehicleType.CAR)
+                  .filter((item) => item.type === VehicleType.CAR)
                   .map((item, idx) => {
-                    const isFirst = false
+                    const isFirst = false;
                     return (
                       <div
                         key={item._id}
@@ -240,11 +246,15 @@ const Services = () => {
                           : "bg-white/[0.04] border-white/[0.08]"
                       }`}
                           >
-                            {item.type === VehicleType.CAR ? <Car
-                              className={`w-4 h-4 ${isFirst ? "text-[#ff6b81]" : "text-white/35"}`}
-                            /> : <Motorbike
-                              className={`w-4 h-4 ${isFirst ? "text-[#ff6b81]" : "text-white/35"}`}
-                            />}
+                            {item.type === VehicleType.CAR ? (
+                              <Car
+                                className={`w-4 h-4 ${isFirst ? "text-[#ff6b81]" : "text-white/35"}`}
+                              />
+                            ) : (
+                              <Motorbike
+                                className={`w-4 h-4 ${isFirst ? "text-[#ff6b81]" : "text-white/35"}`}
+                              />
+                            )}
                           </div>
                           <div>
                             <p
@@ -292,7 +302,6 @@ const Services = () => {
               )}
             </div>
 
-            {/* Footer CTA */}
             <div className="px-7 pb-6 pt-4 border-t border-white/[0.07] bg-[#080808] flex-shrink-0">
               <Link
                 href="/booking"

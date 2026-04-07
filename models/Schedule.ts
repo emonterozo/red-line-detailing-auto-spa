@@ -9,6 +9,8 @@ import {
 export type TSchedule = InferSchemaType<typeof scheduleSchema>;
 export type TScheduleDoc = HydratedDocument<TSchedule>;
 
+
+
 const scheduleSchema = new Schema({
   date: { type: Date, required: true, unique: true },
   time_slots: {

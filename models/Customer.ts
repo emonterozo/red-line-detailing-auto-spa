@@ -54,7 +54,7 @@ const customerSchema = new Schema({
   },
   birth_day: { type: Date, default: null },
   referral_code: { type: String, unique: true, sparse: true },
-  referred_by: { type: "Customer", default: null },
+  //referred_by: { type: "Customer", default: null },
   created_at: { type: Date, default: new Date() },
   updated_at: { type: Date, default: new Date() },
 });

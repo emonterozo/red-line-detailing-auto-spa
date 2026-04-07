@@ -84,6 +84,9 @@ export interface IBooking {
   preferred_date: { _id: string; date: Date };
   time_slot: { _id: string; time: string };
   address: string;
+  google_address: string;
+  latitude: number;
+  longitude: number;
   status: BookingStatus;
   reservation_fee: number;
   total_amount: number;
@@ -145,3 +148,4 @@ export interface MilestoneCount {
   vehicle_size: VehicleSize;
   progress: number
 }
+

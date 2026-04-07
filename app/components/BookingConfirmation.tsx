@@ -13,14 +13,12 @@ import {
 import Link from "next/link";
 import { notFound, useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { getBooking, IBookingResponse } from "../actions/getBooking";
-import { BookingStatusDisplay, VehicleType } from "@/lib/enums";
+import { BookingStatus, BookingStatusDisplay, VehicleType } from "@/lib/enums";
 import FullScreenLoader from "./FullScreenLoader";
-
-const config = {
-  fee: process.env.NEXT_PUBLIC_TRAVEL_FEE_PER_KM,
-  free_distance: process.env.NEXT_PUBLIC_FREE_TRAVEL_DISTANCE_KM,
-};
+import {
+  BookingConfirmationResponse,
+  getBookingConfirmation,
+} from "../actions/getBookingConfirmation";
 
 const formattedDate = (date: Date) => {
   return date.toLocaleString("en-US", {
@@ -37,13 +35,14 @@ const formattedDate = (date: Date) => {
 export default function BookingConfirmation() {
   const params = useParams();
   const bookingReference = params.id;
-  const [booking, setBooking] = useState<IBookingResponse | null>(null);
+  const [booking, setBooking] = useState<BookingConfirmationResponse | null>(
+    null,
+  );
   const isValid = /^RL-\d{6}-[A-Z0-9]{5}$/.test(bookingReference as string);
   const [isOpen, setIsOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Close when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -65,7 +64,7 @@ export default function BookingConfirmation() {
     const init = async () => {
       setIsLoading(true);
       if (bookingReference && typeof bookingReference === "string") {
-        const bookingData = await getBooking(bookingReference);
+        const bookingData = await getBookingConfirmation(bookingReference);
         setBooking(bookingData);
         setIsLoading(false);
       }
@@ -79,25 +78,25 @@ export default function BookingConfirmation() {
       <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] rounded-full bg-[#dc143c]/[0.06] blur-[120px]" />
       <div className="pointer-events-none absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full bg-[#dc143c]/[0.04] blur-[100px]" />
 
-      <div className="relative max-w-3xl mx-auto px-4 sm:px-6 py-16 md:py-24">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-12"
-        >
-          <h2 className="font-russo text-4xl md:text-6xl font-extrabold text-white tracking-tight">
-            BOOKING{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#dc143c] to-[#ff6b81]">
-              CONFIRMATION
-            </span>
-          </h2>
-          <p className="mt-4 text-gray-500 text-base max-w-md mx-auto">
-            Your booking has been successfully received! Sit back and relax—our
-            team will contact you soon to confirm the details.
-          </p>
-        </motion.div>
+      {booking && (
+        <div className="relative max-w-3xl mx-auto px-4 sm:px-6 py-16 md:py-24">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center mb-12"
+          >
+            <h2 className="font-russo text-4xl md:text-6xl font-extrabold text-white tracking-tight">
+              BOOKING{" "}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#dc143c] to-[#ff6b81]">
+                CONFIRMATION
+              </span>
+            </h2>
+            <p className="mt-4 text-gray-500 text-base max-w-md mx-auto">
+              Your booking has been successfully received! Sit back and
+              relax—our team will contact you soon to confirm the details.
+            </p>
+          </motion.div>
 
-        {booking && (
           <div className="mt-16 relative group">
             <div className="absolute -inset-2 bg-[#dc143c]/5 blur-2xl rounded-[30px] opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
 
@@ -105,7 +104,6 @@ export default function BookingConfirmation() {
               <div className="h-[2px] bg-gradient-to-r from-[#dc143c] via-[#ff6b81] to-transparent opacity-80" />
 
               <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.08] bg-white/[0.01] relative">
-                {/* LEFT SIDE: Date & Ref */}
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-[#dc143c]/10 border border-[#dc143c]/20 shadow-[0_0_15px_rgba(220,20,60,0.1)]">
                     <Calendar className="w-5 h-5 text-[#ff6b81]" />
@@ -120,9 +118,7 @@ export default function BookingConfirmation() {
                   </div>
                 </div>
 
-                {/* RIGHT SIDE: Status Control */}
                 <div className="relative flex items-center" ref={popoverRef}>
-                  {/* MANUAL TRIGGER (Mobile Only) */}
                   <button
                     onClick={() => setIsOpen(!isOpen)}
                     className={`sm:hidden relative flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 ${
@@ -140,7 +136,6 @@ export default function BookingConfirmation() {
                     )}
                   </button>
 
-                  {/* THE MANUAL POPOVER (Bottom Positioned) */}
                   <AnimatePresence>
                     {isOpen && (
                       <motion.div
@@ -149,7 +144,6 @@ export default function BookingConfirmation() {
                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
                         className="absolute top-full right-0 mt-3 z-[100] w-56 pointer-events-auto"
                       >
-                        {/* Tooltip Content Card */}
                         <div className="bg-[#0f0f0f] border border-amber-500/40 rounded-2xl p-4 shadow-[0_20px_50px_rgba(0,0,0,0.8)] backdrop-blur-xl">
                           <div className="flex items-center gap-3 mb-2">
                             <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shadow-[0_0_10px_rgba(245,158,11,0.6)]" />
@@ -159,21 +153,23 @@ export default function BookingConfirmation() {
                           </div>
 
                           <p className="text-white text-[13px] font-bold uppercase tracking-widest">
-                            {BookingStatusDisplay[booking.status]}
+                            {
+                              BookingStatusDisplay[
+                                booking.status as BookingStatus
+                              ]
+                            }
                           </p>
                         </div>
 
-                        {/* Red Detail Bolt (Visual Accent) */}
                         <div className="absolute -top-1 right-4 w-2 h-2 bg-[#0f0f0f] border-t border-l border-amber-500/40 rotate-45" />
                       </motion.div>
                     )}
                   </AnimatePresence>
 
-                  {/* DESKTOP STATUS (Persistent) */}
                   <div className="hidden sm:flex items-center gap-2.5 px-4 py-2 rounded-full bg-amber-500/5 border border-amber-500/20 shadow-[0_0_20px_rgba(245,158,11,0.05)]">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                     <span className="text-amber-500/90 text-[11px] font-black uppercase tracking-[0.25em]">
-                      {BookingStatusDisplay[booking.status]}
+                      {BookingStatusDisplay[booking.status as BookingStatus]}
                     </span>
                   </div>
                 </div>
@@ -211,7 +207,7 @@ export default function BookingConfirmation() {
                     </p>
                     <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-gradient-to-br from-[#dc143c]/20 to-[#dc143c]/5 border border-[#dc143c]/30 shadow-[0_0_15px_rgba(220,20,60,0.1)] group/badge">
                       <div className="relative flex items-center justify-center">
-                        {booking.size.type === VehicleType.CAR ? (
+                        {booking.size_id.type === VehicleType.CAR ? (
                           <Car className="w-3.5 h-3.5 text-[#ff6b81] group-hover/badge:scale-110 transition-transform duration-300" />
                         ) : (
                           <Motorbike className="w-3.5 h-3.5 text-[#ff6b81] group-hover/badge:scale-110 transition-transform duration-300" />
@@ -220,7 +216,7 @@ export default function BookingConfirmation() {
                       </div>
 
                       <span className="text-[#ff6b81] text-[10px] font-black uppercase tracking-[0.25em] leading-none">
-                        {booking.size.description.toUpperCase()}
+                        {booking.size_id.description.toUpperCase()}
                       </span>
 
                       <div className="w-[1px] h-2 bg-[#ff6b81]/20 ml-0.5" />
@@ -275,7 +271,7 @@ export default function BookingConfirmation() {
                         </p>
                       </div>
                       <span className="text-white font-mono text-sm font-bold">
-                        {`+ ₱${config.fee}/km`}
+                        {`₱${booking.travel_fee.toLocaleString()}`}
                       </span>
                     </div>
                   </div>
@@ -289,13 +285,10 @@ export default function BookingConfirmation() {
                             Estimated Total
                           </span>
                         </span>
-                        <p className="text-white/60 text-[10px] italic font-medium leading-tight">
-                          * Excluded Travel fee
-                        </p>
                       </div>
                       <div className="flex flex-col items-end">
                         <span className="text-[#ff6b81] font-russo text-2xl tracking-tighter shadow-sm">
-                          {`₱${booking.total_amount.toLocaleString()}`}
+                          {`₱${(booking.total_amount + booking.travel_fee).toLocaleString()}`}
                         </span>
                         <div className="h-0.5 w-16 bg-[#dc143c] mt-1 shadow-[0_0_12px_rgba(220,20,60,0.6)]" />
                       </div>
@@ -343,8 +336,8 @@ export default function BookingConfirmation() {
               </div>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </section>
   );
 }

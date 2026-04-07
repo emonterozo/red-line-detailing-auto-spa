@@ -68,6 +68,18 @@ const bookingSchema = new Schema({
     required: true,
   },
   address: { type: String, required: true },
+  google_address: { type: String, required: true },
+  location: {
+    type: {
+      type: String, 
+      enum: ["Point"],
+      required: true,
+    },
+    coordinates: {
+      type: [Number],
+      required: true,
+    },
+  },
   status: { type: String, enum: BookingStatus, required: true },
   reservation_fee: { type: Number, default: 0, required: true },
   total_amount: { type: Number, default: 0, required: true },
@@ -83,6 +95,8 @@ const bookingSchema = new Schema({
   created_at: { type: Date, default: new Date() },
   updated_at: { type: Date, default: new Date() },
 });
+
+bookingSchema.index({ location: "2dsphere" });
 
 const Booking = models.Booking || model("Booking", bookingSchema);
 

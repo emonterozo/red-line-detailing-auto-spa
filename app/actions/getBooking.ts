@@ -3,44 +3,27 @@
 import connect from "@/lib/db/mongodb";
 import { IBooking } from "@/lib/db/types";
 import { VehicleSize, VehicleType } from "@/lib/enums";
-import Booking from "@/models/Booking";
+import Booking, {
+  BookingWithPopulatedData,
+  TBooking,
+  TBookingDoc,
+} from "@/models/Booking";
+import { TVehicleSize } from "@/models/VehicleSize";
 import { Types } from "mongoose";
 
-export interface IBookingDocument extends Omit<
-  IBooking,
-  "time_slots" | "size_id"
-> {
-  _id: Types.ObjectId;
-  __v?: number;
-  size_id: {
-    _id: string;
-    size: VehicleSize;
-    type: VehicleType;
-    description: string;
-    sort_order: number;
-    is_active: boolean;
-  };
-}
-
-export interface IBookingResponse extends Omit<IBooking, "size_id"> {
+export type BookingResponse = Omit<TBooking, "_id" | "size_id"> & {
   _id: string;
-  size_id: string;
-  size: {
+  size_id: Pick<TVehicleSize, "size" | "type" | "description"> & {
     _id: string;
-    size: VehicleSize;
-    type: VehicleType;
-    description: string;
-    sort_order: number;
-    is_active: boolean;
   };
-}
+};
 
 export const getBooking = async (
   bookingIdOrRef: string,
-): Promise<IBookingResponse | null> => {
+): Promise<BookingResponse | null> => {
   await connect();
 
-  let bookingDoc: IBookingDocument | null = null;
+  let bookingDoc: BookingWithPopulatedData | null = null;
 
   // Check if the input is a valid MongoDB ObjectId
   if (Types.ObjectId.isValid(bookingIdOrRef)) {
@@ -68,26 +51,30 @@ export const getBooking = async (
     _id: item._id.toString(),
   }));
 
-  const bookingJson: IBookingResponse = {
+  console.log(bookingDoc)
+
+  const bookingJson = {
     ...bookingDoc,
     _id: bookingDoc._id.toString(),
-    user_id: bookingDoc?.user_id?.toString(),
-    size_id: bookingDoc?.size_id?._id.toString(),
+    customer_id: bookingDoc.customer_id,
+    size_id: bookingDoc.size_id._id.toString(),
     size: {
-      ...bookingDoc?.size_id,
-      _id: bookingDoc?.size_id?._id.toString(),
+      ...bookingDoc.size_id,
+      _id: bookingDoc.size_id._id.toString(),
     },
     services: formattedServices,
     add_ons: formattedAddOns,
     preferred_date: {
       ...bookingDoc.preferred_date,
-      _id: bookingDoc.preferred_date._id.toString(),
+      _id: bookingDoc.preferred_date._id?.toString(),
     },
     time_slot: {
       ...bookingDoc.time_slot,
-      _id: bookingDoc.time_slot._id.toString(),
+      _id: bookingDoc.time_slot._id?.toString(),
     },
   };
+
+  console.log(bookingJson)
 
   return bookingJson;
 };
