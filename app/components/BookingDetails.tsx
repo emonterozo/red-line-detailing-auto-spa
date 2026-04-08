@@ -171,14 +171,14 @@ export default function BookingDetails() {
         services: selectedServices,
       });
       setLoading(false);
-      if (result.success && value.status === BookingStatus.COMPLETED) {
-        router.push(`/admin/transaction?booking_id=${booking?._id}`);
-      }
-      
 
       if (result.success) {
         showToast(result.message, "success");
-        router.back();
+        if (value.status === BookingStatus.COMPLETED) {
+          router.push(`/admin/transaction?booking_id=${booking?._id}`);
+        } else {
+          router.back();
+        }
       } else {
         showToast(result.message, "error");
       }
@@ -295,7 +295,10 @@ export default function BookingDetails() {
     <section className="min-h-screen bg-[#0a0a0a] relative overflow-hidden">
       {initializing && <FullScreenLoader />}
       {booking?.customer && (
-        <CustomerMilestonesPanel isVisible={true} customer={{...booking.customer, name: booking.name}} />
+        <CustomerMilestonesPanel
+          isVisible={true}
+          customer={{ ...booking.customer, name: booking.name }}
+        />
       )}
 
       <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] rounded-full bg-[#dc143c]/[0.06] blur-[120px]" />
@@ -418,7 +421,7 @@ export default function BookingDetails() {
                                     field.setValue([size]);
                                     onSelectVehicleTypeSize(size);
                                   }}
-                                  className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                                  className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-600 hover:text-white hover:bg-white/[0.06] transition-colors"
                                 >
                                   <span className="text-sm">{`${size.type.toUpperCase()} • ${size.description.toUpperCase()}`}</span>
                                   {isSelected && (
@@ -555,7 +558,7 @@ export default function BookingDetails() {
                               <CommandItem
                                 key={service._id}
                                 onSelect={() => toggleService(service)}
-                                className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                                className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-600 hover:text-white hover:bg-white/[0.06] transition-colors"
                               >
                                 <span className="text-sm">{service.title}</span>
                                 {isSelected && (
@@ -707,11 +710,13 @@ export default function BookingDetails() {
                           const v = e.target.value;
                           const distance = v === "" ? 0 : Number.parseFloat(v);
 
-                          const fee = Math.max(
-                            0,
-                            (distance -
-                              Number.parseInt(config.free_distance ?? "0")) *
-                              Number.parseInt(config.fee ?? "0"),
+                          const fee = Math.floor(
+                            Math.max(
+                              0,
+                              (distance -
+                                Number.parseInt(config.free_distance ?? "0")) *
+                                Number.parseInt(config.fee ?? "0"),
+                            ),
                           );
                           field.handleChange(v);
                           form.setFieldValue("travelFee", fee);
@@ -754,6 +759,28 @@ export default function BookingDetails() {
               >
                 {({ fee, total, travelFee, pointsUsed, discount }) => (
                   <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] divide-y divide-white/[0.06]">
+                    <div className="flex justify-between items-center px-4 py-3">
+                      <span className="text-gray-500 text-sm">
+                        Services Total Amount
+                      </span>
+                      <span className="text-white font-medium text-sm">
+                        + ₱{total.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center px-4 py-3">
+                      <span className="text-gray-500 text-sm">Travel Fee</span>
+                      <span className="text-white font-medium text-sm">
+                        + ₱{travelFee.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center px-4 py-3">
+                      <span className="text-gray-500 text-sm">
+                        Total Discount
+                      </span>
+                      <span className="text-white font-medium text-sm">
+                        - ₱{(discount + pointsUsed).toLocaleString()}
+                      </span>
+                    </div>
                     <div className="flex justify-between items-center px-4 py-3">
                       <span className="text-gray-500 text-sm">
                         {`Reservation Deposit - ${dpMultiplier * 100}%`}
@@ -867,7 +894,7 @@ export default function BookingDetails() {
                                       statusKey as BookingStatus,
                                     )
                                   }
-                                  className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                                  className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-600 hover:text-white hover:bg-white/[0.06] transition-colors"
                                 >
                                   <span className="font-bold text-xs uppercase tracking-wider">
                                     {display}

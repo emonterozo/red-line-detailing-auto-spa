@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useForm } from "@tanstack/react-form";
-import { toast } from "sonner";
 import * as z from "zod";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -18,7 +17,7 @@ import {
   CommandInput,
   CommandItem,
 } from "@/components/ui/command";
-import { Check, User, ArrowRight, Loader2, X } from "lucide-react";
+import { Check, User, ArrowRight, Loader2 } from "lucide-react";
 import {
   DiscountType,
   DiscountTypeDisplay,
@@ -49,7 +48,6 @@ import { getTransaction } from "../actions/getTransaction";
 import { CustomerMilestonesPanel } from "./CustomerMilestonesPanel";
 import { ReadOnlyField } from "./ReadOnlyField";
 import FullScreenLoader from "./FullScreenLoader";
-import { TTransaction } from "@/models/Transaction";
 import { showToast } from "@/lib/toast";
 
 export const pricingPerSizeSchema = z.object({
@@ -284,14 +282,13 @@ export default function Transaction() {
           price: milestoneRewardPrice,
         };
         availedServices.push({
-          _id: value.milestoneReward[0]._id,
+          _id: value.milestoneReward[0].reward_service_id._id,
           title: value.milestoneReward[0].reward_service_id.title,
           price: milestoneRewardPrice,
         });
         totalAmount += milestone_reward.price;
         totalDiscount += value.milestoneDiscount;
       }
-      console.log(totalAmount, totalDiscount);
 
       const totalAmountPaid = totalAmount - totalDiscount;
       const pointsEarned = getPointsEarned(totalAmountPaid);
@@ -309,6 +306,7 @@ export default function Transaction() {
         services: availedServices,
         discount_type: value.discountType as DiscountType,
         notes: value.notes,
+        reservation_fee: value.downPayment,
         total_service_amount: totalAmount,
         additional_cost: value.additionalCost,
         points_earned: pointsEarned,
@@ -327,7 +325,7 @@ export default function Transaction() {
       setLoading(false);
       showToast(result.message, result.success ? "success" : "error");
       if (result.success) {
-        //router.push("/admin");
+        router.push("/admin");
       }
     },
   });
@@ -347,99 +345,97 @@ export default function Transaction() {
       setCustomerResults(customerData);
       setVehicleSizes(vehicleSizeData);
       form.setFieldValue("vehicleSizes", [vehicleSizeData[0]]);
+
+      if (bookingId) {
+        const bookingData = await getBooking(bookingId);
+
+        if (bookingData) {
+          const selectedServiceIds = new Set(
+            [...bookingData.services, ...bookingData.add_ons].map(
+              (item) => item._id,
+            ),
+          );
+
+          const customer = customerData.filter(
+            (item) => item._id === bookingData.customer?._id,
+          );
+
+          let discountType = "";
+          if (bookingData.point_used > 0) {
+            discountType = DiscountType.PROMOTIONS;
+          } else if (bookingData.point_used === 0 && bookingData.discount > 0) {
+            discountType = DiscountType.MANUAL;
+          }
+
+          form.setFieldValue("vehicleModel", bookingData.vehicle_model);
+          form.setFieldValue("travelFee", bookingData.travel_fee);
+          form.setFieldValue("downPayment", bookingData.reservation_fee);
+          form.setFieldValue("totalAmount", bookingData.total_amount);
+          form.setFieldValue("totalDiscount", bookingData.discount);
+          form.setFieldValue("pointsUsed", bookingData.point_used);
+          form.setFieldValue("discountType", discountType);
+          form.setFieldValue("customer", customer);
+          setIsFabVisible(customer.length > 0);
+
+          const selectedServices = serviceData.filter((item) =>
+            selectedServiceIds.has(item._id),
+          );
+
+          const vehicleTypeSize = vehicleSizeData.filter(
+            (item) => item._id === bookingData.size_id,
+          );
+          form.setFieldValue("vehicleSizes", vehicleTypeSize);
+          form.setFieldValue("services", selectedServices);
+        }
+      }
+
+      if (transactionId) {
+        const transactionData = await getTransaction(transactionId);
+        if (transactionData) {
+          const selectedServices = serviceData.filter((item) =>
+            transactionData.services.includes(item._id),
+          );
+
+          const vehicleTypeSize = vehicleSizeData.filter(
+            (item) =>
+              item.type === transactionData.vehicle_type &&
+              item.size === transactionData.vehicle_size,
+          );
+
+          const customer = customerData.filter(
+            (item) => item._id === transactionData.customer_id,
+          );
+
+          const milestoneReward = milestoneRewardData.filter(
+            (item) => item._id === transactionData.milestone_reward?._id,
+          );
+
+          const milestoneRewardPrice =
+            transactionData.milestone_reward?.price ?? 0;
+          form.setFieldValue("customer", customer);
+          form.setFieldValue("vehicleSizes", vehicleTypeSize);
+          form.setFieldValue("vehicleModel", transactionData.vehicle_model);
+          form.setFieldValue("services", selectedServices);
+          form.setFieldValue("travelFee", transactionData.travel_fee);
+          form.setFieldValue("downPayment", transactionData.reservation_fee);
+          form.setFieldValue(
+            "totalAmount",
+            transactionData.total_service_amount - milestoneRewardPrice,
+          );
+          form.setFieldValue("additionalCost", transactionData.additional_cost);
+          form.setFieldValue("totalDiscount", transactionData.discount);
+          form.setFieldValue("pointsUsed", transactionData.points_used);
+          form.setFieldValue("milestoneReward", milestoneReward);
+          form.setFieldValue("discountType", transactionData.discount_type);
+          form.setFieldValue(
+            "milestoneDiscount",
+            transactionData.milestone_reward?.discount ?? 0,
+          );
+          form.setFieldValue("notes", transactionData.notes ?? "");
+          form.setFieldValue("plateNumber", transactionData.plate_number ?? "");
+        }
+      }
       setInitializing(false);
-
-      // if (bookingId) {
-      //   const bookingData = await getBooking(bookingId);
-
-      //   let selectedServiceIds: string[] = [];
-
-      //   if (bookingData?.services && bookingData.add_ons) {
-      //     const result = [...bookingData.services, ...bookingData.add_ons].map(
-      //       (item) => item._id,
-      //     );
-      //     selectedServiceIds = result;
-
-      //     const customer = c.filter((item) => item._id === bookingData.user_id);
-
-      //     form.setFieldValue("vehicleModel", bookingData.vehicle_model ?? "");
-      //     form.setFieldValue("travelFee", bookingData.travel_fee ?? 0);
-      //     form.setFieldValue("downPayment", bookingData.reservation_fee ?? 0);
-      //     form.setFieldValue("totalAmount", bookingData.total_amount ?? 0);
-      //     form.setFieldValue("customer", customer);
-      //     setIsFabVisible(customer.length > 0);
-      //   }
-
-      //   const selectedServices = s.filter((item) =>
-      //     selectedServiceIds.includes(item._id),
-      //   );
-
-      //   const vehicleTypeSize = v.filter(
-      //     (item) => item._id === bookingData?.size_id,
-      //   );
-      //   form.setFieldValue("vehicleSizes", vehicleTypeSize);
-      //   form.setFieldValue("services", selectedServices);
-      // }
-
-      // if (transactionId) {
-      //   const transactionData = await getTransaction(transactionId);
-      //   if (transactionData) {
-      //     form.setFieldValue(
-      //       "vehicleModel",
-      //       transactionData.vehicle_model ?? "",
-      //     );
-      //     form.setFieldValue("plateNumber", transactionData.plate_number ?? "");
-      //     form.setFieldValue("travelFee", transactionData.travel_fee ?? 0);
-      //     form.setFieldValue(
-      //       "downPayment",
-      //       transactionData.reservation_fee ?? 0,
-      //     );
-
-      //     form.setFieldValue("customer", transactionData.customer);
-      //     setIsFabVisible(transactionData.customer.length > 0);
-      //     form.setFieldValue("vehicleSizes", transactionData.vehicle_sizes);
-      //     form.setFieldValue("services", transactionData.services);
-      //     form.setFieldValue("discountType", transactionData.discount_type);
-      //     form.setFieldValue(
-      //       "milestoneReward",
-      //       transactionData.milestone_reward,
-      //     );
-      //     form.setFieldValue("notes", transactionData.notes);
-
-      //     let rewardServicePrice = 0;
-      //     let milestoneDiscount = 0;
-      //     if (transactionData.milestone_reward.length > 0) {
-      //       const rewardService = s.find(
-      //         (s) => s._id === transactionData.milestone_reward[0].service_id,
-      //       );
-
-      //       rewardServicePrice =
-      //         rewardService?.pricing_per_sizes.find(
-      //           (p) =>
-      //             p.type === transactionData.vehicle_sizes[0].type &&
-      //             p.size === transactionData.vehicle_sizes[0].size,
-      //         )?.price ?? 0;
-
-      //       milestoneDiscount =
-      //         transactionData.milestone_reward[0].reward_type ===
-      //         RewardType.DISCOUNT
-      //           ? transactionData.milestone_reward[0].discount_amount === 0
-      //             ? rewardServicePrice *
-      //               (transactionData.milestone_reward[0].discount_percentage /
-      //                 100)
-      //             : transactionData.milestone_reward[0].discount_amount
-      //           : rewardServicePrice;
-      //     }
-
-      //     form.setFieldValue(
-      //       "totalAmount",
-      //       transactionData.total_amount - rewardServicePrice,
-      //     );
-
-      //     form.setFieldValue("milestoneDiscount", milestoneDiscount);
-      //     form.setFieldValue("totalDiscount", transactionData.points_used);
-      //   }
-      // }
     };
     init();
   }, [bookingId, form, transactionId]);
@@ -539,10 +535,11 @@ export default function Transaction() {
           </p>
         </div>
 
-       
-        <CustomerMilestonesPanel isVisible={isFabVisible} customer={form.getFieldValue("customer")[0]} />
+        <CustomerMilestonesPanel
+          isVisible={isFabVisible}
+          customer={form.getFieldValue("customer")[0]}
+        />
 
-        {/* ── Form ── */}
         <form
           id="booking-form"
           onSubmit={(e) => {
@@ -551,7 +548,6 @@ export default function Transaction() {
           }}
           className="space-y-0"
         >
-          {/* STEP 1 — Customer */}
           <SectionCard
             step={1}
             title="Customer"
@@ -605,7 +601,7 @@ export default function Transaction() {
                                   field.setValue(isSelected ? [] : [customer]);
                                   setIsFabVisible(!isSelected);
                                 }}
-                                className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                                className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-600 hover:text-white hover:bg-white/[0.06] transition-colors"
                               >
                                 <span className="text-sm">{customer.name}</span>
                                 {isSelected && (
@@ -623,7 +619,6 @@ export default function Transaction() {
             </form.Field>
           </SectionCard>
 
-          {/* STEP 2 — Vehicle */}
           <SectionCard
             step={2}
             title="Vehicle Details"
@@ -669,7 +664,7 @@ export default function Transaction() {
                               <CommandItem
                                 key={size._id}
                                 onSelect={() => onSelectVehicleSize(size)}
-                                className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                                className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-600 hover:text-white hover:bg-white/[0.06] transition-colors"
                               >
                                 <span className="text-sm">{`${size.type.toUpperCase()} • ${size.description.toUpperCase()}`}</span>
                                 {isSelected && (
@@ -684,8 +679,6 @@ export default function Transaction() {
                   </Field>
                 )}
               </form.Field>
-
-              {/* Vehicle Model */}
               <form.Field name="vehicleModel">
                 {(field) => {
                   const isInvalid =
@@ -740,14 +733,12 @@ export default function Transaction() {
             </div>
           </SectionCard>
 
-          {/* STEP 3 — Services */}
           <SectionCard
             step={3}
             title="Services & Rewards"
             subtitle="Select what's being performed."
           >
             <div className="space-y-4">
-              {/* Availed Services */}
               <form.Field name="services">
                 {(field) => {
                   const isInvalid =
@@ -787,7 +778,7 @@ export default function Transaction() {
                                 <CommandItem
                                   key={service._id}
                                   onSelect={() => toggleService(service)}
-                                  className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                                  className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-600 hover:text-white hover:bg-white/[0.06] transition-colors"
                                 >
                                   <span className="text-sm">
                                     {service.title}
@@ -811,8 +802,6 @@ export default function Transaction() {
                   );
                 }}
               </form.Field>
-
-              {/* Milestone Reward */}
               <form.Field name="milestoneReward">
                 {(field) => (
                   <Field>
@@ -858,7 +847,7 @@ export default function Transaction() {
                                 <CommandItem
                                   key={mr._id}
                                   onSelect={() => onSelectMilestoneReward(mr)}
-                                  className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                                  className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-600 hover:text-white hover:bg-white/[0.06] transition-colors"
                                 >
                                   <span className="text-sm">
                                     {mr.reward_service_id.title}
@@ -920,8 +909,12 @@ export default function Transaction() {
                               return (
                                 <CommandItem
                                   key={statusKey}
-                                  onSelect={() =>  field.handleChange(isSelected ? "" : statusKey)}
-                                  className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                                  onSelect={() =>
+                                    field.handleChange(
+                                      isSelected ? "" : statusKey,
+                                    )
+                                  }
+                                  className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-600 hover:text-white hover:bg-white/[0.06] transition-colors"
                                 >
                                   <span className="font-bold text-xs uppercase tracking-wider">
                                     {display}
@@ -963,7 +956,6 @@ export default function Transaction() {
             </div>
           </SectionCard>
 
-          {/* STEP 4 — Summary */}
           <SectionCard
             step={5}
             title="Summary"
@@ -1002,7 +994,6 @@ export default function Transaction() {
                 </form.Field>
               </div>
 
-              {/* Discount Tiers */}
               <form.Subscribe selector={(s) => s.values.totalAmount}>
                 {(total) => {
                   const tiers = [
@@ -1041,7 +1032,7 @@ export default function Transaction() {
                             width: `${Math.min(100, (total / 375) * 100)}%`,
                           }}
                         />
-                        {/* tier markers */}
+
                         {tiers.map((t) => (
                           <div
                             key={t.min}
@@ -1051,7 +1042,6 @@ export default function Transaction() {
                         ))}
                       </div>
 
-                      {/* tier chips */}
                       <div className="grid grid-cols-3 gap-2">
                         {tiers.map((t) => {
                           const unlocked = total >= t.min;
@@ -1091,7 +1081,6 @@ export default function Transaction() {
                 }}
               </form.Subscribe>
 
-              {/* Read-only summary rows */}
               <div className="mt-4 space-y-1 rounded-xl overflow-hidden">
                 <form.Subscribe
                   selector={(s) => ({
@@ -1174,7 +1163,14 @@ export default function Transaction() {
                             {pointsEarned.toLocaleString()}
                           </span>
                         </div>
-
+                        <div className="flex justify-between items-center py-2 px-3 border-t border-white/[0.06]">
+                          <span className="text-gray-500 text-sm">
+                            Services Total Amount
+                          </span>
+                          <span className="text-white font-medium">
+                            + ₱{total.toLocaleString()}
+                          </span>
+                        </div>
                         {milestoneRewardPrice > 0 && (
                           <div className="flex justify-between items-center py-2 px-3">
                             <span className="text-gray-500 text-sm">
@@ -1195,7 +1191,7 @@ export default function Transaction() {
                         </div>
 
                         <div className="flex justify-between items-center py-2 px-3 border-t border-white/[0.06]">
-                          <span className="text-gray-500 text-sm">
+                          <span className="text-white text-sm">
                             Gross Total
                           </span>
                           <span className="text-white font-medium">
@@ -1248,7 +1244,7 @@ export default function Transaction() {
                           )}
                         </form.Field>
 
-                        <div className="flex justify-between items-center py-2 px-3">
+                        <div className="flex justify-between items-center py-2 px-3 border-t border-white/[0.06]">
                           <span className="text-gray-500 text-sm">
                             Milestone Discount
                           </span>
@@ -1260,7 +1256,7 @@ export default function Transaction() {
                           <span className="text-gray-500 text-sm">
                             Down Payment
                           </span>
-                          <span className="text-white font-medium">
+                          <span className="text-[#ff6b81] font-medium">
                             - ₱{downPayment.toLocaleString()}
                           </span>
                         </div>
@@ -1281,7 +1277,6 @@ export default function Transaction() {
             </div>
           </SectionCard>
 
-          {/* Submit */}
           {!transactionId && (
             <div className="pt-2 flex justify-end">
               <button
@@ -1289,7 +1284,6 @@ export default function Transaction() {
                 disabled={loading}
                 className="group relative inline-flex items-center gap-3 px-10 py-4 bg-[#dc143c] hover:bg-[#c01236] active:scale-[0.98] text-white font-bold text-base rounded-2xl transition-all duration-200 shadow-xl shadow-[#dc143c]/30 hover:shadow-[#dc143c]/50 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
               >
-                {/* shimmer */}
                 <span className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none" />
                 {loading ? (
                   <>

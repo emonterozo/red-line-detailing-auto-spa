@@ -606,7 +606,7 @@ export default function Booking() {
                                     onSelect={() => {
                                       field.setValue([size]);
                                     }}
-                                    className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                                    className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-600 hover:text-white hover:bg-white/[0.06] transition-colors"
                                   >
                                     <span>
                                       {size.description.toUpperCase()}
@@ -1207,7 +1207,7 @@ export default function Booking() {
                 </>
               ) : (
                 <>
-                  Create Transaction
+                  Submit Booking
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </>
               )}

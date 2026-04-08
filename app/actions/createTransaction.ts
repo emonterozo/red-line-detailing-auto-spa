@@ -15,7 +15,12 @@ type ServiceProps = Pick<TService, "title" | "price"> & {
 
 type CreateTransactionProps = Omit<
   TTransaction,
-  "services" | "customer_id" | "booking_id" | "created_at" | "updated_at"
+  | "services"
+  | "customer_id"
+  | "booking_id"
+  | "created_at"
+  | "updated_at"
+  | "name"
 > & {
   services: ServiceProps[];
   milestone_reward: {
@@ -56,6 +61,7 @@ export const createTransaction = async (
       services,
       discount_type: transactionData.discount_type,
       notes: transactionData.notes,
+      reservation_fee: transactionData.reservation_fee,
       total_service_amount: transactionData.total_service_amount,
       additional_cost: transactionData.additional_cost,
       points_earned: transactionData.points_earned,

@@ -12,8 +12,8 @@ import {
 import { useEffect, useRef, useState } from "react";
 import {
   getTransactions,
-  ITransactionResponse,
   IPaginatedTransactions,
+  TransactionTableResponse,
 } from "../actions/getTransactions";
 import { useRouter } from "next/navigation";
 import { PAGE_LIMIT, TABLE_DATE_FORMAT } from "@/lib/constants";
@@ -21,7 +21,9 @@ import { TransactionFromDisplay, VehicleType } from "@/lib/enums";
 import { Pagination } from "./Pagination";
 
 const RecentTransactions = () => {
-  const [transactions, setTransactions] = useState<ITransactionResponse[]>([]);
+  const [transactions, setTransactions] = useState<TransactionTableResponse[]>(
+    [],
+  );
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [inputPage, setInputPage] = useState<number | "">(page);
@@ -37,7 +39,6 @@ const RecentTransactions = () => {
 
   return (
     <section className="mb-8 rounded-2xl border border-white/[0.08] bg-white/[0.02] backdrop-blur-sm overflow-hidden">
-      {/* header */}
       <div className="px-6 py-5 border-b border-white/[0.06] flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
@@ -53,8 +54,6 @@ const RecentTransactions = () => {
           </div>
         </div>
       </div>
-
-      {/* table */}
       <div className="overflow-x-auto">
         <Table className="w-full">
           <TableHeader>
@@ -93,7 +92,9 @@ const RecentTransactions = () => {
                 <TableRow
                   key={transaction._id}
                   onClick={() =>
-                    router.push(`/admin/transaction/?transaction_id=${transaction._id}`)
+                    router.push(
+                      `/admin/transaction/?transaction_id=${transaction._id}`,
+                    )
                   }
                   className="border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors cursor-pointer"
                 >
@@ -101,11 +102,12 @@ const RecentTransactions = () => {
                     {transaction.customer}
                   </TableCell>
                   <TableCell className="px-5 py-4 text-gray-400 text-sm whitespace-nowrap">
-                    {TransactionFromDisplay[transaction.transaction_type]}
+                    {TransactionFromDisplay[transaction.transaction_from]}
                   </TableCell>
-                   <TableCell className="px-5 py-4 whitespace-nowrap">
+                  <TableCell className="px-5 py-4 whitespace-nowrap">
                     {(() => {
-                      const isCar = transaction.vehicle_type.toLowerCase() === "car";
+                      const isCar =
+                        transaction.vehicle_type.toLowerCase() === "car";
                       return (
                         <div
                           className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border
@@ -143,7 +145,7 @@ const RecentTransactions = () => {
                     {transaction.vehicle_model}
                   </TableCell>
                   <TableCell className="px-5 py-4 text-white font-medium text-sm whitespace-nowrap">
-                    ₱{transaction.total_amount.toLocaleString()}
+                    ₱{transaction.total_service_amount.toLocaleString()}
                   </TableCell>
                   <TableCell className="px-5 py-4 text-[#ff6b81] text-sm whitespace-nowrap">
                     {transaction.total_discount > 0 ? (
@@ -167,8 +169,6 @@ const RecentTransactions = () => {
           </TableBody>
         </Table>
       </div>
-
-      {/* pagination */}
       <Pagination
         page={page}
         totalPages={totalPages}
