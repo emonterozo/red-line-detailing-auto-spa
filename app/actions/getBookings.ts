@@ -1,26 +1,46 @@
 "use server";
 
 import connect from "@/lib/db/mongodb";
-import { IBooking, IBookingDocument } from "@/lib/db/types";
-import Booking from "@/models/Booking";
+import Booking, { TBooking, TBookingDoc } from "@/models/Booking";
+import { TSchedule } from "@/models/Schedule";
 import { Types } from "mongoose";
 
-export interface IBookingResponse extends IBooking {
-  _id: string;
-}
+const BOOKING_FIELDS: (keyof TBooking)[] = [
+  "created_at",
+  "status",
+  "name",
+  "contact_number",
+  "vehicle_model",
+  "preferred_date",
+  "time_slot",
+];
 
 export interface IPaginatedBookings {
-  data: IBookingResponse[];
+  data: BookingTableResponse[];
   total: number;
   page: number;
   limit: number;
   totalPages: number;
 }
 
+export type BookingTableResponse = Pick<
+  TBooking,
+  "name" | "contact_number" | "vehicle_model" | "status" | "created_at"
+> & {
+  _id: string;
+  preferred_date: Pick<TSchedule, "date"> & {
+    _id: string;
+  };
+  time_slot: {
+    _id: string;
+    time: string;
+  };
+};
+
 export const getBookings = async (
   page: number = 1,
   limit: number = 10,
-  user_id?: string
+  user_id?: string,
 ): Promise<IPaginatedBookings> => {
   await connect();
 
@@ -32,38 +52,35 @@ export const getBookings = async (
     query.user_id = new Types.ObjectId(user_id);
   }
 
-  const bookingsDoc = (await Booking.find(query)
+  const bookingsDoc: Pick<
+    TBookingDoc,
+    | "_id"
+    | "name"
+    | "contact_number"
+    | "vehicle_model"
+    | "preferred_date"
+    | "time_slot"
+    | "status"
+    | "created_at"
+  >[] = await Booking.find(query)
+    .select(BOOKING_FIELDS.join(" "))
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit)
-    .lean()) as unknown as IBookingDocument[];
+    .lean();
 
-  const bookingsJson: IBookingResponse[] = bookingsDoc.map((booking) => {
-    const formattedServices = booking.services.map((item) => ({
-      ...item,
-      _id: item._id.toString(),
-    }));
-    const formattedAddOns = booking.add_ons.map((item) => ({
-      ...item,
-      _id: item._id.toString(),
-    }));
-
+  const bookingsJson = bookingsDoc.map((booking) => {
     return {
       ...booking,
-      user_id: booking?.user_id?.toString(),
       _id: booking._id.toString(),
-      size_id: booking.size_id?.toString(),
-      services: formattedServices,
-      add_ons: formattedAddOns,
       preferred_date: {
         ...booking.preferred_date,
-        _id: booking.preferred_date._id.toString(),
+        _id: booking.preferred_date._id?.toString() ?? "",
       },
       time_slot: {
         ...booking.time_slot,
-        _id: booking.time_slot._id.toString(),
+        _id: booking.time_slot._id?.toString() ?? "",
       },
-      
     };
   });
 

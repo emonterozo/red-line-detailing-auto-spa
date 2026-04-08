@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, CalendarCheck } from "lucide-react";
+import { CalendarCheck } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -10,8 +10,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  BookingTableResponse,
   getBookings,
-  IBookingResponse,
   IPaginatedBookings,
 } from "../actions/getBookings";
 import { useEffect, useRef, useState } from "react";
@@ -19,7 +19,6 @@ import { BookingStatus, BookingStatusDisplay } from "@/lib/enums";
 import { useRouter } from "next/navigation";
 import { Pagination } from "./Pagination";
 import { PAGE_LIMIT, TABLE_DATE_FORMAT } from "@/lib/constants";
-
 
 const statusStyle: Record<string, string> = {
   [BookingStatus.FOR_CHECKING]:
@@ -35,7 +34,7 @@ const statusStyle: Record<string, string> = {
 };
 
 const RecentBookings = () => {
-  const [bookings, setBookings] = useState<IBookingResponse[]>([]);
+  const [bookings, setBookings] = useState<BookingTableResponse[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [inputPage, setInputPage] = useState<number | "">(page);
@@ -51,7 +50,6 @@ const RecentBookings = () => {
 
   return (
     <section className="mb-8 rounded-2xl border border-white/[0.08] bg-white/[0.02] backdrop-blur-sm overflow-hidden">
-      {/* header */}
       <div className="px-6 py-5 border-b border-white/[0.06] flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl bg-[#dc143c]/15 border border-[#dc143c]/30 flex items-center justify-center">
@@ -66,7 +64,6 @@ const RecentBookings = () => {
         </div>
       </div>
 
-      {/* table */}
       <div className="overflow-x-auto">
         <Table className="w-full">
           <TableHeader>
@@ -122,7 +119,10 @@ const RecentBookings = () => {
                     {booking.time_slot.time}
                   </TableCell>
                   <TableCell className="px-5 py-4 text-gray-600 text-sm whitespace-nowrap">
-                    {new Date(booking.created_at).toLocaleString("en-US", TABLE_DATE_FORMAT)}
+                    {new Date(booking.created_at).toLocaleString(
+                      "en-US",
+                      TABLE_DATE_FORMAT,
+                    )}
                   </TableCell>
                   <TableCell className="px-5 py-4">
                     <span
@@ -137,8 +137,6 @@ const RecentBookings = () => {
           </TableBody>
         </Table>
       </div>
-
-      {/* pagination */}
       <Pagination
         page={page}
         totalPages={totalPages}

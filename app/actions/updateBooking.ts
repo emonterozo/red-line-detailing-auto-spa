@@ -8,25 +8,26 @@ import { Types } from "mongoose";
 
 type UpdateBookingRequest = {
   sizeId: string;
+  services: { _id: string; title: string; type: ServiceType }[];
   bookingId: string;
   scheduleId: string;
   timeSlotId: string;
   reservationFee: number;
+  totalAmount: number;
   travelFee: number;
   travelDistance: number;
-  totalAmount: number;
+  pointsUsed: number;
+  discount: number;
   notes: string;
   status: BookingStatus;
   address: string;
   social: string;
-  services: { _id: string; title: string; type: ServiceType }[];
 };
 
 export const updateBooking = async (request: UpdateBookingRequest) => {
   await connect();
 
   try {
-
     const add_ons = request.services.filter(
       (item) => item.type === ServiceType.ADD_ONS,
     );
@@ -49,8 +50,11 @@ export const updateBooking = async (request: UpdateBookingRequest) => {
           status: request.status,
           address: request.address,
           social: request.social,
+          point_used: request.pointsUsed,
+          discount: request.discount,
           services,
           add_ons,
+          updated_at: new Date()
         },
       },
     );
@@ -59,7 +63,7 @@ export const updateBooking = async (request: UpdateBookingRequest) => {
       BookingStatus.REFUNDED,
       BookingStatus.REJECTED,
       BookingStatus.CANCELLED,
-    ].includes(request.status as BookingStatus);
+    ].includes(request.status);
 
     if (result) {
       await Schedule.findOneAndUpdate(
@@ -77,7 +81,7 @@ export const updateBooking = async (request: UpdateBookingRequest) => {
 
     return {
       success: true,
-      message: "Update successfully",
+      message: "Booking updated successfully.",
     };
   } catch {
     return {

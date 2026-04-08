@@ -21,6 +21,11 @@ const BOOKING_CONFIRMATION_FIELDS: (keyof TBooking)[] = [
   "total_amount",
 ];
 
+const VEHICLE_SIZE_FIELDS: (keyof TVehicleSize)[] = [
+ "description",
+ "type"
+];
+
 export type BookingConfirmationResponse = Pick<
   TBooking,
   | "name"
@@ -85,7 +90,7 @@ export const getBookingConfirmation = async (
     reference_number: reference,
   })
     .select(BOOKING_CONFIRMATION_FIELDS.join(" "))
-    .populate("size_id", "description type")
+    .populate("size_id", VEHICLE_SIZE_FIELDS.join(" "))
     .lean();
 
   if (!bookingDoc) return null;

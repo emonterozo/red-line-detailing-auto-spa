@@ -1,8 +1,6 @@
 "use client";
 
 import RecentBookings from "../components/RecentBookings";
-import RecentInquiries from "../components/RecentInquiries";
-
 import AdminDashboard from "../components/AdminDashboard";
 import { useRouter } from "next/navigation";
 import { Plus, LayoutDashboard } from "lucide-react";
@@ -14,12 +12,10 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white relative overflow-x-hidden">
-      {/* ambient glows */}
       <div className="pointer-events-none fixed top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] rounded-full bg-[#dc143c]/[0.05] blur-[140px]" />
       <div className="pointer-events-none fixed bottom-0 right-0 w-[500px] h-[400px] rounded-full bg-[#dc143c]/[0.03] blur-[120px]" />
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        {/* ── Header ── */}
         <header className="mb-12">
           <div className="flex items-start justify-between gap-6">
             <div>
@@ -51,7 +47,6 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* decorative rule */}
           <div className="flex items-center gap-3 mt-8">
             <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[#dc143c]/30 to-transparent" />
             <div className="w-1.5 h-1.5 rotate-45 bg-[#dc143c]" />
@@ -59,17 +54,13 @@ export default function AdminPage() {
           </div>
         </header>
 
-        {/* ── Stats ── */}
         <AdminDashboard />
 
-        {/* ── Tables ── */}
         <RecentBookings />
         <RecentTransactions />
         <RecentCustomers />
-        <RecentInquiries />
       </div>
 
-      {/* ── FAB ── */}
       <button
         onClick={() => router.push("/admin/transaction")}
         className="group fixed bottom-6 right-6 z-50 flex items-center gap-3 pl-5 pr-6 h-14 rounded-full bg-[#dc143c] hover:bg-[#c01236] active:scale-95 text-white font-bold text-sm shadow-xl shadow-[#dc143c]/40 transition-all duration-200 overflow-hidden"
