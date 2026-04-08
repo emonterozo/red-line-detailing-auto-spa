@@ -1,21 +1,49 @@
 "use server";
 
 import connect from "@/lib/db/mongodb";
-import { ITransaction } from "@/lib/db/types";
 
 import { Types, UpdateQuery } from "mongoose";
-import Transaction from "@/models/Transaction";
-import Customer from "@/models/Customer";
-import VehicleSize from "@/models/VehicleSize";
+import Transaction, { TTransaction } from "@/models/Transaction";
+import { TService } from "@/models/Service";
+import Customer, { TCustomerDoc } from "@/models/Customer";
+import VehicleSize, { TVehicleSizeDoc } from "@/models/VehicleSize";
 import MilestoneClaimed from "@/models/MilestoneClaimed";
 
-export const createTransaction = async (transactionData: ITransaction) => {
+type ServiceProps = Pick<TService, "title" | "price"> & {
+  _id: string;
+};
+
+type CreateTransactionProps = Omit<
+  TTransaction,
+  "services" | "customer_id" | "booking_id" | "created_at" | "updated_at"
+> & {
+  services: ServiceProps[];
+  milestone_reward: {
+    _id: string;
+    service_id: string;
+    title: string;
+    required_progress_count: number;
+    price: number;
+  } | null;
+  milestone_discount: number;
+  customer_id: string | null;
+  booking_id: string | null;
+};
+
+export const createTransaction = async (
+  transactionData: CreateTransactionProps,
+) => {
   await connect();
+
+  const services = transactionData.services.map((item) => ({
+    ...item,
+    _id: new Types.ObjectId(item._id),
+  }));
 
   try {
     const data = {
-      user_id: transactionData.user_id
-        ? new Types.ObjectId(transactionData.user_id)
+      customer_id: transactionData.customer_id
+        ? new Types.ObjectId(transactionData.customer_id)
         : null,
       booking_id: transactionData.booking_id
         ? new Types.ObjectId(transactionData.booking_id)
@@ -24,37 +52,38 @@ export const createTransaction = async (transactionData: ITransaction) => {
       vehicle_type: transactionData.vehicle_type,
       vehicle_size: transactionData.vehicle_size,
       vehicle_model: transactionData.vehicle_model,
-      services: transactionData.services,
-      travel_fee: transactionData.travel_fee,
-      total_amount: transactionData.total_amount,
-      total_discount: transactionData.total_discount,
-      points_used: transactionData.points_used,
-      total_amount_paid: transactionData.total_amount_paid,
-      net_total: Math.max(0, transactionData.total_amount - transactionData.total_discount),
+      plate_number: transactionData.plate_number,
+      services,
       discount_type: transactionData.discount_type,
       notes: transactionData.notes,
+      total_service_amount: transactionData.total_service_amount,
+      additional_cost: transactionData.additional_cost,
       points_earned: transactionData.points_earned,
-      plate_number: transactionData.plate_number
+      travel_fee: transactionData.travel_fee,
+      discount: transactionData.discount,
+      points_used: transactionData.points_used,
+      net_total: transactionData.net_total,
+      gross_total: transactionData.gross_total,
+      total_discount: transactionData.total_discount,
     };
 
     const newTransaction = new Transaction(data);
     await newTransaction.save();
 
-   
-
-    if (transactionData.user_id) {
-      const customer = await Customer.findById(transactionData.user_id);
-      const vehicleSize = await VehicleSize.findOne({
+    if (transactionData.customer_id) {
+      const customer: TCustomerDoc = await Customer.findById(
+        transactionData.customer_id,
+      ).lean();
+      const vehicleSize: TVehicleSizeDoc = await VehicleSize.findOne({
         size: transactionData.vehicle_size,
         type: transactionData.vehicle_type,
-      });
+      }).lean();
       if (customer && vehicleSize) {
         const isAvailedPremiumWash = transactionData.services.find(
           (service) => service.title === "Premium Detailer Wash",
         );
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const milestone_count = customer.milestone_count.map((count: any) => {
+        const milestone_count = customer.milestone_count.map((count) => {
           if (count.size_id.toString() === vehicleSize._id.toString()) {
             let newProgress = count.progress;
             if (transactionData.milestone_reward) {
@@ -80,7 +109,7 @@ export const createTransaction = async (transactionData: ITransaction) => {
           customer.earned_points - transactionData.points_used,
         );
         const claimedMilestone = {
-          user_id: customer._id,
+          customer_id: customer._id,
           service_id: transactionData.milestone_reward?.service_id,
           reward_id: transactionData.milestone_reward?._id,
           transaction_id: newTransaction._id,
@@ -105,7 +134,7 @@ export const createTransaction = async (transactionData: ITransaction) => {
           await MilestoneClaimed.create(claimedMilestone);
         }
 
-        await Customer.findByIdAndUpdate(transactionData.user_id, update);
+        await Customer.findByIdAndUpdate(transactionData.customer_id, update);
       }
     }
 

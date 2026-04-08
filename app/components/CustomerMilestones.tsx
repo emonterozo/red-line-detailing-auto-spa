@@ -15,10 +15,10 @@ import { PAGE_LIMIT, TABLE_DATE_FORMAT } from "@/lib/constants";
 
 import { motion } from "framer-motion";
 import {
-  getCustomerMilestones,
+  getCustomers,
   IPaginatedMilestones,
   IMilestonesResponse,
-} from "../actions/getCustomerMilestones";
+} from "../actions/getCustomers";
 import { VehicleType } from "@/lib/enums";
 
 const CustomerMilestones = ({ userId }: { userId: string }) => {
@@ -29,7 +29,7 @@ const CustomerMilestones = ({ userId }: { userId: string }) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    getCustomerMilestones(userId, page, PAGE_LIMIT).then(
+    getCustomers(userId, page, PAGE_LIMIT).then(
       (result: IPaginatedMilestones) => {
         setMilestones(result.data);
         setTotalPages(result.totalPages);

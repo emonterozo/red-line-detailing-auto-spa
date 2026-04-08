@@ -174,6 +174,7 @@ export default function BookingDetails() {
       if (result.success && value.status === BookingStatus.COMPLETED) {
         router.push(`/admin/transaction?booking_id=${booking?._id}`);
       }
+      
 
       if (result.success) {
         showToast(result.message, "success");

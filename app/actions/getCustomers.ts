@@ -1,61 +1,78 @@
 "use server";
 
 import connect from "@/lib/db/mongodb";
-import { VehicleSize, VehicleType } from "@/lib/enums";
+import MilestoneClaimed from "@/models/MilestoneClaimed";
+import { Types } from "mongoose";
 
-import Customer from "@/models/Customer";
-
-export interface IMilestoneCount {
+export interface IMilestonesResponse {
   _id: string;
-  vehicle: {
-    _id: string;
-    size: VehicleSize;
-    type: VehicleType;
-  };
-  progress: number;
+  service: string;
+  vehicle_model: string;
+  vehicle_size: string;
+  vehicle_type: string;
+  price: number;
+  discount: number;
+  claimed_at: Date;
 }
 
-export interface ICustomerResponse {
-  _id: string;
-  name: string;
-  earned_points: number;
-  milestone_count: IMilestoneCount[];
+export interface IPaginatedMilestones {
+  data: IMilestonesResponse[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }
 
-export const getCustomers = async (name?: string) => {
+export const getCustomers = async (
+  user_id: string,
+  page: number = 1,
+  limit: number = 2,
+): Promise<IPaginatedMilestones> => {
   await connect();
 
-  let query: Record<string, unknown> = {};
+  // Calculate how many documents to skip
+  const skip = (page - 1) * limit;
 
-  if (name) {
-    const parts = name.trim().split(/\s+/);
-    query = {
-      $and: parts.map((part) => ({
-        name: { $regex: part, $options: "i" },
-      })),
-    };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const query: any = {};
+
+  if (user_id && typeof user_id === "string") {
+    query.user_id = new Types.ObjectId(user_id);
   }
 
-  const customerDoc = await Customer.find(query)
-    .limit(5)
-    .populate("milestone_count.size_id")
+  // Fetch paginated inquiries
+  const claimedMilestonesDoc = await MilestoneClaimed.find(query)
+    .populate("service_id")
+    .populate("size_id")
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit)
     .lean();
 
-  const customerJson = customerDoc.map((customer) => ({
-    _id: customer._id.toString(),
-    name: customer.name,
-    earned_points: customer.earned_points,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    milestone_count: customer.milestone_count.map((count: any) => ({
-      _id: count._id.toString(),
-      vehicle: {
-        _id: count.size_id._id.toString(),
-        size: count.size_id.size,
-        type: count.size_id.type,
-      },
-      progress: count.progress,
-    })),
-  })) as ICustomerResponse[];
+    
 
-  return customerJson;
+  // Convert _id to string
+  const milestonesJson: IMilestonesResponse[] = claimedMilestonesDoc.map(
+    (item) => ({
+      _id: item._id.toString(),
+      service: item.service_id.title,
+      vehicle_size: item.size_id.size,
+      vehicle_type: item.size_id.type,
+      vehicle_model: item.vehicle_model,
+      price: item.price,
+      discount: item.discount,
+      claimed_at: item.claimed_at,
+    }),
+  );
+
+  // Get total count for pagination info
+  const total = await MilestoneClaimed.countDocuments(query);
+
+  return {
+    data: milestonesJson,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
 };
