@@ -242,8 +242,6 @@ export default function Booking() {
       }),
   );
 
- 
-
   const form = useForm({
     defaultValues,
     validators: {
@@ -385,10 +383,10 @@ export default function Booking() {
       );
       const result = await requestUserLocation();
       setLocation(result);
-      if (result.success) {
+      if (result.success && result.latitude && result.longitude) {
         const data = await getAddressAndDistance(
-          14.756179744672712,
-          120.95413639676129,
+          result.latitude,
+          result.longitude,
         );
         form.setFieldValue("distance", data.distance);
         form.setFieldValue("address", data.address);
@@ -519,7 +517,7 @@ export default function Booking() {
                   }}
                 </form.Field>
               </div>
-              <form.Field name="social">
+              {/* <form.Field name="social">
                 {(field) => {
                   const isInvalid =
                     field.state.meta.isTouched && !field.state.meta.isValid;
@@ -540,7 +538,8 @@ export default function Booking() {
                         className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
                       />
                       <FieldDescription>
-                        We may use this as an additional way to contact you or verify your booking.
+                        We may use this as an additional way to contact you or
+                        verify your booking.
                       </FieldDescription>
                       {isInvalid && (
                         <FieldError
@@ -551,7 +550,7 @@ export default function Booking() {
                     </Field>
                   );
                 }}
-              </form.Field>
+              </form.Field> */}
             </div>
           </SectionCard>
 

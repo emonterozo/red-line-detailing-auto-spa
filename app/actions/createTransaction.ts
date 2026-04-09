@@ -8,6 +8,10 @@ import { TService } from "@/models/Service";
 import Customer, { TCustomerDoc } from "@/models/Customer";
 import VehicleSize, { TVehicleSizeDoc } from "@/models/VehicleSize";
 import MilestoneClaimed from "@/models/MilestoneClaimed";
+import { getSmsContent } from "@/lib/getSmsTemplate";
+import { BookingStatus } from "@/lib/enums";
+import { sendMessage } from "@/lib/sendMessage";
+import Booking from "@/models/Booking";
 
 type ServiceProps = Pick<TService, "title" | "price"> & {
   _id: string;
@@ -39,6 +43,9 @@ export const createTransaction = async (
   transactionData: CreateTransactionProps,
 ) => {
   await connect();
+  let message = "";
+  let contactNumber = "";
+  let referenceNumber = "";
 
   const services = transactionData.services.map((item) => ({
     ...item,
@@ -75,6 +82,27 @@ export const createTransaction = async (
 
     const newTransaction = new Transaction(data);
     await newTransaction.save();
+
+    if (transactionData.booking_id) {
+      const booking = await Booking.findById(transactionData.booking_id)
+        .select("reference_number name contact_number")
+        .lean();
+      if (booking) {
+        message = getSmsContent(
+          {
+            name: booking.name,
+            model: transactionData.vehicle_model,
+            type: BookingStatus.COMPLETED,
+            ref: booking.reference_number,
+            date: "",
+            points: transactionData.points_earned.toString(),
+          },
+          !transactionData.customer_id,
+        );
+        contactNumber = booking.contact_number;
+        referenceNumber = booking.reference_number;
+      }
+    }
 
     if (transactionData.customer_id) {
       const customer: TCustomerDoc = await Customer.findById(
@@ -145,6 +173,24 @@ export const createTransaction = async (
 
         await Customer.findByIdAndUpdate(transactionData.customer_id, update);
       }
+
+      message = getSmsContent(
+        {
+          name: customer.name,
+          model: transactionData.vehicle_model,
+          type: BookingStatus.COMPLETED,
+          ref: referenceNumber,
+          date: "",
+          points: transactionData.points_earned.toString(),
+        },
+        !transactionData.customer_id,
+      );
+      contactNumber = customer.contact_number;
+    }
+
+    console.log(message, contactNumber)
+    if (message !== "" && contactNumber !== "") {
+      sendMessage({ message, phoneNumbers: [contactNumber] });
     }
 
     return {

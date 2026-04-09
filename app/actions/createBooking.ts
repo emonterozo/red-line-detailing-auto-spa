@@ -8,6 +8,8 @@ import Schedule from "@/models/Schedule";
 import { Types } from "mongoose";
 import { bookingTemple } from "../template/booking";
 import { BookingStatus, ServiceType } from "@/lib/enums";
+import { getSmsContent } from "@/lib/getSmsTemplate";
+import { sendMessage } from "@/lib/sendMessage";
 
 interface CreateBookingProps {
   user_id?: string;
@@ -16,8 +18,8 @@ interface CreateBookingProps {
   contact_number: string;
   vehicle_model: string;
   social: string;
-  services: { _id: string; title: string, type: ServiceType, price: number }[];
-  add_ons: { _id: string; title: string, type: ServiceType, price: number }[];
+  services: { _id: string; title: string; type: ServiceType; price: number }[];
+  add_ons: { _id: string; title: string; type: ServiceType; price: number }[];
   preferred_date: { _id: string; date: Date };
   time_slot: { _id: string; time: string };
   address: string;
@@ -79,7 +81,10 @@ export const createBooking = async (bookingData: CreateBookingProps) => {
         const newBooking = new Booking({
           user_id: userId,
           ...bookingData,
-          location: { type: "Point", coordinates: [bookingData.longitude, bookingData.latitude] },
+          location: {
+            type: "Point",
+            coordinates: [bookingData.longitude, bookingData.latitude],
+          },
         });
         await newBooking.save();
 
@@ -129,6 +134,19 @@ export const createBooking = async (bookingData: CreateBookingProps) => {
           subject: subject,
           html: html,
         });
+
+        const message = getSmsContent({
+          name: bookingData.name,
+          model: bookingData.vehicle_model,
+          type: BookingStatus.FOR_CHECKING,
+          ref: bookingData.reference_number,
+          date: new Date(bookingData.preferred_date.date).toDateString()
+        });
+
+        sendMessage({
+          message,
+          phoneNumbers: [bookingData.contact_number]
+        })
 
         return {
           success: true,

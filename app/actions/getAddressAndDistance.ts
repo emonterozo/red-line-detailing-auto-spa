@@ -13,8 +13,8 @@ export const getAddressAndDistance = async (
   lat: number,
   lng: number,
 ): Promise<LocationResult> => {
-  const shopLat = 14.800225120981793;
-  const shopLng = 121.00679822506005;
+  const shopLat = process.env.STORE_LATITUDE;
+  const shopLng = process.env.STORE_LONGITUDE;
   const API_KEY = process.env.MAP_API_KEY;
 
   const headersList = await headers();
