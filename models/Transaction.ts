@@ -1,4 +1,11 @@
-import { Schema, Types, model, models } from "mongoose";
+import {
+  HydratedDocument,
+  InferSchemaType,
+  Schema,
+  Types,
+  model,
+  models,
+} from "mongoose";
 
 import {
   VehicleType,
@@ -6,11 +13,24 @@ import {
   TransactionFrom,
   DiscountType,
 } from "@/lib/enums";
-import Customer from "./Customer";
-import Booking from "./Booking";
+import Customer, { TCustomerDoc } from "./Customer";
+import Booking, { TBookingDoc } from "./Booking";
+import Promotion, { TPromotionDoc } from "./Promotion";
+
+export type TTransaction = InferSchemaType<typeof transactionSchema>;
+export type TTransactionDoc = HydratedDocument<TTransaction>;
+
+export type TransactionWithPopulatedData = Omit<
+  TTransactionDoc,
+  "customer_id" | "booking_id" | "promotion_id"
+> & {
+  customer_id: TCustomerDoc;
+  booking_id: TBookingDoc;
+  promotion_id: TPromotionDoc;
+};
 
 const transactionSchema = new Schema({
-  user_id: {
+  customer_id: {
     type: Schema.Types.ObjectId,
     ref: Customer.modelName,
     default: null,
@@ -36,6 +56,7 @@ const transactionSchema = new Schema({
     required: true,
   },
   vehicle_model: { type: String, required: true },
+  plate_number: { type: String, default: null },
   services: {
     type: [
       new Schema({
@@ -46,20 +67,29 @@ const transactionSchema = new Schema({
     ],
     required: true,
   },
-  travel_fee: { type: Number, default: 0, required: true },
-  total_amount: { type: Number, default: 0, required: true },
-  total_discount: { type: Number, default: 0, required: true },
-  net_total: { type: Number, default: 0, required: true },
-  total_amount_paid: { type: Number, default: 0, required: true },
-  points_used: { type: Number, default: 0, required: true },
-  points_earned: { type: Number, default: 0, required: true },
   discount_type: {
     type: String,
     enum: [...Object.values(DiscountType), ""],
     default: "",
   },
-  notes: { type: String },
-  plate_number: { type: String },
+  notes: { type: String, default: null },
+  reservation_fee: { type: Number, default: 0, required: true },
+  total_service_amount: { type: Number, default: 0, required: true },
+  additional_cost: { type: Number, default: 0, required: true },
+  points_earned: { type: Number, default: 0, required: true },
+  travel_fee: { type: Number, default: 0, required: true },
+  discount: { type: Number, default: 0, required: true },
+  points_used: { type: Number, default: 0, required: true },
+  net_total: { type: Number, default: 0, required: true },
+  gross_total: { type: Number, default: 0, required: true },
+  total_discount: { type: Number, default: 0, required: true },
+  referral_code_used: { type: String, default: null },
+  promotion_id: {
+    type: Schema.Types.ObjectId,
+    ref: Promotion.modelName,
+    default: null,
+  },
+  promo_code_used: { type: String, default: null },
   created_at: { type: Date, default: new Date() },
   updated_at: { type: Date, default: new Date() },
 });

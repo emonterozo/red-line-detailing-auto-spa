@@ -32,9 +32,9 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { getSchedules, ISchedulesResponse } from "../actions/getSchedules";
+import { getSchedules, ScheduleResponse } from "../actions/getSchedules";
 import { ITimeSlot } from "@/lib/db/types";
-import { getServices, IServiceResponse } from "../actions/getServices";
+import { getServices, ServiceResponse } from "../actions/getServices";
 import {
   BookingStatus,
   ServiceType,
@@ -48,10 +48,15 @@ import { SectionCard } from "./SectionCard";
 import { SelectTrigger } from "./SelectTrigger";
 import {
   getVehicleSizes,
-  IVehicleSizesResponse,
+  VehicleSizeResponse,
 } from "../actions/getVehicleSizes";
 import { showToast } from "@/lib/toast";
 import { useRouter } from "next/navigation";
+import { LocationResult, requestUserLocation } from "@/lib/requestUserLocation";
+import LocationPermissionModal from "./LocationPermissionModal";
+import { getAddressAndDistance } from "../actions/getAddressAndDistance";
+import FullScreenLoader from "./FullScreenLoader";
+import { generateReference } from "@/lib/utils";
 
 const config = {
   fee: process.env.NEXT_PUBLIC_TRAVEL_FEE_PER_KM,
@@ -77,7 +82,7 @@ export const serviceSchema = z.object({
   type: z.string(),
   pricing_per_sizes: z.array(pricingPerSizeSchema),
   price: z.number(),
-  pricing_options: z.string().nullable(),
+  pricing_options: z.string().nullable().optional(),
 });
 
 export const vehicleSizeSchema = z.object({
@@ -91,11 +96,14 @@ export const formSchema = z.object({
   vehicleSizes: z
     .array(vehicleSizeSchema)
     .min(1, "Please choose a vehicle type."),
-  fullName: z
+  firstName: z
     .string()
-    .min(5, "Please enter your full name (at least 5 characters).")
-    .max(32, "Full name can be at most 32 characters."),
-
+    .min(2, "Please enter your first name (at least 2 characters).")
+    .max(32, "First name can be at most 32 characters."),
+  lastName: z
+    .string()
+    .min(2, "Please enter your last name (at least 2 characters).")
+    .max(32, "Last name can be at most 32 characters."),
   contactNumber: z
     .string()
     .trim()
@@ -103,12 +111,10 @@ export const formSchema = z.object({
       /^09\d{9}$/,
       "Please enter a valid contact number (11 digits, starting with 09).",
     ),
-
   vehicleModel: z
     .string()
     .min(2, "Please enter your vehicle model (at least 2 characters).")
     .max(250, "Vehicle model can be at most 250 characters."),
-
   services: z
     .array(serviceSchema)
     .min(1, "Please select at least one signature service."),
@@ -119,21 +125,19 @@ export const formSchema = z.object({
     .refine((val) => !val || /^https?:\/\/.+$/.test(val), {
       message: "Please enter a valid link (must start with https://)",
     }),
-
-  preferred_date: z
+  preferred_date: z.coerce
     .date()
     .nullable()
     .refine((val) => val !== null, {
       message: "Please choose a preferred date.",
     }) as z.ZodType<Date | null>,
-
   timeSlot: z.string().min(1, "Please select a time slot."),
-
   address: z
     .string()
     .min(5, "Please enter your address (at least 5 characters).")
     .max(250, "Address can be at most 250 characters."),
-
+  distance: z.number(),
+  goggleAddress: z.string(),
   isChecked: z.boolean().refine((val) => val === true, {
     message: "You must agree to continue.",
   }),
@@ -143,7 +147,8 @@ export type FormValues = z.infer<typeof formSchema>;
 
 const defaultValues: FormValues = {
   vehicleSizes: [],
-  fullName: "",
+  firstName: "",
+  lastName: "",
   contactNumber: "",
   social: "",
   vehicleModel: "",
@@ -152,6 +157,8 @@ const defaultValues: FormValues = {
   preferred_date: null,
   timeSlot: "",
   address: "",
+  distance: 0,
+  goggleAddress: "",
   isChecked: false,
 };
 
@@ -165,38 +172,22 @@ function Chip({ label }: Readonly<{ label: string }>) {
 
 export default function Booking() {
   const router = useRouter();
-  const [services, setServices] = useState<IServiceResponse[]>([]);
+  const [vehicleSizes, setVehicleSizes] = useState<VehicleSizeResponse[]>([]);
+  const [schedules, setSchedules] = useState<ScheduleResponse[]>([]);
+  const [services, setServices] = useState<ServiceResponse[]>([]);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [schedules, setSchedules] = useState<ISchedulesResponse[]>([]);
   const [slots, setSlots] = useState<(ITimeSlot & { _id: string })[]>([]);
-  const [vehicleSizes, setVehicleSizes] = useState<IVehicleSizesResponse[]>([]);
   const [isSlotPickerOpen, setIsSlotPickerOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  const fetchServices = async () => {
-    const response = await getServices();
-    return response;
-  };
+  const [location, setLocation] = useState<LocationResult | null>(null);
+  const [initializing, setInitializing] = useState(true);
 
   const fetchSchedules = async () => {
     const response = await getSchedules();
     return response;
   };
 
-  useEffect(() => {
-    const init = async () => {
-      const servicesData = await fetchServices();
-      const schedulesData = await fetchSchedules();
-      const vehicleSizesData = await getVehicleSizes();
-      setVehicleSizes(vehicleSizesData);
-      setServices(servicesData);
-      setSchedules(schedulesData);
-    };
-
-    init();
-  }, []);
-
-  const toggleService = (service: IServiceResponse, type: ServiceType) => {
+  const toggleService = (service: ServiceResponse, type: ServiceType) => {
     if (type === ServiceType.SERVICE) {
       const currentServices = form.getFieldValue("services");
 
@@ -256,22 +247,6 @@ export default function Booking() {
       }),
   );
 
-  const generateReference = () => {
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-
-    const date = new Date();
-    const y = date.getFullYear().toString().slice(2);
-    const m = String(date.getMonth() + 1).padStart(2, "0");
-    const d = String(date.getDate()).padStart(2, "0");
-
-    let random = "";
-    for (let i = 0; i < 5; i++) {
-      random += chars[Math.floor(Math.random() * chars.length)];
-    }
-
-    return `RL-${y}${m}${d}-${random}`;
-  };
-
   const form = useForm({
     defaultValues,
     validators: {
@@ -321,7 +296,8 @@ export default function Booking() {
       const reference = generateReference();
 
       const result = await createBooking({
-        name: value.fullName,
+        first_name: value.firstName,
+        last_name: value.lastName,
         contact_number: value.contactNumber,
         vehicle_model: value.vehicleModel,
         social: value.social ?? "",
@@ -336,18 +312,19 @@ export default function Booking() {
           time: selectedTimeSlot?.time ?? "",
         },
         address: value.address,
+        google_address: value.goggleAddress,
+        latitude: location?.latitude ?? 0,
+        longitude: location?.longitude ?? 0,
         status: BookingStatus.FOR_CHECKING,
-        travel_fee: 0,
+        travel_fee: getTravelFee(value.distance),
         reservation_fee: 0,
         total_amount: getPricing(
           [...value.services, ...value.addOns!],
           value.vehicleSizes,
         ),
-        travel_distance: 0,
+        travel_distance: value.distance,
         reference_number: reference,
         notes: "",
-        created_at: new Date(),
-        updated_at: new Date(),
         size_id: value.vehicleSizes[0]._id,
       });
       setLoading(false);
@@ -404,13 +381,48 @@ export default function Booking() {
     }, 0);
   };
 
+  useEffect(() => {
+    const init = async () => {
+      setInitializing(true);
+      const [vehicleSizesData, schedulesData, servicesData] = await Promise.all(
+        [getVehicleSizes(), fetchSchedules(), getServices()],
+      );
+      const result = await requestUserLocation();
+      setLocation(result);
+      if (result.success && result.latitude && result.longitude) {
+        const data = await getAddressAndDistance(
+          result.latitude,
+          result.longitude,
+        );
+        form.setFieldValue("distance", data.distance);
+        form.setFieldValue("address", data.address);
+        form.setFieldValue("goggleAddress", data.address);
+      }
+      setVehicleSizes(vehicleSizesData);
+      setSchedules(schedulesData);
+      setServices(servicesData);
+      setInitializing(false);
+    };
+
+    init();
+  }, [form]);
+
+  const getTravelFee = (distance: number) => {
+    const fee = Math.max(
+      0,
+      (distance - Number.parseInt(config.free_distance!)) *
+        Number.parseInt(config.fee!),
+    );
+    return Math.ceil(fee);
+  };
+
   return (
     <section className="min-h-screen bg-[#0a0a0a] relative overflow-hidden">
       <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] rounded-full bg-[#dc143c]/[0.06] blur-[120px]" />
       <div className="pointer-events-none absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full bg-[#dc143c]/[0.04] blur-[100px]" />
+      {initializing && <FullScreenLoader />}
 
       <div className="relative max-w-3xl mx-auto px-4 sm:px-6 py-16 md:py-24">
-        {/* ── Header ── */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -431,6 +443,7 @@ export default function Booking() {
             <div className="h-[1px] w-12 bg-gradient-to-l from-transparent to-[#dc143c]" />
           </div>
         </motion.div>
+        {location && !location.success && <LocationPermissionModal />}
 
         <form
           onSubmit={(e) => {
@@ -446,7 +459,7 @@ export default function Booking() {
           >
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <form.Field name="fullName">
+                <form.Field name="firstName">
                   {(field) => {
                     const isInvalid =
                       field.state.meta.isTouched && !field.state.meta.isValid;
@@ -454,7 +467,7 @@ export default function Booking() {
                     return (
                       <Field>
                         <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
-                          Full name
+                          First name
                         </FieldLabel>
                         <Input
                           id={field.name}
@@ -463,7 +476,7 @@ export default function Booking() {
                           onBlur={field.handleBlur}
                           onChange={(e) => field.handleChange(e.target.value)}
                           aria-invalid={isInvalid}
-                          placeholder="Full Name (e.g., Juan Dela Cruz)"
+                          placeholder="First Name (e.g., Juan)"
                           className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
                         />
                         {isInvalid && (
@@ -476,8 +489,7 @@ export default function Booking() {
                     );
                   }}
                 </form.Field>
-
-                <form.Field name="contactNumber">
+                <form.Field name="lastName">
                   {(field) => {
                     const isInvalid =
                       field.state.meta.isTouched && !field.state.meta.isValid;
@@ -485,7 +497,7 @@ export default function Booking() {
                     return (
                       <Field>
                         <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
-                          Contact Number
+                          Last name
                         </FieldLabel>
                         <Input
                           id={field.name}
@@ -494,9 +506,7 @@ export default function Booking() {
                           onBlur={field.handleBlur}
                           onChange={(e) => field.handleChange(e.target.value)}
                           aria-invalid={isInvalid}
-                          type="tel"
-                          maxLength={11}
-                          placeholder="Contact Number (e.g., 09123456789)"
+                          placeholder="Last Name (e.g., Dela Cruz)"
                           className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
                         />
                         {isInvalid && (
@@ -510,7 +520,39 @@ export default function Booking() {
                   }}
                 </form.Field>
               </div>
-              <form.Field name="social">
+              <form.Field name="contactNumber">
+                {(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
+
+                  return (
+                    <Field>
+                      <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
+                        Contact Number
+                      </FieldLabel>
+                      <Input
+                        id={field.name}
+                        name={field.name}
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        aria-invalid={isInvalid}
+                        type="tel"
+                        maxLength={11}
+                        placeholder="Contact Number (e.g., 09123456789)"
+                        className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
+                      />
+                      {isInvalid && (
+                        <FieldError
+                          className="text-[#ff6b81] text-xs mt-1"
+                          errors={field.state.meta.errors}
+                        />
+                      )}
+                    </Field>
+                  );
+                }}
+              </form.Field>
+              {/* <form.Field name="social">
                 {(field) => {
                   const isInvalid =
                     field.state.meta.isTouched && !field.state.meta.isValid;
@@ -527,12 +569,12 @@ export default function Booking() {
                         onBlur={field.handleBlur}
                         onChange={(e) => field.handleChange(e.target.value)}
                         aria-invalid={isInvalid}
-                        placeholder="Optional: Social account URL (e.g., https://instagram.com/redlinedetailing.ph)"
+                        placeholder="Optional: Social profile URL (e.g., https://instagram.com/redlinedetailing.ph)"
                         className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
                       />
                       <FieldDescription>
-                        We will use this an additional way to contact you, and
-                        to send you a confirmation of your booking.
+                        We may use this as an additional way to contact you or
+                        verify your booking.
                       </FieldDescription>
                       {isInvalid && (
                         <FieldError
@@ -543,7 +585,7 @@ export default function Booking() {
                     </Field>
                   );
                 }}
-              </form.Field>
+              </form.Field> */}
             </div>
           </SectionCard>
 
@@ -598,7 +640,7 @@ export default function Booking() {
                                     onSelect={() => {
                                       field.setValue([size]);
                                     }}
-                                    className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                                    className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-600 hover:text-white hover:bg-white/[0.06] transition-colors"
                                   >
                                     <span>
                                       {size.description.toUpperCase()}
@@ -928,7 +970,7 @@ export default function Booking() {
                                         ServiceType.SERVICE,
                                       )
                                     }
-                                    className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                                    className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-600 hover:text-white hover:bg-white/[0.06] transition-colors"
                                   >
                                     <span>{service.title}</span>
                                     {isSelected && (
@@ -1006,7 +1048,7 @@ export default function Booking() {
                                         ServiceType.ADD_ONS,
                                       )
                                     }
-                                    className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                                    className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-600 hover:text-white hover:bg-white/[0.06] transition-colors"
                                   >
                                     <span>{service.title}</span>
                                     {isSelected && (
@@ -1042,9 +1084,15 @@ export default function Booking() {
                   selectedServices: s.values.services,
                   addOns: s.values.addOns,
                   selectedVehicleSizes: s.values.vehicleSizes,
+                  distance: s.values.distance,
                 })}
               >
-                {({ selectedServices, addOns, selectedVehicleSizes }) => {
+                {({
+                  selectedServices,
+                  addOns,
+                  selectedVehicleSizes,
+                  distance,
+                }) => {
                   let servicesAmount = 0;
                   let addOnsAmount = 0;
 
@@ -1082,16 +1130,22 @@ export default function Booking() {
                       </div>
                       <div className="flex justify-between items-center py-2 px-3">
                         <span className="text-gray-500 text-sm">
+                          Travel Distance
+                        </span>
+                        <span className="text-white font-medium">{`${distance} km`}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-2 px-3">
+                        <span className="text-gray-500 text-sm">
                           Travel Fee
                         </span>
-                        <span className="text-white font-medium">{`+ ₱${config.fee}/km`}</span>
+                        <span className="text-white font-medium">{`+ ₱${getTravelFee(distance)}`}</span>
                       </div>
                       <div className="mt-2 flex justify-between items-center py-3 px-3 rounded-xl bg-[#dc143c]/10 border border-[#dc143c]/20">
                         <span className="text-white font-semibold">
                           Estimated Total
                         </span>
                         <span className="text-[#ff6b81] font-bold text-xl">
-                          {`₱${(servicesAmount + addOnsAmount).toLocaleString()}`}
+                          {`₱${(servicesAmount + addOnsAmount + getTravelFee(distance)).toLocaleString()}`}
                         </span>
                       </div>
                       <div className="mt-6 p-4 rounded-2xl bg-white/[0.03] border border-white/5 flex gap-3 items-start animate-in fade-in slide-in-from-bottom-2">
@@ -1106,11 +1160,9 @@ export default function Booking() {
                           <span className="text-gray-300">
                             preliminary estimate
                           </span>{" "}
-                          based on your selected data. Our team will conduct a
-                          final review and provide your{" "}
-                          <span className="text-gray-300">actual cost</span>{" "}
-                          alongside the calculated travel fee once your booking
-                          is processed.
+                          based on the information you provided. Our team will
+                          review your inputs and provide the{" "}
+                          <span className="text-gray-300">final cost</span>.
                         </p>
                       </div>
                     </>
@@ -1150,7 +1202,6 @@ export default function Booking() {
                       showError ? "text-white" : "text-gray-400"
                     }`}
                   >
-                    {/* Using a ternary here is safer than && to avoid ghost zeros */}
                     {showError ? (
                       <span className="text-[#dc143c] font-black uppercase tracking-widest text-[10px] mr-2">
                         Required:
@@ -1181,7 +1232,6 @@ export default function Booking() {
               disabled={loading}
               className="group relative inline-flex items-center gap-3 px-10 py-4 bg-[#dc143c] hover:bg-[#c01236] active:scale-[0.98] text-white font-bold text-base rounded-2xl transition-all duration-200 shadow-xl shadow-[#dc143c]/30 hover:shadow-[#dc143c]/50 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
             >
-              {/* shimmer */}
               <span className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none" />
 
               {loading ? (
@@ -1191,7 +1241,7 @@ export default function Booking() {
                 </>
               ) : (
                 <>
-                  Create Transaction
+                  Submit Booking
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </>
               )}

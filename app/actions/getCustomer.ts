@@ -1,57 +1,96 @@
 "use server";
 
 import connect from "@/lib/db/mongodb";
-import { MilestoneCount } from "@/lib/db/types";
-import Customer from "@/models/Customer";
+import { VehicleSize, VehicleType } from "@/lib/enums";
+import Customer, { TCustomer } from "@/models/Customer";
+import { TTransactionDoc } from "@/models/Transaction";
+import { TVehicleSizeDoc } from "@/models/VehicleSize";
+import { Types } from "mongoose";
 
-export interface ICustomerResponse {
+const CUSTOMER_FIELDS: (keyof TCustomer)[] = [
+  "first_name",
+  "last_name",
+  "email",
+  "contact_number",
+  "social",
+  "address",
+  "location",
+  "address_updated_at",
+  "is_verify",
+  "verified_at",
+  "earned_points",
+  "birth_day",
+  "referral_code",
+  "created_at",
+  "travel_distance",
+  "milestone_count",
+];
+
+export type CustomerDetailsResponse = Omit<
+  TCustomer,
+  "name" | "google_address" | "password" | "milestone_count" | "updated_at"
+> & {
   _id: string;
-  first_name: string;
-  last_name: string;
-  contact_number: string;
-  email: string;
-  social: string;
-  address: string;
-  verify_at: Date;
-  created_at: Date;
-  is_verify: boolean;
-  earned_points: number;
-  milestone_count: MilestoneCount[];
-}
+  milestone_count: {
+    _id: string;
+    size_id: string;
+    vehicle_type: VehicleType;
+    vehicle_size: VehicleSize;
+    progress: number;
+    sort_order: number;
+  }[];
+};
+
+type CustomerDoc = Omit<
+  TCustomer,
+  "name" | "google_address" | "password" | "milestone_count" | "updated_at"
+> & {
+  _id: TTransactionDoc["_id"];
+  milestone_count: {
+    _id: Types.ObjectId;
+    progress: number;
+    size_id: Pick<TVehicleSizeDoc, "_id" | "size" | "type" | "sort_order">;
+  }[];
+};
 
 export const getCustomer = async (
   id: string,
-): Promise<ICustomerResponse | null> => {
+): Promise<CustomerDetailsResponse | null> => {
   await connect();
 
-  const customer = (await Customer.findById(id)
-    .populate("milestone_count.size_id")
-    .lean())
+  const customerDoc: CustomerDoc = await Customer.findById(id)
+    .select(CUSTOMER_FIELDS.join(" "))
+    .populate("milestone_count.size_id", "size type sort_order")
+    .lean();
 
-  if (!customer) return null;
+  if (!customerDoc) return null;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const milestone_count = customer.milestone_count.map((item: any) => ({
+  const milestone_count = customerDoc.milestone_count.map((item) => ({
     _id: item._id.toString(),
     size_id: item.size_id._id.toString(),
     vehicle_type: item.size_id.type,
     vehicle_size: item.size_id.size,
     progress: item.progress,
+    sort_order: item.size_id.sort_order,
   }));
-  
 
   return {
-    _id: customer._id.toString(),
-    first_name: customer.first_name,
-    last_name: customer.last_name,
-    contact_number: customer.contact_number,
-    email: customer.email,
-    social: customer.social,
-    address: customer.address,
-    verify_at: customer.verify_at,
-    created_at: customer.created_at,
-    is_verify: customer.is_verify,
-    earned_points: customer.earned_points,
-    milestone_count
+    _id: customerDoc._id.toString(),
+    first_name: customerDoc.first_name,
+    last_name: customerDoc.last_name,
+    contact_number: customerDoc.contact_number,
+    email: customerDoc.email,
+    social: customerDoc.social,
+    address: customerDoc.address,
+    location: customerDoc.location,
+    address_updated_at: customerDoc.address_updated_at,
+    verified_at: customerDoc.verified_at,
+    created_at: customerDoc.created_at,
+    is_verify: customerDoc.is_verify,
+    birth_day: customerDoc.birth_day,
+    referral_code: customerDoc.referral_code,
+    earned_points: customerDoc.earned_points,
+    travel_distance: customerDoc.travel_distance,
+    milestone_count,
   };
 };

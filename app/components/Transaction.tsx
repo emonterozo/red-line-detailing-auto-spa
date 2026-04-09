@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useForm } from "@tanstack/react-form";
-import { toast } from "sonner";
 import * as z from "zod";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -18,7 +17,7 @@ import {
   CommandInput,
   CommandItem,
 } from "@/components/ui/command";
-import { Check, User, ArrowRight, Loader2, X } from "lucide-react";
+import { Check, User, ArrowRight, Loader2 } from "lucide-react";
 import {
   DiscountType,
   DiscountTypeDisplay,
@@ -29,25 +28,33 @@ import {
 } from "@/lib/enums";
 import {
   getMilestoneRewards,
-  IMilestoneRewardResponse,
+  MilestoneRewardsResponse,
 } from "../actions/getMilestoneRewards";
-import { getServices, IServiceResponse } from "../actions/getServices";
+import { getServices, ServiceResponse } from "../actions/getServices";
 import { createTransaction } from "../actions/createTransaction";
-import { getCustomers, ICustomerResponse } from "../actions/getCustomers";
+import {
+  CustomerMilestoneResponse,
+  getCustomersMilestone,
+} from "../actions/getCustomersMilestone";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getBooking } from "../actions/getBooking";
 import {
   getVehicleSizes,
-  IVehicleSizesResponse,
+  VehicleSizeResponse,
 } from "../actions/getVehicleSizes";
 import { SelectTrigger } from "./SelectTrigger";
 import { Textarea } from "@/components/ui/textarea";
 import { getTransaction } from "../actions/getTransaction";
+import { CustomerMilestonesPanel } from "./CustomerMilestonesPanel";
+import { ReadOnlyField } from "./ReadOnlyField";
+import FullScreenLoader from "./FullScreenLoader";
+import { showToast } from "@/lib/toast";
 
 export const pricingPerSizeSchema = z.object({
   _id: z.string(),
   type: z.string(),
   size: z.string(),
+  size_id: z.string(),
   description: z.string(),
   price: z.number(),
 });
@@ -59,7 +66,7 @@ export const serviceSchema = z.object({
   type: z.string(),
   pricing_per_sizes: z.array(pricingPerSizeSchema),
   price: z.number(),
-  pricing_options: z.string().nullable(),
+  pricing_options: z.string().nullable().optional(),
 });
 
 export const vehicleSizeSchema = z.object({
@@ -71,12 +78,19 @@ export const vehicleSizeSchema = z.object({
 
 export const milestoneRewardSchema = z.object({
   _id: z.string(),
-  service_id: z.string(),
-  service: z.string(),
+  service_id: z.object({
+    _id: z.string(),
+    title: z.string(),
+  }),
+  reward_service_id: z.object({
+    _id: z.string(),
+    title: z.string(),
+  }),
   required_progress_count: z.number(),
   reward_type: z.enum(RewardType),
   discount_percentage: z.number(),
   discount_amount: z.number(),
+  vehicle_type: z.enum(VehicleType),
 });
 
 export const customerSchema = z.object({
@@ -86,10 +100,11 @@ export const customerSchema = z.object({
   milestone_count: z.array(
     z.object({
       _id: z.string(),
-      vehicle: z.object({
+      size_id: z.object({
         _id: z.string(),
         size: z.enum(VehicleSize),
         type: z.enum(VehicleType),
+        sort_order: z.number()
       }),
       progress: z.number(),
     }),
@@ -107,8 +122,9 @@ export const formSchema = z.object({
   travelFee: z.number(),
   downPayment: z.number(),
   totalAmount: z.number(),
+  additionalCost: z.number(),
   totalDiscount: z.number(),
-  maximumPoints: z.number(),
+  pointsUsed: z.number(),
   milestoneReward: z.array(milestoneRewardSchema),
   discountType: z.union([z.enum(DiscountType), z.string()]),
   milestoneDiscount: z.number(),
@@ -126,8 +142,9 @@ const defaultValues: FormValues = {
   travelFee: 0,
   downPayment: 0,
   totalAmount: 0,
-  maximumPoints: 0,
+  additionalCost: 0,
   totalDiscount: 0,
+  pointsUsed: 0,
   milestoneReward: [],
   discountType: "",
   notes: "",
@@ -148,13 +165,11 @@ function SectionCard({
 }>) {
   return (
     <div className="relative">
-      {/* vertical connector */}
       {step < 5 && (
         <div className="absolute left-5 top-14 bottom-0 w-px bg-gradient-to-b from-[#dc143c]/40 to-transparent z-0" />
       )}
 
       <div className="relative z-10 flex gap-5">
-        {/* step badge */}
         <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[#dc143c] flex items-center justify-center text-white text-sm font-bold shadow-lg shadow-[#dc143c]/40">
           {step}
         </div>
@@ -194,23 +209,23 @@ export default function Transaction() {
   const bookingId = searchParams.get("booking_id");
   const transactionId = searchParams.get("transaction_id");
 
-  const [services, setServices] = useState<IServiceResponse[]>([]);
+  const [services, setServices] = useState<ServiceResponse[]>([]);
   const [milestoneRewards, setMilestoneRewards] = useState<
-    IMilestoneRewardResponse[]
+    MilestoneRewardsResponse[]
   >([]);
-  const [vehicleSizes, setVehicleSizes] = useState<IVehicleSizesResponse[]>([]);
+  const [vehicleSizes, setVehicleSizes] = useState<VehicleSizeResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [customerQuery, setCustomerQuery] = useState("");
-  const [customerResults, setCustomerResults] = useState<ICustomerResponse[]>(
-    [],
-  );
+  const [customerResults, setCustomerResults] = useState<
+    CustomerMilestoneResponse[]
+  >([]);
   const [isCustomerOpen, setIsCustomerOpen] = useState(false);
-  const [isFabOpen, setIsFabOpen] = useState(false);
   const [isFabVisible, setIsFabVisible] = useState(false);
+  const [initializing, setInitializing] = useState(true);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      getCustomers(customerQuery || "").then(setCustomerResults);
+      getCustomersMilestone(customerQuery || "").then(setCustomerResults);
     }, 300);
     return () => clearTimeout(timer);
   }, [customerQuery]);
@@ -230,8 +245,8 @@ export default function Transaction() {
     onSubmit: async ({ value }) => {
       setLoading(true);
       let milestone_reward = null;
-      let totalAmount = value.totalAmount;
-      let totalDiscount = value.totalDiscount;
+      let totalAmount = value.totalAmount + value.additionalCost;
+      let totalDiscount = value.totalDiscount + value.pointsUsed;
       const availedServices = value.services.map((item) => {
         const price =
           item.pricing_per_sizes.find(
@@ -247,9 +262,9 @@ export default function Transaction() {
         };
       });
       if (value.milestoneReward.length > 0) {
-        const { service_id } = value.milestoneReward[0];
+        const { reward_service_id } = value.milestoneReward[0];
         const milestoneRewardService = services.find(
-          (s) => s._id === service_id,
+          (s) => s._id === reward_service_id._id,
         );
         const milestoneRewardPrice =
           milestoneRewardService?.pricing_per_sizes.find(
@@ -259,15 +274,15 @@ export default function Transaction() {
           )?.price ?? 0;
         milestone_reward = {
           _id: value.milestoneReward[0]._id,
-          service_id: service_id,
-          title: value.milestoneReward[0].service,
+          service_id: reward_service_id._id,
+          title: value.milestoneReward[0].reward_service_id.title,
           required_progress_count:
             value.milestoneReward[0].required_progress_count,
           price: milestoneRewardPrice,
         };
         availedServices.push({
-          _id: value.milestoneReward[0]._id,
-          title: value.milestoneReward[0].service,
+          _id: value.milestoneReward[0].reward_service_id._id,
+          title: value.milestoneReward[0].reward_service_id.title,
           price: milestoneRewardPrice,
         });
         totalAmount += milestone_reward.price;
@@ -278,7 +293,7 @@ export default function Transaction() {
       const pointsEarned = getPointsEarned(totalAmountPaid);
 
       const result = await createTransaction({
-        user_id: value.customer.length > 0 ? value.customer[0]._id : null,
+        customer_id: value.customer.length > 0 ? value.customer[0]._id : null,
         booking_id: bookingId,
         transaction_from: bookingId
           ? TransactionFrom.BOOKING
@@ -286,143 +301,145 @@ export default function Transaction() {
         vehicle_type: value.vehicleSizes[0].type,
         vehicle_size: value.vehicleSizes[0].size,
         vehicle_model: value.vehicleModel,
+        plate_number: value.plateNumber,
         services: availedServices,
+        discount_type: value.discountType as DiscountType,
+        notes: value.notes,
+        reservation_fee: value.downPayment,
+        total_service_amount: totalAmount,
+        additional_cost: value.additionalCost,
+        points_earned: pointsEarned,
         travel_fee: value.travelFee,
-        total_amount: totalAmount,
+        discount: value.totalDiscount,
+        points_used: value.pointsUsed,
+        net_total: totalAmountPaid,
+        gross_total: totalAmount + value.travelFee,
         total_discount: totalDiscount,
         milestone_reward,
         milestone_discount: value.milestoneDiscount,
-        total_amount_paid: totalAmountPaid,
-        points_earned: pointsEarned,
-        points_used: value.totalDiscount,
-        discount_type: value.discountType,
-        notes: value.notes,
-        plate_number: value.plateNumber,
+        referral_code_used: null,
+        promotion_id: null,
+        promo_code_used: null,
       });
       setLoading(false);
-      toast(result.message, { position: "bottom-right", duration: 5000 });
-      router.push("/admin");
+      showToast(result.message, result.success ? "success" : "error");
+      if (result.success) {
+        router.push("/admin");
+      }
     },
   });
 
   useEffect(() => {
     const init = async () => {
-      const [s, m, c, v] = await Promise.all([
-        getServices(),
-        getMilestoneRewards(),
-        getCustomers(),
-        getVehicleSizes(),
-      ]);
-      setServices(s);
-      setMilestoneRewards(m);
-      setCustomerResults(c);
-      setVehicleSizes(v);
-      form.setFieldValue("vehicleSizes", [v[0]]);
+      setInitializing(true);
+      const [serviceData, milestoneRewardData, customerData, vehicleSizeData] =
+        await Promise.all([
+          getServices(),
+          getMilestoneRewards(),
+          getCustomersMilestone(),
+          getVehicleSizes(),
+        ]);
+      setServices(serviceData);
+      setMilestoneRewards(milestoneRewardData);
+      setCustomerResults(customerData);
+      setVehicleSizes(vehicleSizeData);
+      form.setFieldValue("vehicleSizes", [vehicleSizeData[0]]);
 
       if (bookingId) {
         const bookingData = await getBooking(bookingId);
 
-        let selectedServiceIds: string[] = [];
-
-        if (bookingData?.services && bookingData.add_ons) {
-          const result = [...bookingData.services, ...bookingData.add_ons].map(
-            (item) => item._id,
+        if (bookingData) {
+          const selectedServiceIds = new Set(
+            [...bookingData.services, ...bookingData.add_ons].map(
+              (item) => item._id,
+            ),
           );
-          selectedServiceIds = result;
 
-          const customer = c.filter((item) => item._id === bookingData.user_id);
-
-          form.setFieldValue("vehicleModel", bookingData.vehicle_model ?? "");
-          form.setFieldValue("travelFee", bookingData.travel_fee ?? 0);
-          form.setFieldValue("downPayment", bookingData.reservation_fee ?? 0);
-          form.setFieldValue("totalAmount", bookingData.total_amount ?? 0);
-          form.setFieldValue(
-            "maximumPoints",
-            bookingData.total_amount * multiplier,
+          const customer = customerData.filter(
+            (item) => item._id === bookingData.customer?._id,
           );
+
+          let discountType = "";
+          if (bookingData.point_used > 0) {
+            discountType = DiscountType.PROMOTIONS;
+          } else if (bookingData.point_used === 0 && bookingData.discount > 0) {
+            discountType = DiscountType.MANUAL;
+          }
+
+          form.setFieldValue("vehicleModel", bookingData.vehicle_model);
+          form.setFieldValue("travelFee", bookingData.travel_fee);
+          form.setFieldValue("downPayment", bookingData.reservation_fee);
+          form.setFieldValue("totalAmount", bookingData.total_amount);
+          form.setFieldValue("totalDiscount", bookingData.discount);
+          form.setFieldValue("pointsUsed", bookingData.point_used);
+          form.setFieldValue("discountType", discountType);
           form.setFieldValue("customer", customer);
           setIsFabVisible(customer.length > 0);
+
+          const selectedServices = serviceData.filter((item) =>
+            selectedServiceIds.has(item._id),
+          );
+
+          const vehicleTypeSize = vehicleSizeData.filter(
+            (item) => item._id === bookingData.size_id,
+          );
+          form.setFieldValue("vehicleSizes", vehicleTypeSize);
+          form.setFieldValue("services", selectedServices);
         }
-
-        const selectedServices = s.filter((item) =>
-          selectedServiceIds.includes(item._id),
-        );
-
-        const vehicleTypeSize = v.filter(
-          (item) => item._id === bookingData?.size_id,
-        );
-        form.setFieldValue("vehicleSizes", vehicleTypeSize);
-        form.setFieldValue("services", selectedServices);
       }
 
       if (transactionId) {
         const transactionData = await getTransaction(transactionId);
         if (transactionData) {
-          form.setFieldValue(
-            "vehicleModel",
-            transactionData.vehicle_model ?? "",
-          );
-          form.setFieldValue("plateNumber", transactionData.plate_number ?? "");
-          form.setFieldValue("travelFee", transactionData.travel_fee ?? 0);
-          form.setFieldValue(
-            "downPayment",
-            transactionData.reservation_fee ?? 0,
+          const selectedServices = serviceData.filter((item) =>
+            transactionData.services.includes(item._id),
           );
 
-          form.setFieldValue("customer", transactionData.customer);
-          setIsFabVisible(transactionData.customer.length > 0);
-          form.setFieldValue("vehicleSizes", transactionData.vehicle_sizes);
-          form.setFieldValue("services", transactionData.services);
-          form.setFieldValue("discountType", transactionData.discount_type);
-          form.setFieldValue(
-            "milestoneReward",
-            transactionData.milestone_reward,
+          const vehicleTypeSize = vehicleSizeData.filter(
+            (item) =>
+              item.type === transactionData.vehicle_type &&
+              item.size === transactionData.vehicle_size,
           );
-          form.setFieldValue("notes", transactionData.notes);
 
-          let rewardServicePrice = 0;
-          let milestoneDiscount = 0;
-          if (transactionData.milestone_reward.length > 0) {
-            const rewardService = s.find(
-              (s) => s._id === transactionData.milestone_reward[0].service_id,
-            );
+          const customer = customerData.filter(
+            (item) => item._id === transactionData.customer_id,
+          );
 
-            rewardServicePrice =
-              rewardService?.pricing_per_sizes.find(
-                (p) =>
-                  p.type === transactionData.vehicle_sizes[0].type &&
-                  p.size === transactionData.vehicle_sizes[0].size,
-              )?.price ?? 0;
+          const milestoneReward = milestoneRewardData.filter(
+            (item) => item._id === transactionData.milestone_reward?._id,
+          );
 
-            milestoneDiscount =
-              transactionData.milestone_reward[0].reward_type ===
-              RewardType.DISCOUNT
-                ? transactionData.milestone_reward[0].discount_amount === 0
-                  ? rewardServicePrice *
-                    (transactionData.milestone_reward[0].discount_percentage /
-                      100)
-                  : transactionData.milestone_reward[0].discount_amount
-                : rewardServicePrice;
-          }
-
+          const milestoneRewardPrice =
+            transactionData.milestone_reward?.price ?? 0;
+          form.setFieldValue("customer", customer);
+          form.setFieldValue("vehicleSizes", vehicleTypeSize);
+          form.setFieldValue("vehicleModel", transactionData.vehicle_model);
+          form.setFieldValue("services", selectedServices);
+          form.setFieldValue("travelFee", transactionData.travel_fee);
+          form.setFieldValue("downPayment", transactionData.reservation_fee);
           form.setFieldValue(
             "totalAmount",
-            transactionData.total_amount - rewardServicePrice,
+            transactionData.total_service_amount - milestoneRewardPrice,
           );
+          form.setFieldValue("additionalCost", transactionData.additional_cost);
+          form.setFieldValue("totalDiscount", transactionData.discount);
+          form.setFieldValue("pointsUsed", transactionData.points_used);
+          form.setFieldValue("milestoneReward", milestoneReward);
+          form.setFieldValue("discountType", transactionData.discount_type);
           form.setFieldValue(
-            "maximumPoints",
-            (transactionData.total_amount - rewardServicePrice) * multiplier,
+            "milestoneDiscount",
+            transactionData.milestone_reward?.discount ?? 0,
           );
-
-          form.setFieldValue("milestoneDiscount", milestoneDiscount);
-          form.setFieldValue("totalDiscount", transactionData.points_used);
+          form.setFieldValue("notes", transactionData.notes ?? "");
+          form.setFieldValue("plateNumber", transactionData.plate_number ?? "");
         }
       }
+      setInitializing(false);
     };
     init();
   }, [bookingId, form, transactionId]);
 
-  const toggleService = (service: IServiceResponse) => {
+  const toggleService = (service: ServiceResponse) => {
     const currentServices = form.getFieldValue("services");
 
     let newServices;
@@ -460,16 +477,15 @@ export default function Transaction() {
     });
 
     form.setFieldValue("totalAmount", total);
-    form.setFieldValue("maximumPoints", total * multiplier);
     form.setFieldValue("services", newServices);
   };
 
-  const onSelectMilestoneReward = (mr: IMilestoneRewardResponse) => {
+  const onSelectMilestoneReward = (mr: MilestoneRewardsResponse) => {
     const current = form.getFieldValue("milestoneReward");
     const isSelected = current.some((item) => item._id === mr._id);
     form.setFieldValue("milestoneReward", isSelected ? [] : [mr]);
 
-    const mrService = services.find((s) => s._id === mr.service_id);
+    const mrService = services.find((s) => s._id === mr.reward_service_id._id);
     const mrPrice =
       mrService?.pricing_per_sizes.find(
         (p) =>
@@ -489,7 +505,7 @@ export default function Transaction() {
     form.setFieldValue("milestoneDiscount", discountAmount);
   };
 
-  const onSelectVehicleSize = (vehicleSize: IVehicleSizesResponse) => {
+  const onSelectVehicleSize = (vehicleSize: VehicleSizeResponse) => {
     const current = form.getFieldValue("vehicleSizes");
     const isSelected = current.some((item) => item._id === vehicleSize._id);
     form.setFieldValue("vehicleSizes", isSelected ? [] : [vehicleSize]);
@@ -497,17 +513,15 @@ export default function Transaction() {
     form.setFieldValue("services", []);
     form.setFieldValue("milestoneReward", []);
     form.setFieldValue("milestoneDiscount", 0);
-    form.setFieldValue("maximumPoints", 0);
   };
 
   return (
     <section className="min-h-screen bg-[#0a0a0a] relative overflow-hidden">
-      {/* ambient glow */}
+      {initializing && <FullScreenLoader />}
       <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] rounded-full bg-[#dc143c]/[0.06] blur-[120px]" />
       <div className="pointer-events-none absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full bg-[#dc143c]/[0.04] blur-[100px]" />
 
       <div className="relative max-w-3xl mx-auto px-4 sm:px-6 py-16 md:py-24">
-        {/* ── Header ── */}
         <div className="mb-14 text-center">
           <h2 className="font-russo text-5xl sm:text-6xl font-extrabold text-white tracking-tight leading-[1.1]">
             {`${transactionId ? "Transaction" : "Create"} `}
@@ -520,104 +534,11 @@ export default function Transaction() {
           </p>
         </div>
 
-        {/* ── Customer FAB ── */}
-        {isFabVisible && (
-          <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
-            {/* slide-up panel */}
-            <div
-              className={`transition-all duration-300 origin-bottom-right ${
-                isFabOpen
-                  ? "opacity-100 scale-100 translate-y-0 pointer-events-auto"
-                  : "opacity-0 scale-95 translate-y-4 pointer-events-none"
-              }`}
-            >
-              <div className="w-72 rounded-2xl border border-white/10 bg-[#111]/90 backdrop-blur-xl shadow-2xl shadow-black/60 overflow-hidden">
-                {/* header */}
-                <div className="flex items-center gap-3 px-4 py-4 border-b border-white/[0.08]">
-                  <div className="w-10 h-10 rounded-full bg-[#dc143c]/20 border border-[#dc143c]/40 flex items-center justify-center text-[#ff6b81] font-bold text-sm flex-shrink-0">
-                    {form
-                      .getFieldValue("customer")[0]
-                      .name.slice(0, 2)
-                      .toUpperCase()}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-white font-semibold text-sm truncate">
-                      {form.getFieldValue("customer")[0].name}
-                    </p>
-                    <p className="text-gray-500 text-xs">
-                      <span className="text-[#ff6b81] font-semibold">
-                        {form.getFieldValue("customer")[0].earned_points}
-                      </span>{" "}
-                      pts earned
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsFabOpen(false)}
-                    className="ml-auto flex-shrink-0 w-7 h-7 rounded-full bg-white/[0.06] hover:bg-white/10 flex items-center justify-center transition-colors"
-                  >
-                    <X className="w-3.5 h-3.5 text-gray-400" />
-                  </button>
-                </div>
+        <CustomerMilestonesPanel
+          isVisible={isFabVisible}
+          customer={form.getFieldValue("customer")[0]}
+        />
 
-                {/* milestone grid */}
-                {form.getFieldValue("customer")[0].milestone_count.length >
-                0 ? (
-                  <div className="px-4 py-3">
-                    <p className="text-gray-600 text-[10px] uppercase tracking-widest mb-2">
-                      Milestone Progress
-                    </p>
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {form
-                        .getFieldValue("customer")[0]
-                        .milestone_count.map((m) => (
-                          <div
-                            key={m._id}
-                            className="rounded-xl bg-white/[0.04] border border-white/[0.06] p-2 text-center"
-                          >
-                            <p className="text-gray-600 text-[10px] leading-tight">
-                              {m.vehicle.type.toUpperCase()}
-                              <br />
-                              {m.vehicle.size.toUpperCase()}
-                            </p>
-                            <p className="text-white font-bold text-lg mt-1 leading-none">
-                              {m.progress}
-                            </p>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="px-4 py-3">
-                    <p className="text-gray-600 text-xs text-center py-1">
-                      No milestone progress yet.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* FAB button */}
-            <button
-              type="button"
-              onClick={() => setIsFabOpen((v) => !v)}
-              className={`w-14 h-14 rounded-full flex items-center justify-center shadow-xl transition-all duration-200 active:scale-95
-                ${
-                  isFabOpen
-                    ? "bg-white/10 border border-white/20 text-white"
-                    : "bg-[#dc143c] shadow-[#dc143c]/40 text-white hover:bg-[#c01236]"
-                }`}
-            >
-              {isFabOpen ? (
-                <X className="w-5 h-5" />
-              ) : (
-                <User className="w-5 h-5" />
-              )}
-            </button>
-          </div>
-        )}
-
-        {/* ── Form ── */}
         <form
           id="booking-form"
           onSubmit={(e) => {
@@ -626,7 +547,6 @@ export default function Transaction() {
           }}
           className="space-y-0"
         >
-          {/* STEP 1 — Customer */}
           <SectionCard
             step={1}
             title="Customer"
@@ -680,7 +600,7 @@ export default function Transaction() {
                                   field.setValue(isSelected ? [] : [customer]);
                                   setIsFabVisible(!isSelected);
                                 }}
-                                className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                                className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-600 hover:text-white hover:bg-white/[0.06] transition-colors"
                               >
                                 <span className="text-sm">{customer.name}</span>
                                 {isSelected && (
@@ -698,7 +618,6 @@ export default function Transaction() {
             </form.Field>
           </SectionCard>
 
-          {/* STEP 2 — Vehicle */}
           <SectionCard
             step={2}
             title="Vehicle Details"
@@ -744,7 +663,7 @@ export default function Transaction() {
                               <CommandItem
                                 key={size._id}
                                 onSelect={() => onSelectVehicleSize(size)}
-                                className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                                className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-600 hover:text-white hover:bg-white/[0.06] transition-colors"
                               >
                                 <span className="text-sm">{`${size.type.toUpperCase()} • ${size.description.toUpperCase()}`}</span>
                                 {isSelected && (
@@ -759,8 +678,6 @@ export default function Transaction() {
                   </Field>
                 )}
               </form.Field>
-
-              {/* Vehicle Model */}
               <form.Field name="vehicleModel">
                 {(field) => {
                   const isInvalid =
@@ -815,14 +732,12 @@ export default function Transaction() {
             </div>
           </SectionCard>
 
-          {/* STEP 3 — Services */}
           <SectionCard
             step={3}
             title="Services & Rewards"
             subtitle="Select what's being performed."
           >
             <div className="space-y-4">
-              {/* Availed Services */}
               <form.Field name="services">
                 {(field) => {
                   const isInvalid =
@@ -862,7 +777,7 @@ export default function Transaction() {
                                 <CommandItem
                                   key={service._id}
                                   onSelect={() => toggleService(service)}
-                                  className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                                  className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-600 hover:text-white hover:bg-white/[0.06] transition-colors"
                                 >
                                   <span className="text-sm">
                                     {service.title}
@@ -886,8 +801,6 @@ export default function Transaction() {
                   );
                 }}
               </form.Field>
-
-              {/* Milestone Reward */}
               <form.Field name="milestoneReward">
                 {(field) => (
                   <Field>
@@ -904,7 +817,10 @@ export default function Transaction() {
                               <div className="overflow-x-auto scrollbar-none w-0 flex-1">
                                 <div className="flex gap-2 flex-nowrap min-w-max items-center">
                                   {field.state.value.map((item) => (
-                                    <Chip key={item._id} label={item.service} />
+                                    <Chip
+                                      key={item._id}
+                                      label={item.reward_service_id.title}
+                                    />
                                   ))}
                                 </div>
                               </div>
@@ -930,9 +846,11 @@ export default function Transaction() {
                                 <CommandItem
                                   key={mr._id}
                                   onSelect={() => onSelectMilestoneReward(mr)}
-                                  className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                                  className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-600 hover:text-white hover:bg-white/[0.06] transition-colors"
                                 >
-                                  <span className="text-sm">{mr.service}</span>
+                                  <span className="text-sm">
+                                    {mr.reward_service_id.title}
+                                  </span>
                                   {isSelected && (
                                     <Check className="w-4 h-4 text-[#dc143c]" />
                                   )}
@@ -990,8 +908,12 @@ export default function Transaction() {
                               return (
                                 <CommandItem
                                   key={statusKey}
-                                  onSelect={() => field.handleChange(statusKey)}
-                                  className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                                  onSelect={() =>
+                                    field.handleChange(
+                                      isSelected ? "" : statusKey,
+                                    )
+                                  }
+                                  className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-600 hover:text-white hover:bg-white/[0.06] transition-colors"
                                 >
                                   <span className="font-bold text-xs uppercase tracking-wider">
                                     {display}
@@ -1033,35 +955,44 @@ export default function Transaction() {
             </div>
           </SectionCard>
 
-          {/* STEP 4 — Summary */}
           <SectionCard
             step={5}
             title="Summary"
             subtitle="Review amounts before submitting."
           >
             <div className="space-y-1">
-              <form.Field name="totalAmount">
-                {(field) => (
-                  <Field>
-                    <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
-                      Availed Services Total Amount
-                    </FieldLabel>
-                    <Input
-                      id={field.name}
-                      name={field.name}
-                      value={field.state.value}
-                      onBlur={field.handleBlur}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        field.handleChange(v === "" ? 0 : Number.parseInt(v));
-                      }}
-                      className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white placeholder:text-gray-600 text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <form.Field name="totalAmount">
+                  {(field) => (
+                    <ReadOnlyField
+                      label="Services Total Amount"
+                      value={field.state.value.toString()}
                     />
-                  </Field>
-                )}
-              </form.Field>
+                  )}
+                </form.Field>
 
-              {/* Discount Tiers */}
+                <form.Field name="additionalCost">
+                  {(field) => (
+                    <Field>
+                      <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
+                        Additional Cost
+                      </FieldLabel>
+                      <Input
+                        id={field.name}
+                        name={field.name}
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          field.handleChange(v === "" ? 0 : Number.parseInt(v));
+                        }}
+                        className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white placeholder:text-gray-600 text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
+                      />
+                    </Field>
+                  )}
+                </form.Field>
+              </div>
+
               <form.Subscribe selector={(s) => s.values.totalAmount}>
                 {(total) => {
                   const tiers = [
@@ -1069,7 +1000,7 @@ export default function Transaction() {
                     { off: 100, min: 250 },
                     { off: 150, min: 375 },
                   ];
-                  const next = tiers.find((t) => (total as number) < t.min);
+                  const next = tiers.find((t) => total < t.min);
 
                   return (
                     <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-3">
@@ -1081,7 +1012,7 @@ export default function Transaction() {
                           <p className="text-gray-500 text-xs">
                             ₱
                             <span className="text-white font-semibold">
-                              {next.min - (total as number)}
+                              {next.min - total}
                             </span>{" "}
                             more to unlock ₱{next.off} off
                           </p>
@@ -1097,10 +1028,10 @@ export default function Transaction() {
                         <div
                           className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[#dc143c] to-[#ff6b81] transition-all duration-500"
                           style={{
-                            width: `${Math.min(100, ((total as number) / 375) * 100)}%`,
+                            width: `${Math.min(100, (total / 375) * 100)}%`,
                           }}
                         />
-                        {/* tier markers */}
+
                         {tiers.map((t) => (
                           <div
                             key={t.min}
@@ -1110,10 +1041,9 @@ export default function Transaction() {
                         ))}
                       </div>
 
-                      {/* tier chips */}
                       <div className="grid grid-cols-3 gap-2">
                         {tiers.map((t) => {
-                          const unlocked = (total as number) >= t.min;
+                          const unlocked = total >= t.min;
                           return (
                             <div
                               key={t.min}
@@ -1150,35 +1080,37 @@ export default function Transaction() {
                 }}
               </form.Subscribe>
 
-              {/* Read-only summary rows */}
               <div className="mt-4 space-y-1 rounded-xl overflow-hidden">
                 <form.Subscribe
                   selector={(s) => ({
-                    maxPts: s.values.maximumPoints,
                     discount: s.values.totalDiscount,
                     milestoneDiscount: s.values.milestoneDiscount,
                     total: s.values.totalAmount,
+                    additionalCost: s.values.additionalCost,
                     milestoneReward: s.values.milestoneReward,
                     vehicleSizes: s.values.vehicleSizes,
                     travelFee: s.values.travelFee,
                     downPayment: s.values.downPayment,
+                    pointsUsed: s.values.pointsUsed,
                   })}
                 >
                   {({
-                    maxPts,
                     discount,
                     milestoneDiscount,
                     total,
+                    additionalCost,
                     milestoneReward,
                     vehicleSizes,
                     travelFee,
                     downPayment,
+                    pointsUsed,
                   }) => {
                     // Price of the milestone reward service based on current vehicle type + size
                     const milestoneRewardPrice = (() => {
                       if (!milestoneReward.length) return 0;
                       const rewardService = services.find(
-                        (s) => s._id === milestoneReward[0].service_id,
+                        (s) =>
+                          s._id === milestoneReward[0].reward_service_id._id,
                       );
                       return (
                         rewardService?.pricing_per_sizes.find(
@@ -1189,18 +1121,28 @@ export default function Transaction() {
                       );
                     })();
 
-                    const grossTotal = total + milestoneRewardPrice + travelFee;
+                    const grossTotal =
+                      total + additionalCost + milestoneRewardPrice + travelFee;
                     const netTotal = Math.max(
                       0,
-                      grossTotal - discount - milestoneDiscount - downPayment,
+                      grossTotal -
+                        discount -
+                        milestoneDiscount -
+                        downPayment -
+                        pointsUsed,
                     );
 
                     const amountPaid =
                       total +
+                      additionalCost +
                       milestoneRewardPrice -
                       discount -
-                      milestoneDiscount;
+                      milestoneDiscount -
+                      pointsUsed;
                     const pointsEarned = getPointsEarned(amountPaid);
+
+                    const maximumPoints =
+                      (total + additionalCost - discount) * multiplier;
 
                     return (
                       <>
@@ -1209,18 +1151,25 @@ export default function Transaction() {
                             Points Redemption Limit
                           </span>
                           <span className="text-white font-medium">
-                            {maxPts.toLocaleString()}
+                            {maximumPoints.toLocaleString()}
                           </span>
                         </div>
                         <div className="flex justify-between items-center py-2 px-3">
                           <span className="text-gray-500 text-sm">
-                            Points Earned
+                            Earning Points
                           </span>
                           <span className="text-white font-medium">
                             {pointsEarned.toLocaleString()}
                           </span>
                         </div>
-
+                        <div className="flex justify-between items-center py-2 px-3 border-t border-white/[0.06]">
+                          <span className="text-gray-500 text-sm">
+                            Services Total Amount
+                          </span>
+                          <span className="text-white font-medium">
+                            + ₱{total.toLocaleString()}
+                          </span>
+                        </div>
                         {milestoneRewardPrice > 0 && (
                           <div className="flex justify-between items-center py-2 px-3">
                             <span className="text-gray-500 text-sm">
@@ -1241,7 +1190,7 @@ export default function Transaction() {
                         </div>
 
                         <div className="flex justify-between items-center py-2 px-3 border-t border-white/[0.06]">
-                          <span className="text-gray-500 text-sm">
+                          <span className="text-white text-sm">
                             Gross Total
                           </span>
                           <span className="text-white font-medium">
@@ -1253,7 +1202,29 @@ export default function Transaction() {
                           {(field) => (
                             <div className="flex justify-between items-center py-2 px-3">
                               <span className="text-gray-500 text-sm">
-                                Total Discount
+                                Discount
+                              </span>
+                              <Input
+                                id={field.name}
+                                name={field.name}
+                                value={field.state.value}
+                                onBlur={field.handleBlur}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  field.handleChange(
+                                    v === "" ? 0 : Number.parseInt(v),
+                                  );
+                                }}
+                                className="h-8 w-28 text-right px-3 rounded-lg bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60"
+                              />
+                            </div>
+                          )}
+                        </form.Field>
+                        <form.Field name="pointsUsed">
+                          {(field) => (
+                            <div className="flex justify-between items-center py-2 px-3">
+                              <span className="text-gray-500 text-sm">
+                                Points Used
                               </span>
                               <Input
                                 id={field.name}
@@ -1272,7 +1243,7 @@ export default function Transaction() {
                           )}
                         </form.Field>
 
-                        <div className="flex justify-between items-center py-2 px-3">
+                        <div className="flex justify-between items-center py-2 px-3 border-t border-white/[0.06]">
                           <span className="text-gray-500 text-sm">
                             Milestone Discount
                           </span>
@@ -1284,7 +1255,7 @@ export default function Transaction() {
                           <span className="text-gray-500 text-sm">
                             Down Payment
                           </span>
-                          <span className="text-white font-medium">
+                          <span className="text-[#ff6b81] font-medium">
                             - ₱{downPayment.toLocaleString()}
                           </span>
                         </div>
@@ -1305,7 +1276,6 @@ export default function Transaction() {
             </div>
           </SectionCard>
 
-          {/* Submit */}
           {!transactionId && (
             <div className="pt-2 flex justify-end">
               <button
@@ -1313,7 +1283,6 @@ export default function Transaction() {
                 disabled={loading}
                 className="group relative inline-flex items-center gap-3 px-10 py-4 bg-[#dc143c] hover:bg-[#c01236] active:scale-[0.98] text-white font-bold text-base rounded-2xl transition-all duration-200 shadow-xl shadow-[#dc143c]/30 hover:shadow-[#dc143c]/50 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
               >
-                {/* shimmer */}
                 <span className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none" />
                 {loading ? (
                   <>

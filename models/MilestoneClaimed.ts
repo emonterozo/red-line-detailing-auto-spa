@@ -1,14 +1,34 @@
-import { Schema, model, models } from "mongoose";
+import {
+  HydratedDocument,
+  InferSchemaType,
+  Schema,
+  model,
+  models,
+} from "mongoose";
 
-import VehicleSize from "./VehicleSize";
-import Service from "./Service";
-import Customer from "./Customer";
-import Transaction from "./Transaction";
-import MilestoneReward from "./MilestoneReward";
+import VehicleSize, { TVehicleSizeDoc } from "./VehicleSize";
+import Service, { TServiceDoc } from "./Service";
+import Customer, { TCustomerDoc } from "./Customer";
+import Transaction, { TTransactionDoc } from "./Transaction";
+import MilestoneReward, { TMilestoneRewardDoc } from "./MilestoneReward";
+
+export type TMilestoneClaimed = InferSchemaType<typeof milestoneClaimedSchema>;
+export type TMilestoneClaimedDoc = HydratedDocument<TMilestoneClaimed>;
+
+export type MilestoneRewardWithPopulatedData = Omit<
+  TMilestoneClaimedDoc,
+  "customer_id" | "service_id" | "reward_id" | "transaction_id" | "size_id"
+> & {
+  customer_id: TCustomerDoc;
+  service_id: TServiceDoc;
+  size_id: TVehicleSizeDoc;
+  reward_id: TMilestoneRewardDoc;
+  transaction_id: TTransactionDoc;
+};
 
 const milestoneClaimedSchema = new Schema(
   {
-    user_id: {
+    customer_id: {
       type: Schema.Types.ObjectId,
       ref: Customer.modelName,
       required: true,
@@ -28,13 +48,13 @@ const milestoneClaimedSchema = new Schema(
       ref: Transaction.modelName,
       required: true,
     },
-    price: {
-      type: Number,
-      required: true,
-    },
     size_id: {
       type: Schema.Types.ObjectId,
       ref: VehicleSize.modelName,
+      required: true,
+    },
+    price: {
+      type: Number,
       required: true,
     },
     vehicle_model: {
@@ -45,7 +65,8 @@ const milestoneClaimedSchema = new Schema(
       type: Number,
       required: true,
     },
-    claimed_at: { type: Date, default: new Date() },
+    created_at: { type: Date, default: new Date() },
+    updated_at: { type: Date, default: new Date() },
   },
   {
     collection: "milestone_claimed",

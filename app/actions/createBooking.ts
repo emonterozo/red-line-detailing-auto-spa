@@ -1,15 +1,42 @@
 "use server";
 
 import connect from "@/lib/db/mongodb";
-import { IBooking } from "@/lib/db/types";
 import nodemailer from "nodemailer";
 
 import Booking from "@/models/Booking";
 import Schedule from "@/models/Schedule";
 import { Types } from "mongoose";
 import { bookingTemple } from "../template/booking";
+import { BookingStatus, ServiceType } from "@/lib/enums";
+import { getSmsContent } from "@/lib/getSmsTemplate";
+import { sendMessage } from "@/lib/sendMessage";
 
-export const createBooking = async (bookingData: IBooking) => {
+interface CreateBookingProps {
+  user_id?: string;
+  size_id?: string;
+  first_name: string;
+  last_name: string;
+  contact_number: string;
+  vehicle_model: string;
+  social: string;
+  services: { _id: string; title: string; type: ServiceType; price: number }[];
+  add_ons: { _id: string; title: string; type: ServiceType; price: number }[];
+  preferred_date: { _id: string; date: Date };
+  time_slot: { _id: string; time: string };
+  address: string;
+  google_address: string;
+  latitude: number;
+  longitude: number;
+  status: BookingStatus;
+  reservation_fee: number;
+  total_amount: number;
+  travel_fee: number;
+  travel_distance: number;
+  reference_number: string;
+  notes: string;
+}
+
+export const createBooking = async (bookingData: CreateBookingProps) => {
   const userId = null;
   await connect();
 
@@ -55,6 +82,11 @@ export const createBooking = async (bookingData: IBooking) => {
         const newBooking = new Booking({
           user_id: userId,
           ...bookingData,
+          name: `${bookingData.first_name} ${bookingData.last_name}`,
+          location: {
+            type: "Point",
+            coordinates: [bookingData.longitude, bookingData.latitude],
+          },
         });
         await newBooking.save();
 
@@ -78,7 +110,7 @@ export const createBooking = async (bookingData: IBooking) => {
           .join(", ");
 
         const html = await bookingTemple(
-          bookingData.name,
+          `${bookingData.first_name} ${bookingData.last_name}`,
           bookingData.contact_number,
           bookingData.vehicle_model,
           bookingData.social,
@@ -104,6 +136,19 @@ export const createBooking = async (bookingData: IBooking) => {
           subject: subject,
           html: html,
         });
+
+        const message = getSmsContent({
+          name: bookingData.first_name,
+          model: bookingData.vehicle_model,
+          type: BookingStatus.FOR_CHECKING,
+          ref: bookingData.reference_number,
+          date: new Date(bookingData.preferred_date.date).toDateString()
+        });
+
+        sendMessage({
+          message,
+          phoneNumbers: [bookingData.contact_number]
+        })
 
         return {
           success: true,

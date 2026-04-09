@@ -1,19 +1,25 @@
 "use server";
 
 import connect from "@/lib/db/mongodb";
-import Customer from "@/models/Customer";
+import Customer, { TCustomer, TCustomerDoc } from "@/models/Customer";
 
-export interface ICustomerResponse {
+const CUSTOMER_TABLE_FIELDS: (keyof TCustomer)[] = [
+  "name",
+  "contact_number",
+  "email",
+  "created_at",
+  "is_verify",
+];
+
+export type CustomerTableResponse = Pick<
+  TCustomer,
+  "name" | "contact_number" | "email" | "created_at" | "is_verify"
+> & {
   _id: string;
-  name: string;
-  contact_number: string;
-  email: string;
-  created_at: Date;
-  is_verify: boolean
-}
+};
 
 export interface IPaginatedCustomers {
-  data: ICustomerResponse[];
+  data: CustomerTableResponse[];
   total: number;
   page: number;
   limit: number;
@@ -26,27 +32,23 @@ export const getCustomerList = async (
 ): Promise<IPaginatedCustomers> => {
   await connect();
 
-  // Calculate how many documents to skip
   const skip = (page - 1) * limit;
 
-  // Fetch paginated inquiries
-  const customerDoc = (await Customer.find({})
+  const customerDoc: Pick<
+    TCustomerDoc,
+    "_id" | "name" | "contact_number" | "email" | "created_at" | "is_verify"
+  >[] = await Customer.find({})
+    .select(CUSTOMER_TABLE_FIELDS.join(" "))
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit)
-    .lean()) as unknown as ICustomerResponse[];
+    .lean();
 
-  // Convert _id to string
-  const customersJson: ICustomerResponse[] = customerDoc.map((customer) => ({
+  const customersJson = customerDoc.map((customer) => ({
+    ...customer,
     _id: customer._id.toString(),
-    name: customer.name,
-    contact_number: customer.contact_number,
-    email: customer.email,
-    is_verify: customer.is_verify,
-    created_at: customer.created_at,
   }));
 
-  // Get total count for pagination info
   const total = await Customer.countDocuments();
 
   return {

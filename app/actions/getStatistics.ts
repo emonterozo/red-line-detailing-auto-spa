@@ -182,7 +182,7 @@ const getRevenue = async () => {
     {
       $group: {
         _id: null,
-        total_gross_amount: { $sum: "$total_amount" },
+        total_gross_amount: { $sum: "$total_service_amount" },
         total_net_amount: { $sum: "$net_total" },
         total_transactions: { $sum: 1 },
       },

@@ -2,46 +2,53 @@
 
 import connect from "@/lib/db/mongodb";
 
-import Service from "@/models/Service";
-import { IService, IServiceDocument } from "@/lib/db/types";
-import { VehicleSize, VehicleType } from "@/lib/enums";
+import Service, { ServiceWithPopulatedData, TService } from "@/models/Service";
+import { TVehicleSize } from "@/models/VehicleSize";
 
-type PricingPerSize = {
+const SERVICE_FIELDS: (keyof TService)[] = [
+  "title",
+  "description",
+  "pricing_options",
+  "pricing_per_sizes",
+  "price",
+  "notes",
+  "type"
+];
+
+const VEHICLE_SIZE_FIELDS: (keyof TVehicleSize)[] = [
+  "type",
+  "size",
+  "description",
+];
+
+export type ServiceResponse = Omit<TService, "_id" | "pricing_per_sizes"> & {
   _id: string;
-  size_id: string;
-  type: VehicleType;
-  size: VehicleSize;
-  description: string;
-  price: number;
-  
+  pricing_per_sizes: (Pick<TVehicleSize, "type" | "size" | "description"> & {
+    _id: string;
+    size_id: string;
+    price: number;
+  })[];
 };
 
-export interface IServiceResponse extends Omit<IService, "pricing_per_sizes"> {
-  _id: string;
-  pricing_per_sizes: PricingPerSize[];
-}
-
-export const getServices = async () => {
+export const getServices = async (): Promise<ServiceResponse[]> => {
   await connect();
 
-  const servicesDoc = (await Service.find({
+  const servicesDoc: ServiceWithPopulatedData[] = await Service.find({
     is_available: true,
   })
-    .populate("pricing_per_sizes.size_id")
-    .sort({ sort_order: 1})
-    .lean()) as unknown as IServiceDocument[];
+    .select(SERVICE_FIELDS.join(" "))
+    .populate("pricing_per_sizes.size_id", VEHICLE_SIZE_FIELDS.join(" "))
+    .sort({ sort_order: 1 })
+    .lean();
 
-    
-
-  const servicesJson: IServiceResponse[] = servicesDoc.map((service) => {
+  const servicesJson = servicesDoc.map((service) => {
     const formattedPricing = service.pricing_per_sizes.map((size) => {
       return {
         _id: size._id.toString(),
-        size_id: (size.size_id as unknown as { _id: string })._id.toString(),
-        type: (size.size_id as unknown as { type: string }).type as VehicleType,
-        size: (size.size_id as unknown as { size: string }).size as VehicleSize,
-        description: (size.size_id as unknown as { description: string })
-          .description,
+        size_id: size.size_id._id.toString(),
+        type: size.size_id.type,
+        size: size.size_id.size,
+        description: size.size_id.description,
         price: size.price,
       };
     });

@@ -2,30 +2,50 @@
 
 import connect from "@/lib/db/mongodb";
 
-import Schedule from "@/models/Schedule";
-import { ISchedule, ITimeSlot } from "@/lib/db/types";
+import Schedule, { TSchedule, TScheduleDoc } from "@/models/Schedule";
 
-export interface ISchedulesResponse extends Omit<ISchedule, "time_slots"> {
+type ScheduleSelectFields =
+  | keyof TSchedule
+  | "time_slots._id"
+  | "time_slots.time"
+  | "time_slots.is_available";
+
+const SCHEDULE_FIELDS: ScheduleSelectFields[] = [
+  "date",
+  "time_slots._id",
+  "time_slots.time",
+  "time_slots.is_available",
+];
+
+export type ScheduleResponse = Omit<
+  TSchedule,
+  "_id" | "time_slots" | "created_at" | "updated_at"
+> & {
   _id: string;
-  time_slots: (ITimeSlot & { _id: string })[];
-}
+  time_slots: {
+    _id: string;
+    is_available: boolean;
+    time: string;
+  }[];
+};
 
-export const getSchedules = async () => {
+export const getSchedules = async (): Promise<ScheduleResponse[]> => {
   await connect();
 
-  const schedulesDoc = (await Schedule.find(
-    {},
-  ).lean()) as unknown as ISchedulesResponse[];
+  const schedulesDoc: TScheduleDoc[] = await Schedule.find({})
+    .select(SCHEDULE_FIELDS.join(" "))
+    .lean();
 
-  const schedulesJson: ISchedulesResponse[] = schedulesDoc.map((schedule) => {
+  const schedulesJson = schedulesDoc.map((schedule) => {
     const formattedTimeSlots = schedule.time_slots.map((slot) => ({
-      ...slot,
       _id: slot._id.toString(),
+      time: slot.time,
+      is_available: slot.is_available,
     }));
 
     return {
-      ...schedule,
       _id: schedule._id.toString(),
+      date: schedule.date,
       time_slots: formattedTimeSlots,
     };
   });

@@ -37,15 +37,12 @@ const Header = () => {
         }`}
       >
         <div className="flex items-center justify-between h-16 md:h-20">
-          {/* Logo Section - Absolute Positioned */}
           <div className="absolute left-6 md:left-8 top-1/2 -translate-y-1/2 flex-shrink-0 origin-left transition-all duration-300 pointer-events-none">
             <Logo className="h-24 sm:h-36 md:h-48 w-auto fill-current text-white" />
           </div>
 
-          {/* Spacer to prevent Desktop links from overlapping the absolute logo */}
           <div className="hidden md:block w-48 lg:w-64" />
 
-          {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-2">
             {navigationLinks.map((link) => (
               <a
@@ -70,7 +67,6 @@ const Header = () => {
             </Link>
           </div>
 
-          {/* Mobile Menu Button - Pushed to the right */}
           <div className="md:hidden ml-auto flex items-center gap-4 relative z-10">
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -86,7 +82,6 @@ const Header = () => {
         </div>
       </div>
 
-      {/* Mobile Dropdown Menu */}
       {isMenuOpen && (
         <div className="md:hidden absolute top-24 left-6 right-6 bg-[#0a0a0a] border border-white/10 rounded-3xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300">
           <div className="p-6 space-y-2">

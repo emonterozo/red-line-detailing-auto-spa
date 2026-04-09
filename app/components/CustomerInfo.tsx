@@ -1,7 +1,9 @@
 "use client";
 
+import { TABLE_DATE_FORMAT } from "@/lib/constants";
 import { MilestoneCount } from "@/lib/db/types";
 import { VehicleType } from "@/lib/enums";
+import { TCustomer } from "@/models/Customer";
 import { motion } from "framer-motion";
 import {
   Car,
@@ -20,6 +22,8 @@ interface CustomerInfoProps {
   social: string;
   address: string;
   milestoneCount: MilestoneCount[];
+  location: TCustomer["location"];
+  addressUpdatedAt: TCustomer["address_updated_at"];
 }
 
 export default function CustomerInfo({
@@ -28,10 +32,12 @@ export default function CustomerInfo({
   social,
   address,
   milestoneCount,
+  location,
+  addressUpdatedAt,
 }: Readonly<CustomerInfoProps>) {
+  const mapUrl = `https://www.google.com/maps?q=${location?.coordinates[1]},${location?.coordinates[0]}`;
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      {/* Column 1: Contact Info (Vertical stacked) */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -71,7 +77,7 @@ export default function CustomerInfo({
               href={social}
               className="text-[#ff6b81] font-bold text-xs hover:underline truncate block"
             >
-              {social}
+              {social === "" ? "Profile link not provided" : social}
             </a>
           </div>
 
@@ -79,14 +85,31 @@ export default function CustomerInfo({
             <label className="text-[12px] text-gray-600 uppercase font-black tracking-widest flex items-center gap-2 mb-3">
               <MapPin className="w-3 h-3 text-[#dc143c]" /> Location
             </label>
-            <p className="text-gray-400 text-xs leading-relaxed italic pr-4 transition-colors group-hover:text-gray-200">
-              {address}
+
+            <a
+              href={mapUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block text-gray-400 text-xs leading-relaxed italic pr-4 transition-colors hover:text-[#ff6b81] hover:underline"
+            >
+              {address === "" ? "Address hasn’t been provided yet" : address}
+            </a>
+
+            <p className="text-[10px] text-gray-600 mt-2">
+              Last updated:{" "}
+              <span className="text-gray-400">
+                {addressUpdatedAt
+                  ? new Date(addressUpdatedAt).toLocaleString(
+                      "en-US",
+                      TABLE_DATE_FORMAT,
+                    )
+                  : "Not applicable"}
+              </span>
             </p>
           </div>
         </div>
       </motion.div>
 
-      {/* Column 2: Service Progress */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
