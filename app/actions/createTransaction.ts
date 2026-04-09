@@ -85,12 +85,12 @@ export const createTransaction = async (
 
     if (transactionData.booking_id) {
       const booking = await Booking.findById(transactionData.booking_id)
-        .select("reference_number name contact_number")
+        .select("reference_number first_name contact_number")
         .lean();
       if (booking) {
         message = getSmsContent(
           {
-            name: booking.name,
+            name: booking.first_name,
             model: transactionData.vehicle_model,
             type: BookingStatus.COMPLETED,
             ref: booking.reference_number,
@@ -176,7 +176,7 @@ export const createTransaction = async (
 
       message = getSmsContent(
         {
-          name: customer.name,
+          name: customer.first_name,
           model: transactionData.vehicle_model,
           type: BookingStatus.COMPLETED,
           ref: referenceNumber,
@@ -188,7 +188,6 @@ export const createTransaction = async (
       contactNumber = customer.contact_number;
     }
 
-    console.log(message, contactNumber)
     if (message !== "" && contactNumber !== "") {
       sendMessage({ message, phoneNumbers: [contactNumber] });
     }

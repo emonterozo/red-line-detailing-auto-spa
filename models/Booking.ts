@@ -41,6 +41,8 @@ const bookingSchema = new Schema({
     ref: VehicleSize.modelName,
     required: true,
   },
+  first_name: { type: String, required: true },
+  last_name: { type: String, required: true },
   name: { type: String, required: true },
   contact_number: { type: String, required: true },
   vehicle_model: { type: String, required: true },
@@ -71,7 +73,7 @@ const bookingSchema = new Schema({
   google_address: { type: String, required: true },
   location: {
     type: {
-      type: String, 
+      type: String,
       enum: ["Point"],
       required: true,
     },
@@ -89,7 +91,11 @@ const bookingSchema = new Schema({
   point_used: { type: Number, default: 0, required: true },
   reference_number: { type: String, required: true, unique: true },
   referral_code_used: { type: String, default: null },
-  promotion_id: { type: Schema.Types.ObjectId, ref: Promotion.modelName, default: null },
+  promotion_id: {
+    type: Schema.Types.ObjectId,
+    ref: Promotion.modelName,
+    default: null,
+  },
   promo_code_used: { type: String, default: null },
   notes: { type: String, default: null },
   created_at: { type: Date, default: new Date() },

@@ -93,7 +93,7 @@ export const updateBooking = async (request: UpdateBookingRequest) => {
     switch (request.status) {
       case BookingStatus.FOR_CHECKING:
         message = getSmsContent({
-          name: result.name,
+          name: result.first_name,
           model: result.vehicle_model,
           type: BookingStatus.FOR_CHECKING,
           ref: result.reference_number,
@@ -102,7 +102,7 @@ export const updateBooking = async (request: UpdateBookingRequest) => {
         break;
       case BookingStatus.PENDING_PAYMENT:
         message = getSmsContent({
-          name: result.name,
+          name: result.first_name,
           model: result.vehicle_model,
           type: BookingStatus.PENDING_PAYMENT,
           ref: result.reference_number,
@@ -112,7 +112,7 @@ export const updateBooking = async (request: UpdateBookingRequest) => {
         break;
       case BookingStatus.RESERVED:
         message = getSmsContent({
-          name: result.name,
+          name: result.first_name,
           model: result.vehicle_model,
           type: BookingStatus.RESERVED,
           ref: result.reference_number,
@@ -123,7 +123,7 @@ export const updateBooking = async (request: UpdateBookingRequest) => {
       case BookingStatus.CANCELLED:
         message = getSmsContent(
           {
-            name: result.name,
+            name: result.first_name,
             type: BookingStatus.CANCELLED,
             ref: result.reference_number,
             date: result.preferred_date.date.toDateString(),
@@ -134,7 +134,7 @@ export const updateBooking = async (request: UpdateBookingRequest) => {
       case BookingStatus.REJECTED:
         message = getSmsContent(
           {
-            name: result.name,
+            name: result.first_name,
             type: BookingStatus.REJECTED,
             ref: result.reference_number,
             date: result.preferred_date.date.toDateString(),
@@ -145,7 +145,7 @@ export const updateBooking = async (request: UpdateBookingRequest) => {
       case BookingStatus.REFUNDED:
         message = getSmsContent(
           {
-            name: result.name,
+            name: result.first_name,
             type: BookingStatus.REFUNDED,
             ref: result.reference_number,
             date: result.preferred_date.date.toDateString(),

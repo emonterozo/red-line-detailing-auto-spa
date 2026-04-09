@@ -14,7 +14,8 @@ import { sendMessage } from "@/lib/sendMessage";
 interface CreateBookingProps {
   user_id?: string;
   size_id?: string;
-  name: string;
+  first_name: string;
+  last_name: string;
   contact_number: string;
   vehicle_model: string;
   social: string;
@@ -81,6 +82,7 @@ export const createBooking = async (bookingData: CreateBookingProps) => {
         const newBooking = new Booking({
           user_id: userId,
           ...bookingData,
+          name: `${bookingData.first_name} ${bookingData.last_name}`,
           location: {
             type: "Point",
             coordinates: [bookingData.longitude, bookingData.latitude],
@@ -108,7 +110,7 @@ export const createBooking = async (bookingData: CreateBookingProps) => {
           .join(", ");
 
         const html = await bookingTemple(
-          bookingData.name,
+          `${bookingData.first_name} ${bookingData.last_name}`,
           bookingData.contact_number,
           bookingData.vehicle_model,
           bookingData.social,
@@ -136,7 +138,7 @@ export const createBooking = async (bookingData: CreateBookingProps) => {
         });
 
         const message = getSmsContent({
-          name: bookingData.name,
+          name: bookingData.first_name,
           model: bookingData.vehicle_model,
           type: BookingStatus.FOR_CHECKING,
           ref: bookingData.reference_number,

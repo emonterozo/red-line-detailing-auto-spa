@@ -96,10 +96,14 @@ export const formSchema = z.object({
   vehicleSizes: z
     .array(vehicleSizeSchema)
     .min(1, "Please choose a vehicle type."),
-  fullName: z
+  firstName: z
     .string()
-    .min(5, "Please enter your full name (at least 5 characters).")
-    .max(32, "Full name can be at most 32 characters."),
+    .min(2, "Please enter your first name (at least 2 characters).")
+    .max(32, "First name can be at most 32 characters."),
+  lastName: z
+    .string()
+    .min(2, "Please enter your last name (at least 2 characters).")
+    .max(32, "Last name can be at most 32 characters."),
   contactNumber: z
     .string()
     .trim()
@@ -143,7 +147,8 @@ export type FormValues = z.infer<typeof formSchema>;
 
 const defaultValues: FormValues = {
   vehicleSizes: [],
-  fullName: "",
+  firstName: "",
+  lastName: "",
   contactNumber: "",
   social: "",
   vehicleModel: "",
@@ -291,7 +296,8 @@ export default function Booking() {
       const reference = generateReference();
 
       const result = await createBooking({
-        name: value.fullName,
+        first_name: value.firstName,
+        last_name: value.lastName,
         contact_number: value.contactNumber,
         vehicle_model: value.vehicleModel,
         social: value.social ?? "",
@@ -453,7 +459,7 @@ export default function Booking() {
           >
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <form.Field name="fullName">
+                <form.Field name="firstName">
                   {(field) => {
                     const isInvalid =
                       field.state.meta.isTouched && !field.state.meta.isValid;
@@ -461,7 +467,7 @@ export default function Booking() {
                     return (
                       <Field>
                         <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
-                          Full name
+                          First name
                         </FieldLabel>
                         <Input
                           id={field.name}
@@ -470,7 +476,7 @@ export default function Booking() {
                           onBlur={field.handleBlur}
                           onChange={(e) => field.handleChange(e.target.value)}
                           aria-invalid={isInvalid}
-                          placeholder="Full Name (e.g., Juan Dela Cruz)"
+                          placeholder="First Name (e.g., Juan)"
                           className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
                         />
                         {isInvalid && (
@@ -483,8 +489,7 @@ export default function Booking() {
                     );
                   }}
                 </form.Field>
-
-                <form.Field name="contactNumber">
+                <form.Field name="lastName">
                   {(field) => {
                     const isInvalid =
                       field.state.meta.isTouched && !field.state.meta.isValid;
@@ -492,7 +497,7 @@ export default function Booking() {
                     return (
                       <Field>
                         <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
-                          Contact Number
+                          Last name
                         </FieldLabel>
                         <Input
                           id={field.name}
@@ -501,9 +506,7 @@ export default function Booking() {
                           onBlur={field.handleBlur}
                           onChange={(e) => field.handleChange(e.target.value)}
                           aria-invalid={isInvalid}
-                          type="tel"
-                          maxLength={11}
-                          placeholder="Contact Number (e.g., 09123456789)"
+                          placeholder="Last Name (e.g., Dela Cruz)"
                           className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
                         />
                         {isInvalid && (
@@ -517,6 +520,38 @@ export default function Booking() {
                   }}
                 </form.Field>
               </div>
+              <form.Field name="contactNumber">
+                {(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
+
+                  return (
+                    <Field>
+                      <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
+                        Contact Number
+                      </FieldLabel>
+                      <Input
+                        id={field.name}
+                        name={field.name}
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        aria-invalid={isInvalid}
+                        type="tel"
+                        maxLength={11}
+                        placeholder="Contact Number (e.g., 09123456789)"
+                        className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
+                      />
+                      {isInvalid && (
+                        <FieldError
+                          className="text-[#ff6b81] text-xs mt-1"
+                          errors={field.state.meta.errors}
+                        />
+                      )}
+                    </Field>
+                  );
+                }}
+              </form.Field>
               {/* <form.Field name="social">
                 {(field) => {
                   const isInvalid =
