@@ -133,6 +133,9 @@ export const createTransaction = async (
             milestone_count,
             earned_points:
               customer_updated_points + transactionData.points_earned,
+            ...(customer.is_verify
+              ? {}
+              : { verified_at: new Date(), is_verify: true }),
           },
         };
 

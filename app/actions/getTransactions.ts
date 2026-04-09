@@ -45,7 +45,7 @@ export type TransactionTableResponse = Pick<
 export const getTransactions = async (
   page: number = 1,
   limit: number = 10,
-  user_id?: string,
+  customer_id?: string,
 ): Promise<IPaginatedTransactions> => {
   await connect();
 
@@ -53,8 +53,8 @@ export const getTransactions = async (
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const query: any = {};
 
-  if (user_id && typeof user_id === "string") {
-    query.user_id = new Types.ObjectId(user_id);
+  if (customer_id && typeof customer_id === "string") {
+    query.customer_id = new Types.ObjectId(customer_id);
   }
 
   const transactionsDoc: Pick<

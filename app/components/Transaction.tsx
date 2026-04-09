@@ -104,6 +104,7 @@ export const customerSchema = z.object({
         _id: z.string(),
         size: z.enum(VehicleSize),
         type: z.enum(VehicleType),
+        sort_order: z.number()
       }),
       progress: z.number(),
     }),
@@ -164,13 +165,11 @@ function SectionCard({
 }>) {
   return (
     <div className="relative">
-      {/* vertical connector */}
       {step < 5 && (
         <div className="absolute left-5 top-14 bottom-0 w-px bg-gradient-to-b from-[#dc143c]/40 to-transparent z-0" />
       )}
 
       <div className="relative z-10 flex gap-5">
-        {/* step badge */}
         <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[#dc143c] flex items-center justify-center text-white text-sm font-bold shadow-lg shadow-[#dc143c]/40">
           {step}
         </div>

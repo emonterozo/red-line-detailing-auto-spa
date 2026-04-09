@@ -40,10 +40,22 @@ const customerSchema = new Schema({
   first_name: { type: String, required: true },
   last_name: { type: String, required: true },
   name: { type: String, required: true },
-  email: { type: String, required: true },
+  email: { type: String, default: null },
   contact_number: { type: String, required: true },
   social: { type: String, default: null },
-  address: { type: String, required: true },
+  address: { type: String, default: null },
+  google_address: { type: String, default: null },
+  location: {
+    type: {
+      type: String,
+      enum: ["Point"],
+    },
+    coordinates: {
+      type: [Number],
+    },
+  },
+  travel_distance: { type: Number, default: 0 },
+  address_updated_at: { type: Date, default: null },
   password: { type: String, required: true },
   is_verify: { type: Boolean, default: false },
   verified_at: { type: Date, default: null },
@@ -54,7 +66,7 @@ const customerSchema = new Schema({
   },
   birth_day: { type: Date, default: null },
   referral_code: { type: String, unique: true, sparse: true },
-  //referred_by: { type: "Customer", default: null },
+  referred_by: { type: Schema.Types.ObjectId, ref: "Customer", default: null },
   created_at: { type: Date, default: new Date() },
   updated_at: { type: Date, default: new Date() },
 });

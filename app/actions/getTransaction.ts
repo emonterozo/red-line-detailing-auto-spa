@@ -64,7 +64,12 @@ export type TransactionResponse = Pick<
   _id: string;
   customer_id: string | null;
   services: string[];
-  milestone_reward: { _id: string; service_id: string, discount: number, price: number } | null;
+  milestone_reward: {
+    _id: string;
+    service_id: string;
+    discount: number;
+    price: number;
+  } | null;
 };
 
 export const getTransaction = async (
@@ -91,12 +96,14 @@ export const getTransaction = async (
       .select("reward_id service_id discount price")
       .lean();
 
-    milestone_reward = {
-      _id: milestoneClaimed.reward_id.toString(),
-      service_id: milestoneClaimed.service_id.toString(),
-      discount: milestoneClaimed.discount,
-      price: milestoneClaimed.price
-    };
+    if (milestoneClaimed) {
+      milestone_reward = {
+        _id: milestoneClaimed.reward_id.toString(),
+        service_id: milestoneClaimed.service_id.toString(),
+        discount: milestoneClaimed.discount,
+        price: milestoneClaimed.price,
+      };
+    }
   }
 
   const all_services = transactionDoc.services.map(

@@ -13,7 +13,11 @@ const CUSTOMER_FIELDS: (keyof TCustomer)[] = [
   "milestone_count",
 ];
 
-const MILESTONE_VEHICLE_SIZE_FIELDS: (keyof TVehicleSize)[] = ["size", "type"];
+const MILESTONE_VEHICLE_SIZE_FIELDS: (keyof TVehicleSize)[] = [
+  "size",
+  "type",
+  "sort_order",
+];
 
 export type CustomerMilestoneResponse = Pick<
   TCustomer,
@@ -22,7 +26,7 @@ export type CustomerMilestoneResponse = Pick<
   _id: string;
   milestone_count: {
     _id: string;
-    size_id: Pick<TVehicleSize, "size" | "type"> & {
+    size_id: Pick<TVehicleSize, "size" | "type" | "sort_order"> & {
       _id: string;
     };
     progress: number;
@@ -36,6 +40,7 @@ type CustomerDoc = Pick<TCustomerDoc, "_id" | "earned_points" | "name"> & {
       _id: Types.ObjectId;
       size: VehicleSize;
       type: VehicleType;
+      sort_order: number;
     };
     progress: number;
   }[];
@@ -70,15 +75,18 @@ export const getCustomersMilestone = async (
     _id: customer._id.toString(),
     name: customer.name,
     earned_points: customer.earned_points,
-    milestone_count: customer.milestone_count.map((count) => ({
-      _id: count._id.toString(),
-      size_id: {
-        _id: count.size_id._id.toString(),
-        size: count.size_id.size,
-        type: count.size_id.type,
-      },
-      progress: count.progress,
-    })),
+    milestone_count: [...customer.milestone_count]
+      .sort((a, b) => a.size_id.sort_order - b.size_id.sort_order)
+      .map((count) => ({
+        _id: count._id.toString(),
+        size_id: {
+          _id: count.size_id._id.toString(),
+          size: count.size_id.size,
+          type: count.size_id.type,
+          sort_order: count.size_id.sort_order
+        },
+        progress: count.progress,
+      })),
   }));
 
   return customerJson;

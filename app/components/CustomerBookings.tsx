@@ -16,10 +16,11 @@ import { PAGE_LIMIT, TABLE_DATE_FORMAT } from "@/lib/constants";
 import { motion } from "framer-motion";
 import {
   getBookings,
-  IBookingResponse,
   IPaginatedBookings,
+  BookingTableResponse,
 } from "../actions/getBookings";
 import { BookingStatus, BookingStatusDisplay } from "@/lib/enums";
+import TableSkeleton from "./TableSkeleton";
 
 const statusStyle: Record<string, string> = {
   [BookingStatus.FOR_CHECKING]:
@@ -34,23 +35,37 @@ const statusStyle: Record<string, string> = {
     "bg-purple-500/10 text-purple-400 border-purple-500/20",
 };
 
+const TABLE_HEADER = [
+  "Client Name",
+  "Contact",
+  "Vehicle Model",
+  "Preferred Date",
+  "Time Slot",
+  "Created",
+  "Status",
+];
+
 const CustomerBookings = ({ userId }: { userId: string }) => {
-  const [bookings, setBookings] = useState<IBookingResponse[]>([]);
+  const [bookings, setBookings] = useState<BookingTableResponse[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [inputPage, setInputPage] = useState<number | "">(page);
+  const [isLoading, setIsLoading] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
   useEffect(() => {
-    if (userId !== "") {
+    const init = async () => {
+      setIsLoading(true);
       getBookings(page, PAGE_LIMIT, userId).then(
         (result: IPaginatedBookings) => {
           setBookings(result.data);
           setTotalPages(result.totalPages);
+          setIsLoading(false)
         },
       );
-    }
+    };
+    init();
   }, [page, userId]);
 
   return (
@@ -72,81 +87,79 @@ const CustomerBookings = ({ userId }: { userId: string }) => {
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <Table className="w-full">
-          <TableHeader>
-            <TableRow className="border-b border-white/[0.06] hover:bg-transparent">
-              {[
-                "Client Name",
-                "Contact",
-                "Vehicle Model",
-                "Preferred Date",
-                "Time Slot",
-                "Created",
-                "Status",
-              ].map((h) => (
-                <TableHead
-                  key={h}
-                  className="px-5 py-3.5 text-gray-600 text-[10px] uppercase tracking-widest font-semibold whitespace-nowrap"
-                >
-                  {h}
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {bookings.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={8}
-                  className="px-5 py-12 text-center text-gray-700 text-sm"
-                >
-                  No bookings available
-                </TableCell>
+      {isLoading ? (
+        <TableSkeleton
+          tableHeader={TABLE_HEADER}
+          wideColumns={[1, 2, 5]}
+          pillColumns={[6]}
+        />
+      ) : (
+        <div className="overflow-x-auto">
+          <Table className="w-full">
+            <TableHeader>
+              <TableRow className="border-b border-white/[0.06] hover:bg-transparent">
+                {TABLE_HEADER.map((h) => (
+                  <TableHead
+                    key={h}
+                    className="px-5 py-3.5 text-gray-600 text-[10px] uppercase tracking-widest font-semibold whitespace-nowrap"
+                  >
+                    {h}
+                  </TableHead>
+                ))}
               </TableRow>
-            ) : (
-              bookings.map((booking) => (
-                <TableRow
-                  key={booking._id}
-                  onClick={() => router.push(`/admin/booking/${booking._id}`)}
-                  className="border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors cursor-pointer group"
-                >
-                  <TableCell className=" px-5 py-4 text-[#ff6b81] font-semibold text-sm">
-                    {booking.name}
-                  </TableCell>
-                  <TableCell className="px-5 py-4 text-gray-500 text-sm whitespace-nowrap">
-                    {booking.contact_number}
-                  </TableCell>
-                  <TableCell className="break-words px-5 py-4 text-gray-400 text-sm ">
-                    {booking.vehicle_model}
-                  </TableCell>
-                  <TableCell className="px-5 py-4 text-gray-400 text-sm whitespace-nowrap">
-                    {new Date(booking.preferred_date.date).toDateString()}
-                  </TableCell>
-                  <TableCell className="px-5 py-4 text-gray-400 text-sm whitespace-nowrap">
-                    {booking.time_slot.time}
-                  </TableCell>
-                  <TableCell className="px-5 py-4 text-gray-600 text-sm whitespace-nowrap">
-                    {new Date(booking.created_at).toLocaleString(
-                      "en-US",
-                      TABLE_DATE_FORMAT,
-                    )}
-                  </TableCell>
-                  <TableCell className="px-5 py-4">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-1 rounded-full border text-xs font-semibold whitespace-nowrap ${statusStyle[booking.status] ?? "bg-white/[0.04] text-gray-400 border-white/10"}`}
-                    >
-                      {BookingStatusDisplay[booking.status]}
-                    </span>
+            </TableHeader>
+            <TableBody>
+              {bookings.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={8}
+                    className="px-5 py-12 text-center text-gray-700 text-sm"
+                  >
+                    No bookings available
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* pagination */}
+              ) : (
+                bookings.map((booking) => (
+                  <TableRow
+                    key={booking._id}
+                    onClick={() => router.push(`/admin/booking/${booking._id}`)}
+                    className="border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors cursor-pointer group"
+                  >
+                    <TableCell className=" px-5 py-4 text-[#ff6b81] font-semibold text-sm">
+                      {booking.name}
+                    </TableCell>
+                    <TableCell className="px-5 py-4 text-gray-500 text-sm whitespace-nowrap">
+                      {booking.contact_number}
+                    </TableCell>
+                    <TableCell className="break-words px-5 py-4 text-gray-400 text-sm ">
+                      {booking.vehicle_model}
+                    </TableCell>
+                    <TableCell className="px-5 py-4 text-gray-400 text-sm whitespace-nowrap">
+                      {new Date(booking.preferred_date.date).toDateString()}
+                    </TableCell>
+                    <TableCell className="px-5 py-4 text-gray-400 text-sm whitespace-nowrap">
+                      {booking.time_slot.time}
+                    </TableCell>
+                    <TableCell className="px-5 py-4 text-gray-600 text-sm whitespace-nowrap">
+                      {new Date(booking.created_at).toLocaleString(
+                        "en-US",
+                        TABLE_DATE_FORMAT,
+                      )}
+                    </TableCell>
+                    <TableCell className="px-5 py-4">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-1 rounded-full border text-xs font-semibold whitespace-nowrap ${statusStyle[booking.status] ?? "bg-white/[0.04] text-gray-400 border-white/10"}`}
+                      >
+                        {BookingStatusDisplay[booking.status]}
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
       <Pagination
         page={page}
         totalPages={totalPages}

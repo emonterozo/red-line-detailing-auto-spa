@@ -17,7 +17,7 @@ import {
   Tag,
   ArrowUpRight,
   Calendar as CalendarIcon,
-  LucideProps, // Added for date picker
+  LucideProps,
 } from "lucide-react";
 
 /* ── Custom Date Picker Trigger ── */
@@ -45,7 +45,7 @@ function DateRangePicker({
   );
 }
 
-/* ── Metric card (Keep your existing one) ── */
+
 function MetricCard({
   icon: Icon,
   label,
@@ -158,7 +158,6 @@ const AdminDashboard = () => {
 
   return (
     <section className="p-6 max-w-7xl mx-auto">
-      {/* Header Section */}
       <div className="flex flex-col xl:flex-row xl:items-end justify-between mb-10 gap-6">
         <div className="space-y-1">
           <h2 className="text-2xl font-bold text-white">Analytics Overview</h2>
@@ -167,7 +166,6 @@ const AdminDashboard = () => {
           </p>
         </div>
 
-        {/* Filters + Date Picker Group */}
         <div className="flex flex-wrap items-center gap-3 bg-white/[0.02] p-2 rounded-2xl border border-white/[0.05] backdrop-blur-md">
           <div className="flex gap-1 border-r border-white/10 pr-3 mr-1">
             {FILTERS.map((f) => (
@@ -180,7 +178,6 @@ const AdminDashboard = () => {
             ))}
           </div>
 
-          {/* Date Picker Component */}
           <DateRangePicker
             active={activeFilter === "Custom"}
             onClick={() => setActiveFilter("Custom")}
@@ -199,7 +196,6 @@ const AdminDashboard = () => {
         </div>
       ) : (
         <div className="space-y-5">
-          {/* ... Rest of your Main Metrics and Financial Row grid code ... */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             <MetricCard
               icon={Eye}

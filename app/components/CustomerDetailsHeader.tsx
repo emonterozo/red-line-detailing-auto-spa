@@ -41,7 +41,6 @@ export default function CustomerDetailsHeader({
                   {lastName}
                 </span>
               </h1>
-              {/* ── VERIFIED BADGE ── */}
               {isVerified && (
                 <motion.div
                   initial={{ scale: 0 }}

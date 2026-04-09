@@ -13,9 +13,6 @@ export const getAddressAndDistance = async (
   lat: number,
   lng: number,
 ): Promise<LocationResult> => {
-  //Purgold Loma = 14.791836938396798, 121.01139054004567
-
-  // Pharmacon
   const shopLat = 14.800225120981793;
   const shopLng = 121.00679822506005;
   const API_KEY = process.env.MAP_API_KEY;

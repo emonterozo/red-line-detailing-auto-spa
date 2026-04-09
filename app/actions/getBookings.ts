@@ -40,7 +40,7 @@ export type BookingTableResponse = Pick<
 export const getBookings = async (
   page: number = 1,
   limit: number = 10,
-  user_id?: string,
+  customer_id?: string,
 ): Promise<IPaginatedBookings> => {
   await connect();
 
@@ -48,8 +48,8 @@ export const getBookings = async (
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const query: any = {};
 
-  if (user_id && typeof user_id === "string") {
-    query.user_id = new Types.ObjectId(user_id);
+  if (customer_id && typeof customer_id === "string") {
+    query.customer_id = new Types.ObjectId(customer_id);
   }
 
   const bookingsDoc: Pick<
