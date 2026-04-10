@@ -5,7 +5,6 @@ import { useForm } from "@tanstack/react-form";
 import * as z from "zod";
 import {
   Field,
-  FieldDescription,
   FieldError,
   FieldLabel,
 } from "@/components/ui/field";
@@ -1160,9 +1159,8 @@ export default function Booking() {
                           <span className="text-gray-300">
                             preliminary estimate
                           </span>{" "}
-                          based on the information you provided. Our team will
-                          review your inputs and provide the{" "}
-                          <span className="text-gray-300">final cost</span>.
+                          based on the information you provided. Our team will{" "}
+                          <span className="text-gray-300">verify your inputs</span>{" "}and provide the finalized cost.
                         </p>
                       </div>
                     </>

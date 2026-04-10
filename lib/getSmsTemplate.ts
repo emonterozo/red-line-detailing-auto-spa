@@ -35,7 +35,7 @@ export const getSmsContent = (payload: SmsData, _isGuest: boolean = false) => {
       break;
 
     case BookingStatus.PENDING_PAYMENT:
-      body = `Hi ${payload.name}, your booking is almost ready! To secure your slot for ${payload.date}, please settle the reservation fee of ${payload.amount}. 💳\nNote: Slots are held for a limited time only. If you need any help, just message us!`;
+      body = `Hi ${payload.name}, your booking is almost ready! To secure your slot for ${payload.date}, please settle the reservation fee of ${payload.amount}. 💳\n\nYou may visit our Payment Channel section to view all available options.\nNote: Slots are held for a limited time only. If you need any help, just message us!`;
       break;
 
     case BookingStatus.RESERVED:

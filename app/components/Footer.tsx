@@ -2,11 +2,17 @@
 
 import Link from "next/link";
 import { MapPin, Phone, Instagram, Facebook, ArrowRight } from "lucide-react";
+import { useState } from "react";
+import PaymentModal from "./PaymentModal";
 
 const links = [
   {
     title: "Services",
     href: "/#services",
+  },
+  {
+    title: "Payment Channel",
+    href: "/",
   },
   {
     title: "Booking Policy",
@@ -19,16 +25,15 @@ const links = [
 ];
 
 const Footer = () => {
+  const [isOpen, setIsOpen] = useState(false);
   return (
     <footer
       id="contact"
       className="relative bg-[#050505] border-t border-white/5 pt-16 pb-8 overflow-hidden"
     >
-      {/* Decorative Background Logo Watermark */}
-
+      <PaymentModal isOpen={isOpen} onClose={() => setIsOpen(false)} />
       <div className="max-w-7xl mx-auto px-6 relative z-10">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-12 lg:gap-24 mb-16">
-          {/* Brand Column */}
           <div className="md:col-span-5 space-y-6">
             <div className="flex flex-col">
               <h2 className="font-russo text-2xl md:text-3xl tracking-tighter leading-none">
@@ -52,15 +57,14 @@ const Footer = () => {
                   icon: Instagram,
                   href: "https://www.instagram.com/redlinedetailing.ph",
                 },
-                { icon: "tiktok" },
-              ].map((social, i) => (
+                {
+                  icon: "tiktok",
+                  href: "https://www.tiktok.com/@get.redlinedetailing",
+                },
+              ].map((social) => (
                 <a
-                  key={i}
-                  href={
-                    typeof social.href === "string"
-                      ? social.href
-                      : "https://www.tiktok.com/@get.redlinedetailing"
-                  }
+                  key={social.href}
+                  href={social.href}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-[#dc143c] hover:border-[#dc143c] transition-all duration-300 group"
@@ -76,8 +80,6 @@ const Footer = () => {
               ))}
             </div>
           </div>
-
-          {/* Contact Column */}
           <div className="md:col-span-4 space-y-6">
             <h4 className="font-russo text-white text-xs uppercase tracking-[0.3em]">
               Technical Support
@@ -114,8 +116,6 @@ const Footer = () => {
                 </div>
               </div>
             </div>
-
-            {/* Added Social Text Block */}
             <div className="pt-6 mt-6 border-t border-white/[0.05]">
               <p className="text-sm leading-relaxed text-gray-500 font-medium">
                 Got questions? Connect with us instantly—we’re just one message
@@ -130,8 +130,6 @@ const Footer = () => {
               </p>
             </div>
           </div>
-
-          {/* Quick Links Column */}
           <div className="md:col-span-3 space-y-6">
             <h4 className="font-russo text-white text-xs uppercase tracking-[0.3em]">
               Client Area
@@ -139,20 +137,28 @@ const Footer = () => {
             <ul className="space-y-3">
               {links.map((item) => (
                 <li key={item.title}>
-                  <Link
-                    href={item.href}
-                    className="text-gray-500 text-sm hover:text-white flex items-center gap-2 group transition-all"
-                  >
-                    <ArrowRight className="w-3 h-3 text-[#dc143c] opacity-0 -ml-5 group-hover:opacity-100 group-hover:ml-0 transition-all" />
-                    {item.title}
-                  </Link>
+                  {item.title === links[1].title ? (
+                    <button
+                      onClick={() => setIsOpen(true)}
+                      className="text-gray-500 text-sm hover:text-white flex items-center gap-2 group transition-all"
+                    >
+                      <ArrowRight className="w-3 h-3 text-[#dc143c] opacity-0 -ml-5 group-hover:opacity-100 group-hover:ml-0 transition-all" />
+                      {item.title}
+                    </button>
+                  ) : (
+                    <Link
+                      href={item.href}
+                      className="text-gray-500 text-sm hover:text-white flex items-center gap-2 group transition-all"
+                    >
+                      <ArrowRight className="w-3 h-3 text-[#dc143c] opacity-0 -ml-5 group-hover:opacity-100 group-hover:ml-0 transition-all" />
+                      {item.title}
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>
           </div>
         </div>
-
-        {/* Bottom Bar */}
         <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-[10px] text-gray-600 font-bold uppercase tracking-[0.2em]">
             © {new Date().getFullYear()} Red Line Detailing & Auto Spa
