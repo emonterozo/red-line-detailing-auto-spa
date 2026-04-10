@@ -196,7 +196,21 @@ export const createTransaction = async (
       success: true,
       message: "Transaction created successfully.",
     };
-  } catch {
+  } catch (err: unknown) {
+    if (err && typeof err === "object" && "code" in err) {
+      const mongoError = err as {
+        code: number | string;
+        keyPattern?: Record<string, number>;
+      };
+
+      if (mongoError.code === 11000) {
+        return {
+          success: false,
+          message: "A transaction for this booking has already been created. Please check your records.",
+        };
+      }
+    }
+
     return {
       success: false,
       message:

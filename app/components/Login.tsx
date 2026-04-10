@@ -2,160 +2,296 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import {
-  Mail,
-  Lock,
-  Eye,
-  EyeOff,
-  ChevronLeft,
-} from "lucide-react";
+import { Activity, ChevronRight, Eye, EyeOff } from "lucide-react";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { AnimatePresence, motion } from "framer-motion";
+import Image from "next/image";
+import { useForm } from "@tanstack/react-form";
+import * as z from "zod";
+import { showToast } from "@/lib/toast";
+import Otp from "./Otp";
+import { verifyOtp } from "../actions/verifyOtp";
+import { OtpType } from "@/lib/enums";
+import { useRouter } from "next/navigation";
+import { login } from "../actions/login";
+
+export const formSchema = z.object({
+  contactNumber: z
+    .string()
+    .trim()
+    .regex(
+      /^09\d{9}$/,
+      "Please enter a valid contact number (11 digits, starting with 09).",
+    ),
+  password: z.string().min(8, "Password must be at least 8 characters."),
+});
+
+const defaultValues: FormValues = {
+  contactNumber: "09122011108",
+  password: "ABC1234!",
+};
+
+export type FormValues = z.infer<typeof formSchema>;
 
 const Login = () => {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const [passwordVisibility, setPasswordVisibility] = useState({
+    password: false,
+    confirmPassword: false,
+  });
+  const [isOtpStep, setIsOtpStep] = useState(false);
+  const [customerId, setCustomerId] = useState("");
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    // Simulate login
-    setTimeout(() => {
+  const form = useForm({
+    defaultValues,
+    validators: {
+      onSubmit: formSchema,
+    },
+    onSubmit: async ({ value }) => {
+      setLoading(true);
+      const result = await login({
+        contact_number: value.contactNumber,
+        password: value.password,
+      });
       setLoading(false);
-    }, 1500);
+      if (result.success && result.customer) {
+        if (result.customer.is_number_verify) {
+          router.push("/");
+        } else {
+          setCustomerId(result.customer.customer_id);
+          setIsOtpStep(true);
+        }
+      } else {
+        showToast(result.message, "error");
+      }
+    },
+  });
+
+  const submitOtp = async (code: string) => {
+    setLoading(true);
+    const result = await verifyOtp({
+      customer_id: customerId,
+      type: OtpType.REGISTRATION,
+      code: code,
+    });
+    setLoading(false);
+    if (result.success) {
+      router.push("/");
+    } else {
+      showToast(result.message, "error");
+    }
   };
 
   return (
-    <div className="relative min-h-screen w-full bg-[#030303] flex items-center justify-center px-6 py-20 overflow-hidden">
-      
-      {/* Background Grid */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:50px_50px] pointer-events-none" />
-
-      {/* Glow Effects */}
-      <div className="absolute top-1/2 left-0 -translate-y-1/2 w-[400px] h-[400px] bg-[#dc143c]/10 blur-[120px] rounded-full" />
-      <div className="absolute bottom-0 right-0 w-[300px] h-[300px] bg-[#dc143c]/10 blur-[100px] rounded-full" />
-
-      {/* Exit Button */}
-      <Link
-        href="/"
-        className="absolute top-8 right-6 flex items-center gap-2 text-gray-500 hover:text-white transition"
-      >
-        <span className="text-xs uppercase tracking-widest">Back</span>
-        <ChevronLeft className="w-4 h-4 rotate-180" />
-      </Link>
-
-      {/* Card */}
-      <div className="relative w-full max-w-md z-10">
-        
-        {/* Header */}
-        <div className="mb-8 text-center">
-          <h1 className="text-3xl font-semibold text-white mb-2">
-            Welcome Back
-          </h1>
-          <p className="text-gray-400 text-sm">
-            Sign in to continue to your account
-          </p>
+    <div className="relative min-h-screen w-full bg-[#030303] flex overflow-hidden">
+      <div className="hidden lg:block relative w-1/2 h-screen overflow-hidden border-r border-white/10">
+        <Image
+          src="https://images.unsplash.com/photo-1689869698035-373c21c5bda0?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80"
+          alt="Red Line Care"
+          fill
+          priority
+          className="object-cover opacity-60"
+          sizes="50vw"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/20 via-transparent to-[#030303]" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-transparent to-transparent" />
+        <div className="absolute bottom-12 left-12 z-20">
+          <div className="flex items-center gap-3 text-white">
+            <Activity className="w-6 h-6 text-[#dc143c]" />
+            <span className="font-russo text-2xl tracking-widest uppercase">
+              Red Line Care
+            </span>
+          </div>
         </div>
 
-        {/* Glass Card */}
-        <div className="rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 p-8 shadow-2xl">
-          <form onSubmit={handleLogin} className="space-y-6">
-            
-            {/* Email */}
-            <div>
-              <label className="text-xs text-gray-400 mb-2 block">
-                Email Address
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-3.5 w-4 h-4 text-gray-500" />
-                <input
-                  type="email"
-                  required
-                  placeholder="Enter your email"
-                  className="w-full h-11 pl-10 pr-3 bg-white/5 border border-white/10 rounded-lg 
-                  focus:border-[#dc143c] focus:ring-2 focus:ring-[#dc143c]/30 
-                  text-white placeholder:text-gray-500 outline-none transition"
+        <Link
+          href="/"
+          className="absolute top-8 left-6 flex items-center gap-2 text-white-900 hover:text-white-50 transition z-20"
+        >
+          <ChevronRight className="w-4 h-4 rotate-180" />
+          <span className="text-xs uppercase tracking-widest">
+            Back to home
+          </span>
+        </Link>
+      </div>
+      <div className="relative flex-1 flex items-center justify-center px-6 py-6 overflow-y-auto">
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:50px_50px]" />
+        <div className="absolute top-1/2 left-0 -translate-y-1/2 w-[400px] h-[400px] bg-[#dc143c]/10 blur-[120px] rounded-full" />
+        <div className="absolute bottom-0 right-0 w-[300px] h-[300px] bg-[#dc143c]/10 blur-[100px] rounded-full" />
+
+        <div className="relative w-full max-w-xl z-10">
+          <AnimatePresence mode="wait">
+            {isOtpStep ? (
+              <motion.div
+                key="otp"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Otp
+                  onVerify={submitOtp}
+                  onResend={() => console.log("Resending...")}
+                  isLoading={loading}
                 />
-              </div>
-            </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="register"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <h2 className="font-russo text-4xl md:text-6xl font-extrabold text-white tracking-tight">
+                  WELCOME{" "}
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#dc143c] to-[#ff6b81]">
+                    BACK
+                  </span>
+                </h2>
+                <p className="mt-4 text-gray-500 text-base max-w-md mx-auto">
+                  Let’s get you into your premium experience.
+                </p>
+                <div className="flex items-center justify-center gap-3 mt-6 mb-12">
+                  <div className="h-[1px] w-12 bg-gradient-to-r from-transparent to-[#dc143c]" />
+                  <Activity className="w-4 h-4 text-[#dc143c] animate-pulse" />
+                  <div className="h-[1px] w-12 bg-gradient-to-l from-transparent to-[#dc143c]" />
+                </div>
 
-            {/* Password */}
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <label className="text-xs text-gray-400">
-                  Password
-                </label>
-                <Link
-                  href="/forgot"
-                  className="text-xs text-[#dc143c] hover:underline"
-                >
-                  Forgot?
-                </Link>
-              </div>
+                <div className="rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 p-8 shadow-2xl">
+                  <form
+                    className="space-y-6"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      form.handleSubmit();
+                    }}
+                  >
+                    <form.Field name="contactNumber">
+                      {(field) => {
+                        const isInvalid =
+                          field.state.meta.isTouched &&
+                          !field.state.meta.isValid;
+                        return (
+                          <Field>
+                            <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
+                              Contact number
+                            </FieldLabel>
+                            <Input
+                              maxLength={11}
+                              id={field.name}
+                              name={field.name}
+                              value={field.state.value}
+                              onBlur={field.handleBlur}
+                              onChange={(e) =>
+                                field.handleChange(e.target.value)
+                              }
+                              aria-invalid={isInvalid}
+                              placeholder="Contact Number (e.g., 09123456789)"
+                              className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
+                            />
+                            {isInvalid && (
+                              <FieldError
+                                className="text-[#ff6b81] text-xs mt-1"
+                                errors={field.state.meta.errors}
+                              />
+                            )}
+                          </Field>
+                        );
+                      }}
+                    </form.Field>
+                    <form.Field name="password">
+                      {(field) => {
+                        const isInvalid =
+                          field.state.meta.isTouched &&
+                          !field.state.meta.isValid;
+                        return (
+                          <Field>
+                            <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
+                              Password
+                            </FieldLabel>
+                            <div className="relative group">
+                              <Input
+                                id={field.name}
+                                name={field.name}
+                                value={field.state.value}
+                                onBlur={field.handleBlur}
+                                onChange={(e) =>
+                                  field.handleChange(e.target.value)
+                                }
+                                aria-invalid={isInvalid}
+                                type={
+                                  passwordVisibility.password
+                                    ? "text"
+                                    : "password"
+                                }
+                                placeholder="••••••••••••••••"
+                                className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
+                              />
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setPasswordVisibility({
+                                    ...passwordVisibility,
+                                    password: !passwordVisibility.password,
+                                  })
+                                }
+                                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-[#dc143c] 
+                     transition-colors duration-200 focus:outline-none"
+                                aria-label={
+                                  passwordVisibility.password
+                                    ? "Hide password"
+                                    : "Show password"
+                                }
+                              >
+                                {passwordVisibility.password ? (
+                                  <EyeOff className="w-4 h-4" />
+                                ) : (
+                                  <Eye className="w-4 h-4" />
+                                )}
+                              </button>
+                            </div>
+                            {isInvalid && (
+                              <FieldError
+                                className="text-[#ff6b81] text-xs mt-1"
+                                errors={field.state.meta.errors}
+                              />
+                            )}
+                          </Field>
+                        );
+                      }}
+                    </form.Field>
 
-              <div className="relative">
-                <Lock className="absolute left-3 top-3.5 w-4 h-4 text-gray-500" />
-                <input
-                  type={showPassword ? "text" : "password"}
-                  required
-                  placeholder="Enter your password"
-                  className="w-full h-11 pl-10 pr-10 bg-white/5 border border-white/10 rounded-lg 
-                  focus:border-[#dc143c] focus:ring-2 focus:ring-[#dc143c]/30 
-                  text-white placeholder:text-gray-500 outline-none transition"
-                />
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full h-11 rounded-lg bg-[#dc143c] hover:bg-[#b01030] 
+                transition text-white font-medium flex items-center justify-center"
+                    >
+                      {loading ? (
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        "Log In"
+                      )}
+                    </button>
+                  </form>
+                </div>
 
-                {/* Toggle */}
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-3 text-gray-500 hover:text-white"
-                >
-                  {showPassword ? (
-                    <EyeOff className="w-4 h-4" />
-                  ) : (
-                    <Eye className="w-4 h-4" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Remember Me */}
-            <div className="flex items-center justify-between text-sm">
-              <label className="flex items-center gap-2 text-gray-400">
-                <input
-                  type="checkbox"
-                  className="accent-[#dc143c]"
-                />
-                Remember me
-              </label>
-            </div>
-
-            {/* Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full h-11 rounded-lg bg-[#dc143c] hover:bg-[#b01030] 
-              transition text-white font-medium flex items-center justify-center"
-            >
-              {loading ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                "Sign In"
-              )}
-            </button>
-          </form>
-        </div>
-
-        {/* Footer */}
-        <div className="text-center mt-6">
-          <p className="text-gray-500 text-sm">
-            Don’t have an account?{" "}
-            <Link
-              href="/register"
-              className="text-[#dc143c] hover:underline font-medium"
-            >
-              Sign up
-            </Link>
-          </p>
+                <div className="text-center mt-6">
+                  <p className="text-gray-500 text-sm">
+                    Don’t have an account?{" "}
+                    <Link
+                      href="register"
+                      className="text-[#dc143c] hover:underline font-medium"
+                    >
+                      Sign up
+                    </Link>
+                  </p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
-import Rewards from "../components/Rewards";
+import Login from "../components/Login";
 
 export default function LoginPage() {
-  return <Rewards />;
+  return <Login />;
 }

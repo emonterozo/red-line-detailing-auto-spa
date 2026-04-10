@@ -72,3 +72,7 @@ export enum ReferralStatus {
 export enum PromotionType {
   POINTS = "points", DISCOUNT = "discount"
 }
+
+export enum OtpType {
+  REGISTRATION = 'registration', FORGOT = 'forgot', 
+}
