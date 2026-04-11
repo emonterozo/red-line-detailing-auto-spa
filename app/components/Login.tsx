@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { Activity, ChevronRight, Eye, EyeOff } from "lucide-react";
+import { Activity, ChevronRight, Eye, EyeOff, RefreshCw } from "lucide-react";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { AnimatePresence, motion } from "framer-motion";
@@ -44,11 +44,6 @@ const Login = () => {
   });
   const [isOtpStep, setIsOtpStep] = useState(false);
   const [customerId, setCustomerId] = useState("");
-  const [otpResult, setOtpResult] = useState({
-    message: "",
-    retryAfter: 0,
-  });
-
   const [countdown, setCountdown] = useState(0);
 
   const form = useForm({
@@ -70,10 +65,7 @@ const Login = () => {
           setTimeout(() => {
             setCustomerId(result.customer.customer_id);
             setIsOtpStep(true);
-            setOtpResult({
-              message: result.message,
-              retryAfter: result.retry_after,
-            });
+
             setCountdown(result.retry_after);
           }, 1500);
         }
@@ -105,16 +97,6 @@ const Login = () => {
         form.getFieldValue("contactNumber"),
         OtpType.REGISTRATION,
       );
-      if (!result.success) {
-        setOtpResult({
-          message: result.message,
-          retryAfter: result.retry_after,
-        });
-      }
-      setOtpResult({
-        message: result.message,
-        retryAfter: result.retry_after,
-      });
 
       setCountdown(result.retry_after);
     }
@@ -135,6 +117,12 @@ const Login = () => {
 
   return (
     <div className="relative min-h-screen w-full bg-[#030303] flex overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+        <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-[#dc143c]/15 blur-[150px] rounded-full animate-pulse" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-[#dc143c]/10 blur-[150px] rounded-full animate-pulse delay-700" />
+
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_80%,transparent_100%)]" />
+      </div>
       <div className="hidden lg:block relative w-1/2 h-screen overflow-hidden border-r border-white/10">
         <Image
           src="https://images.unsplash.com/photo-1689869698035-373c21c5bda0?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80"
@@ -166,10 +154,6 @@ const Login = () => {
         </Link>
       </div>
       <div className="relative flex-1 flex items-center justify-center px-6 py-6 overflow-y-auto">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:50px_50px]" />
-        <div className="absolute top-1/2 left-0 -translate-y-1/2 w-[400px] h-[400px] bg-[#dc143c]/10 blur-[120px] rounded-full" />
-        <div className="absolute bottom-0 right-0 w-[300px] h-[300px] bg-[#dc143c]/10 blur-[100px] rounded-full" />
-
         <div className="relative w-full max-w-xl z-10">
           <AnimatePresence mode="wait">
             {isOtpStep ? (
@@ -185,7 +169,8 @@ const Login = () => {
                   onResend={resendOtp}
                   isLoading={loading}
                   countdown={countdown}
-                  message={otpResult.message}
+                  previousScreen="Login"
+                  onBack={() => setIsOtpStep(false)}
                 />
               </motion.div>
             ) : (
@@ -321,7 +306,7 @@ const Login = () => {
                 transition text-white font-medium flex items-center justify-center"
                     >
                       {loading ? (
-                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <RefreshCw className="w-5 h-5 animate-spin mx-auto text-white" />
                       ) : (
                         "Log In"
                       )}

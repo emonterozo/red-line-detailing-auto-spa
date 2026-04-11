@@ -47,6 +47,7 @@ export const createCustomer = async (customerData: CreateCustomerProps) => {
       milestone_count: milestone_count,
       referral_code: code,
       referred_by: referred_by,
+      created_at: new Date()
     });
     await customer.save();
 

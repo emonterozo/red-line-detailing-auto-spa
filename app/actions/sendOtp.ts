@@ -41,14 +41,15 @@ export const sendOtp = async (
     customer.otp_send_blocked_until &&
     customer.otp_send_blocked_until.getTime() > now
   ) {
+    const countDown = Math.ceil(
+      (customer.otp_send_blocked_until.getTime() - now) / 1000,
+    );
     return {
       success: false,
-      message: "You’ve reached the maximum number of attempts",
+      message: `Too many attempts detected. Access is restricted for ${countDown}`,
       resend_count: customer.otp_send_count,
       remaining_send: 0,
-      retry_after: Math.ceil(
-        (customer.otp_send_blocked_until.getTime() - now) / 1000,
-      ),
+      retry_after: countDown,
     };
   }
 
@@ -64,12 +65,14 @@ export const sendOtp = async (
     customer.otp_send_blocked_until = new Date(now + BLOCK_TIME);
     await customer.save();
 
+    const countDown = BLOCK_TIME / 1000;
+
     return {
       success: false,
-      message: "You’ve reached the maximum number of attempts.",
+      message: `Too many attempts detected. Access is restricted for ${countDown}`,
       resend_count: customer.otp_send_count,
       remaining_send: 0,
-      retry_after: BLOCK_TIME / 1000,
+      retry_after: countDown,
     };
   }
 

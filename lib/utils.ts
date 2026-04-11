@@ -20,3 +20,19 @@ export const generateReference = () => {
 
   return `RL-${y}${m}${d}-${random}`;
 };
+
+export const formatCountdown = (countdown: number): string => {
+  if (countdown <= 59) {
+    return `${countdown}s`;
+  }
+
+  if (countdown < 3600) {
+    const mins = Math.floor(countdown / 60);
+    const secs = countdown % 60;
+
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  }
+
+  const hours = Math.ceil(countdown / 3600);
+  return `${hours} hour${hours === 1 ? "" : "s"}`;
+};
