@@ -9,8 +9,6 @@ import { formatCountdown } from "@/lib/utils";
 
 type LoginProps = Pick<TCustomer, "contact_number" | "password">;
 
-const now = Date.now();
-
 export const login = async (customerData: LoginProps) => {
   await connect();
 
@@ -25,25 +23,30 @@ export const login = async (customerData: LoginProps) => {
       );
       if (isPasswordCorrect) {
         let retry_after = 0;
-        if (!customer.is_number_verify && customer.otp_send_blocked_until) {
-          
-          const oneHourLater = new Date(Date.now() + 60 * 60 * 1000);
-          console.log(oneHourLater)
+        if (!customer.is_number_verify) {
+          const now = Date.now();
 
-          const countDown = formatCountdown(
-            Math.ceil((customer.otp_send_blocked_until.getTime() - now) / 1000),
-          );
+          if (
+            customer.otp_send_blocked_until &&
+            customer.otp_send_blocked_until.getTime() > now
+          ) {
+            const countDown = Math.ceil(
+              (customer.otp_send_blocked_until.getTime() - now) / 1000,
+            );
 
-          return {
-            success: false,
-            message: `Too many attempts detected. Access is restricted for ${countDown}.`,
-          };
-        } else if (!customer.is_number_verify) {
+            return {
+              success: false,
+              message: `Too many attempts detected. Access is restricted for ${formatCountdown(countDown)}`,
+              retry_after: countDown,
+            };
+          }
+
           const result = await sendOtp(
             customer._id.toString(),
             customerData.contact_number,
             OtpType.REGISTRATION,
           );
+
           retry_after = result.retry_after;
         }
         return {

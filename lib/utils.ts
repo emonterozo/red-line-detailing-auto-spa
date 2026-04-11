@@ -23,14 +23,16 @@ export const generateReference = () => {
 
 export const formatCountdown = (countdown: number): string => {
   if (countdown <= 59) {
-    return `${countdown}s`;
+    return `${countdown} ${countdown === 1 ? "second" : "seconds"}`;
   }
 
   if (countdown < 3600) {
     const mins = Math.floor(countdown / 60);
     const secs = countdown % 60;
 
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
+    return `${mins}:${secs.toString().padStart(2, "0")} ${
+      mins === 1 ? "minute" : "minutes"
+    }`;
   }
 
   const hours = Math.ceil(countdown / 3600);

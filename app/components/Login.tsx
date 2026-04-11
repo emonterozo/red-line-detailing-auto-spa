@@ -45,6 +45,7 @@ const Login = () => {
   const [isOtpStep, setIsOtpStep] = useState(false);
   const [customerId, setCustomerId] = useState("");
   const [countdown, setCountdown] = useState(0);
+  const [isLock, setIsLock] = useState(true);
 
   const form = useForm({
     defaultValues,
@@ -65,7 +66,6 @@ const Login = () => {
           setTimeout(() => {
             setCustomerId(result.customer.customer_id);
             setIsOtpStep(true);
-
             setCountdown(result.retry_after);
           }, 1500);
         }
@@ -84,7 +84,7 @@ const Login = () => {
     });
     setLoading(false);
     if (result.success) {
-      router.push(`/customer${result.customer_id}`);
+      router.push(`/customer/${result.customer_id}`);
     } else {
       showToast(result.message, "error");
     }
@@ -98,22 +98,32 @@ const Login = () => {
         OtpType.REGISTRATION,
       );
 
+      if (result.message.includes("Too many attempts detected")) {
+        setIsLock(true);
+      }
+
       setCountdown(result.retry_after);
     }
   };
 
   useEffect(() => {
-    if (countdown <= 0) return;
+    if (countdown <= 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (isLock) setIsLock(false);
+      return;
+    }
 
     const timer = setInterval(() => {
       setCountdown((prev) => {
-        if (prev <= 1) return 0;
+        if (prev <= 1) {
+          return 0;
+        }
         return prev - 1;
       });
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [countdown]);
+  }, [countdown, isLock]);
 
   return (
     <div className="relative min-h-screen w-full bg-[#030303] flex overflow-hidden">
@@ -171,6 +181,7 @@ const Login = () => {
                   countdown={countdown}
                   previousScreen="Login"
                   onBack={() => setIsOtpStep(false)}
+                  isLock={isLock}
                 />
               </motion.div>
             ) : (

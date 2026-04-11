@@ -13,6 +13,7 @@ type OtpProps = {
   isLoading?: boolean;
   onBack?: () => void;
   previousScreen: string;
+  isLock?: boolean;
 };
 
 const Otp = ({
@@ -23,6 +24,7 @@ const Otp = ({
   isLoading = false,
   onBack,
   previousScreen,
+  isLock,
 }: OtpProps) => {
   const [otp, setOtp] = useState<string[]>(new Array(length).fill(""));
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -168,7 +170,7 @@ const Otp = ({
             </motion.button>
 
             <div className="text-center">
-              {countdown > 180 ? (
+              {isLock ? (
                 <span className="flex flex-col items-center gap-5 mt-4">
                   <div className="flex flex-col items-center px-6 py-5 rounded-2xl bg-[#dc143c]/5 border border-[#dc143c]/20 backdrop-blur-md shadow-[0_0_30px_rgba(220,20,60,0.05)]">
                     <div className="flex items-center gap-2 mb-2">
@@ -210,10 +212,7 @@ const Otp = ({
                     className="text-[#dc143c] hover:text-[#ff6b81] hover:underline font-medium transition-colors"
                   >
                     {countdown > 0 ? (
-                      <span>
-                        Resend Code in{" "}
-                        {formatCountdown(countdown)}
-                      </span>
+                      <span>Resend Code in {formatCountdown(countdown)}</span>
                     ) : (
                       "Resend Code"
                     )}

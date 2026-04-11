@@ -67,6 +67,7 @@ const Register = () => {
   });
   const [isOtpStep, setIsOtpStep] = useState(false);
   const [customerId, setCustomerId] = useState("");
+  const [isLock, setIsLock] = useState(true);
 
   const [countdown, setCountdown] = useState(0);
 
@@ -121,22 +122,32 @@ const Register = () => {
         OtpType.REGISTRATION,
       );
 
+      if (result.message.includes("Too many attempts detected")) {
+        setIsLock(true);
+      }
+
       setCountdown(result.retry_after);
     }
   };
 
   useEffect(() => {
-    if (countdown <= 0) return;
+    if (countdown <= 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (isLock) setIsLock(false);
+      return;
+    }
 
     const timer = setInterval(() => {
       setCountdown((prev) => {
-        if (prev <= 1) return 0;
+        if (prev <= 1) {
+          return 0;
+        }
         return prev - 1;
       });
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [countdown]);
+  }, [countdown, isLock]);
 
   return (
     <div className="relative min-h-screen w-full bg-[#030303] flex overflow-hidden">
@@ -194,6 +205,7 @@ const Register = () => {
                   countdown={countdown}
                   onBack={() => setIsOtpStep(false)}
                   previousScreen="Registration"
+                  isLock={isLock}
                 />
               </motion.div>
             ) : (
