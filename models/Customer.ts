@@ -8,6 +8,7 @@ import {
 } from "mongoose";
 
 import VehicleSize, { TVehicleSizeDoc } from "./VehicleSize";
+import Badge from "./Badge";
 
 export type TCustomer = InferSchemaType<typeof customerSchema>;
 export type TCustomerDoc = HydratedDocument<TCustomer>;
@@ -64,6 +65,20 @@ const customerSchema = new Schema({
   milestone_count: {
     type: [milestoneCountSchema],
     required: true,
+  },
+  badge: {
+    type: new Schema({
+      badge_id: {
+        type: Schema.Types.ObjectId,
+        ref: Badge.modelName,
+        default: null,
+      },
+      count: {
+        type: Number,
+        default: null,
+      },
+    }),
+    default: null,
   },
   birth_day: { type: Date, default: null },
   referral_code: { type: String, required: true, unique: true },

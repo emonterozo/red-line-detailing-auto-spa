@@ -58,7 +58,7 @@ const Login = () => {
       setLoading(false);
       if (result.success && result.customer) {
         if (result.customer.is_number_verify) {
-          router.push("/");
+          router.push(`/customer/${result.customer.customer_id}`);
         } else {
           setCustomerId(result.customer.customer_id);
           setIsOtpStep(true);
@@ -78,7 +78,7 @@ const Login = () => {
     });
     setLoading(false);
     if (result.success) {
-      router.push("/");
+      router.push(`/customer${result.customer_id}`);
     } else {
       showToast(result.message, "error");
     }

@@ -187,3 +187,123 @@ const CustomerMilestones = ({ userId }: { userId: string }) => {
 };
 
 export default CustomerMilestones;
+
+
+// const customer = {
+//   first_name: "Eric",
+//   last_name: "Monterozo",
+//   contact_number: "09122011108",
+//   address: "address",
+//   travel_distance: 12,
+//   referral_link: "https://ERIC-260410-I2Y4",
+//   birth_day: new Date(),
+//   verified_at: "2026-04-10T09:13:24.768Z",
+//   is_verify: true,
+//   earned_points: 100,
+//   milestone_count: [
+//     {
+//       _id: "69d8b1e8f8342c41f0c400f1",
+//       size_id: "69cb3b166ef2c54804cead91",
+//       vehicle_type: "car",
+//       vehicle_size: "sm",
+//       progress: 0,
+//       sort_order: 1,
+//     },
+//     {
+//       _id: "69d8b1e8f8342c41f0c400f2",
+//       size_id: "69cb3b166ef2c54804cead92",
+//       vehicle_type: "car",
+//       vehicle_size: "md",
+//       progress: 0,
+//       sort_order: 2,
+//     },
+//     {
+//       _id: "69d8b1e8f8342c41f0c400f3",
+//       size_id: "69cb3b166ef2c54804cead93",
+//       vehicle_type: "car",
+//       vehicle_size: "lg",
+//       progress: 0,
+//       sort_order: 3,
+//     },
+//     {
+//       _id: "69d8b1e8f8342c41f0c400f4",
+//       size_id: "69cb3b166ef2c54804cead94",
+//       vehicle_type: "car",
+//       vehicle_size: "xl",
+//       progress: 0,
+//       sort_order: 4,
+//     },
+//     {
+//       _id: "69d8b1e8f8342c41f0c400f5",
+//       size_id: "69cb3b166ef2c54804cead95",
+//       vehicle_type: "car",
+//       vehicle_size: "xxl",
+//       progress: 0,
+//       sort_order: 5,
+//     },
+//     {
+//       _id: "69d8b1e8f8342c41f0c400f6",
+//       size_id: "69cc00256ef2c54804ceadd2",
+//       vehicle_type: "motorcycle",
+//       vehicle_size: "sm",
+//       progress: 0,
+//       sort_order: 6,
+//     },
+//     {
+//       _id: "69d8b1e8f8342c41f0c400f7",
+//       size_id: "69cc00346ef2c54804ceadd3",
+//       vehicle_type: "motorcycle",
+//       vehicle_size: "md",
+//       progress: 0,
+//       sort_order: 7,
+//     },
+//     {
+//       _id: "69d8b1e8f8342c41f0c400f8",
+//       size_id: "69cc00436ef2c54804ceadd4",
+//       vehicle_type: "motorcycle",
+//       vehicle_size: "lg",
+//       progress: 0,
+//       sort_order: 8,
+//     },
+//   ],
+//   bookings: [
+//     {
+//       _id: "69d776547994a599d4c7e501",
+//       vehicle_model: "Vios",
+//       preferred_date: {
+//         _id: "69ad052355fa782143e71cc6",
+//         date: "2026-04-11T15:59:59.059Z",
+//       },
+//       time_slot: {
+//         _id: "69ad052355fa782143e71cc8",
+//         time: "12:00 PM",
+//       },
+//       status: "completed",
+//       created_at: "2026-04-09T09:49:26.260Z",
+//     },
+//   ],
+//   transactions: [
+//     {
+//       _id: "69d8759151444ef4696ef477",
+//       vehicle_model: "Vios",
+//       total_service_amount: 480,
+//       total_discount: 0,
+//       net_total: 480,
+//       points_earned: 0,
+//       created_at: "2026-04-10T03:58:06.300Z",
+//     },
+//   ],
+//   milestone_claimed: [
+//     {
+//       _id: "69d653c58676cc55d86ab0a1",
+//       service_id: {
+//         _id: "6510a1e12d9f1c001234ab14",
+//         title: "Hydrophobic Wax Protection",
+//       },
+//       price: 600,
+//       vehicle_model: "Hilux",
+//       discount: 250,
+//       created_at: "2026-04-08T11:37:18.471Z",
+//     },
+//   ],
+// };

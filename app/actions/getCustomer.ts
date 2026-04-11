@@ -1,7 +1,7 @@
 "use server";
 
 import connect from "@/lib/db/mongodb";
-import { VehicleSize, VehicleType } from "@/lib/enums";
+import { CustomerBadge, VehicleSize, VehicleType } from "@/lib/enums";
 import Customer, { TCustomer } from "@/models/Customer";
 import { TTransactionDoc } from "@/models/Transaction";
 import { TVehicleSizeDoc } from "@/models/VehicleSize";
@@ -24,11 +24,17 @@ const CUSTOMER_FIELDS: (keyof TCustomer)[] = [
   "created_at",
   "travel_distance",
   "milestone_count",
+  "badge",
 ];
 
 export type CustomerDetailsResponse = Omit<
   TCustomer,
-  "name" | "google_address" | "password" | "milestone_count" | "updated_at"
+  | "name"
+  | "google_address"
+  | "password"
+  | "milestone_count"
+  | "updated_at"
+  | "is_number_verify"
 > & {
   _id: string;
   milestone_count: {
@@ -39,11 +45,22 @@ export type CustomerDetailsResponse = Omit<
     progress: number;
     sort_order: number;
   }[];
+  badge: {
+    title: CustomerBadge;
+    count: number;
+    limit: number;
+    points: number;
+  } | null;
 };
 
 type CustomerDoc = Omit<
   TCustomer,
-  "name" | "google_address" | "password" | "milestone_count" | "updated_at"
+  | "name"
+  | "google_address"
+  | "password"
+  | "milestone_count"
+  | "updated_at"
+  | "badge"
 > & {
   _id: TTransactionDoc["_id"];
   milestone_count: {
@@ -51,6 +68,16 @@ type CustomerDoc = Omit<
     progress: number;
     size_id: Pick<TVehicleSizeDoc, "_id" | "size" | "type" | "sort_order">;
   }[];
+  badge: {
+    badge_id: {
+      _id: Types.ObjectId;
+      title: CustomerBadge;
+      limit: number;
+      points: number;
+    };
+    count: number;
+    _id: Types.ObjectId;
+  } | null;
 };
 
 export const getCustomer = async (
@@ -61,6 +88,7 @@ export const getCustomer = async (
   const customerDoc: CustomerDoc = await Customer.findById(id)
     .select(CUSTOMER_FIELDS.join(" "))
     .populate("milestone_count.size_id", "size type sort_order")
+    .populate("badge.badge_id", "title limit points")
     .lean();
 
   if (!customerDoc) return null;
@@ -92,5 +120,13 @@ export const getCustomer = async (
     earned_points: customerDoc.earned_points,
     travel_distance: customerDoc.travel_distance,
     milestone_count,
+    badge: customerDoc.badge
+      ? {
+          title: customerDoc.badge.badge_id.title,
+          limit: customerDoc.badge.badge_id.limit,
+          count: customerDoc.badge.count,
+          points: customerDoc.badge.badge_id.points,
+        }
+      : null,
   };
 };

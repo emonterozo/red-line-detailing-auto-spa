@@ -38,9 +38,6 @@ const transactionSchema = new Schema({
   booking_id: {
     type: Schema.Types.ObjectId,
     ref: Booking.modelName,
-    default: null,
-    unique: true,
-    sparse: true,
   },
   transaction_from: {
     type: String,

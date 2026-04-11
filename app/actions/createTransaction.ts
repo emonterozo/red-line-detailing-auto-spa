@@ -9,9 +9,11 @@ import Customer, { TCustomerDoc } from "@/models/Customer";
 import VehicleSize, { TVehicleSizeDoc } from "@/models/VehicleSize";
 import MilestoneClaimed from "@/models/MilestoneClaimed";
 import { getSmsContent } from "@/lib/getSmsTemplate";
-import { BookingStatus } from "@/lib/enums";
+import { BookingStatus, CustomerBadge } from "@/lib/enums";
 import { sendMessage } from "@/lib/sendMessage";
 import Booking from "@/models/Booking";
+import Badge, { TBadgeDoc } from "@/models/Badge";
+import Referral from "@/models/Referral";
 
 type ServiceProps = Pick<TService, "title" | "price"> & {
   _id: string;
@@ -37,6 +39,12 @@ type CreateTransactionProps = Omit<
   milestone_discount: number;
   customer_id: string | null;
   booking_id: string | null;
+};
+
+const config = {
+  referral_points: Number.parseInt(
+    process.env.REFERRAL_PROGRAM_BASE_POINTS ?? "50",
+  ),
 };
 
 export const createTransaction = async (
@@ -152,6 +160,58 @@ export const createTransaction = async (
           vehicle_model: transactionData.vehicle_model,
           discount: transactionData.milestone_discount,
         };
+
+        let selectedBadge = {};
+        let badgePoints = 0;
+        if (!customer.badge) {
+          const theApexBadge: TBadgeDoc = await Badge.findOneAndUpdate(
+            {
+              title: CustomerBadge.THE_APEX,
+              $expr: { $lt: ["$count", "$limit"] },
+            },
+            { $inc: { count: 1 } },
+          ).lean();
+
+          if (theApexBadge) {
+            selectedBadge = {
+              badge_id: theApexBadge._id,
+              count: theApexBadge.count + 1,
+            };
+            badgePoints = theApexBadge.points;
+          } else {
+            const pitCrewBadge: TBadgeDoc = await Badge.findOneAndUpdate(
+              { title: CustomerBadge.PIT_CREW },
+              { $inc: { count: 1 } },
+            ).lean();
+
+            selectedBadge = {
+              badge_id: pitCrewBadge._id,
+              count: pitCrewBadge.count + 1,
+            };
+            badgePoints = pitCrewBadge.points;
+          }
+        }
+
+        let referralPoints = 0;
+        if (customer.referred_by) {
+          const referral = await Referral.findOne({
+            referrer_id: customer.referred_by,
+            referee_id: customer._id,
+            reward_given: false,
+          });
+          const referrer = await Customer.findById(customer.referred_by);
+
+          if (referral && referrer.badge) {
+            referralPoints = config.referral_points;
+
+            referral.reward_given = true;
+            referral.updated_at = new Date();
+            await referral.save();
+            referrer.earned_points = referrer.earned_points + referralPoints;
+            await referrer.save();
+          }
+        }
+
         const update: UpdateQuery<{
           milestone_count: number;
           earned_points: number;
@@ -160,10 +220,17 @@ export const createTransaction = async (
           $set: {
             milestone_count,
             earned_points:
-              customer_updated_points + transactionData.points_earned,
+              customer_updated_points +
+              transactionData.points_earned +
+              badgePoints +
+              referralPoints,
             ...(customer.is_verify
               ? {}
-              : { verified_at: new Date(), is_verify: true }),
+              : {
+                  verified_at: new Date(),
+                  is_verify: true,
+                  badge: { ...selectedBadge },
+                }),
           },
         };
 
@@ -206,7 +273,8 @@ export const createTransaction = async (
       if (mongoError.code === 11000) {
         return {
           success: false,
-          message: "A transaction for this booking has already been created. Please check your records.",
+          message:
+            "A transaction for this booking has already been created. Please check your records.",
         };
       }
     }

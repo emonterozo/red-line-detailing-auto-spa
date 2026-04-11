@@ -14,7 +14,7 @@ import { showToast } from "@/lib/toast";
 import Otp from "./Otp";
 import { verifyOtp } from "../actions/verifyOtp";
 import { OtpType } from "@/lib/enums";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 
 export const formSchema = z.object({
@@ -57,6 +57,8 @@ const defaultValues: FormValues = {
 export type FormValues = z.infer<typeof formSchema>;
 
 const Register = () => {
+  const searchParams = useSearchParams();
+  const referralCode = searchParams.get("referral");
   const router = useRouter()
   const [loading, setLoading] = useState(false);
   const [passwordVisibility, setPasswordVisibility] = useState({
@@ -78,6 +80,7 @@ const Register = () => {
         last_name: value.lastName,
         contact_number: value.contactNumber,
         password: value.password,
+        referral_code: referralCode ?? undefined
       });
       setLoading(false);
       if (result.success) {

@@ -10,6 +10,7 @@ import {
 import VehicleSize, { TVehicleSizeDoc } from "@/models/VehicleSize";
 import Otp from "@/models/Otp";
 import { OtpType } from "@/lib/enums";
+import Referral from "@/models/Referral";
 
 type CreateCustomerProps = Pick<
   TCustomer,
@@ -28,6 +29,17 @@ export const createCustomer = async (customerData: CreateCustomerProps) => {
       progress: 0,
     }));
 
+    let referred_by = null;
+    if (customerData.referral_code) {
+      const referrer = await Customer.findOne({
+        referral_code: customerData.referral_code,
+      }).lean();
+
+      if (referrer) {
+        referred_by = referrer._id;
+      }
+    }
+
     const password = await hashPassword(customerData.password);
     const code = generateReferralCode(customerData.first_name);
     const customer = new Customer({
@@ -38,6 +50,7 @@ export const createCustomer = async (customerData: CreateCustomerProps) => {
       password: password,
       milestone_count: milestone_count,
       referral_code: code,
+      referred_by: referred_by,
     });
     await customer.save();
     const otpCode = generateOtp();
@@ -46,7 +59,16 @@ export const createCustomer = async (customerData: CreateCustomerProps) => {
       otp: otpCode,
       type: OtpType.REGISTRATION,
     });
-    otp.save();
+    await otp.save();
+    if (referred_by) {
+      const referral = new Referral({
+        referrer_id: referred_by,
+        referee_id: customer._id,
+        referral_code: customerData.referral_code,
+        reward_given: false,
+      });
+      await referral.save();
+    }
 
     return {
       success: true,

@@ -76,3 +76,7 @@ export enum PromotionType {
 export enum OtpType {
   REGISTRATION = 'registration', FORGOT = 'forgot', 
 }
+
+export enum CustomerBadge {
+  THE_APEX = 'The Apex', PIT_CREW = 'Pit Crew', 
+}

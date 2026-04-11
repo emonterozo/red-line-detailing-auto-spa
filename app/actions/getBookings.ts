@@ -13,6 +13,7 @@ const BOOKING_FIELDS: (keyof TBooking)[] = [
   "vehicle_model",
   "preferred_date",
   "time_slot",
+  "reference_number"
 ];
 
 export interface IPaginatedBookings {
@@ -25,7 +26,7 @@ export interface IPaginatedBookings {
 
 export type BookingTableResponse = Pick<
   TBooking,
-  "name" | "contact_number" | "vehicle_model" | "status" | "created_at"
+  "name" | "contact_number" | "vehicle_model" | "status" | "created_at" | 'reference_number'
 > & {
   _id: string;
   preferred_date: Pick<TSchedule, "date"> & {
@@ -62,6 +63,7 @@ export const getBookings = async (
     | "time_slot"
     | "status"
     | "created_at"
+    | "reference_number"
   >[] = await Booking.find(query)
     .select(BOOKING_FIELDS.join(" "))
     .sort({ createdAt: -1 })
