@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { Activity, ChevronRight, Eye, EyeOff } from "lucide-react";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
@@ -15,6 +15,7 @@ import { verifyOtp } from "../actions/verifyOtp";
 import { OtpType } from "@/lib/enums";
 import { useRouter } from "next/navigation";
 import { login } from "../actions/login";
+import { sendOtp } from "../actions/sendOtp";
 
 export const formSchema = z.object({
   contactNumber: z
@@ -43,6 +44,12 @@ const Login = () => {
   });
   const [isOtpStep, setIsOtpStep] = useState(false);
   const [customerId, setCustomerId] = useState("");
+  const [otpResult, setOtpResult] = useState({
+    message: "",
+    retryAfter: 0,
+  });
+
+  const [countdown, setCountdown] = useState(0);
 
   const form = useForm({
     defaultValues,
@@ -60,8 +67,15 @@ const Login = () => {
         if (result.customer.is_number_verify) {
           router.push(`/customer/${result.customer.customer_id}`);
         } else {
-          setCustomerId(result.customer.customer_id);
-          setIsOtpStep(true);
+          setTimeout(() => {
+            setCustomerId(result.customer.customer_id);
+            setIsOtpStep(true);
+            setOtpResult({
+              message: result.message,
+              retryAfter: result.retry_after,
+            });
+            setCountdown(result.retry_after);
+          }, 1500);
         }
       } else {
         showToast(result.message, "error");
@@ -83,6 +97,41 @@ const Login = () => {
       showToast(result.message, "error");
     }
   };
+
+  const resendOtp = async () => {
+    if (customerId !== "") {
+      const result = await sendOtp(
+        customerId,
+        form.getFieldValue("contactNumber"),
+        OtpType.REGISTRATION,
+      );
+      if (!result.success) {
+        setOtpResult({
+          message: result.message,
+          retryAfter: result.retry_after,
+        });
+      }
+      setOtpResult({
+        message: result.message,
+        retryAfter: result.retry_after,
+      });
+
+      setCountdown(result.retry_after);
+    }
+  };
+
+  useEffect(() => {
+    if (countdown <= 0) return;
+
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) return 0;
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [countdown]);
 
   return (
     <div className="relative min-h-screen w-full bg-[#030303] flex overflow-hidden">
@@ -133,8 +182,10 @@ const Login = () => {
               >
                 <Otp
                   onVerify={submitOtp}
-                  onResend={() => console.log("Resending...")}
+                  onResend={resendOtp}
                   isLoading={loading}
+                  countdown={countdown}
+                  message={otpResult.message}
                 />
               </motion.div>
             ) : (

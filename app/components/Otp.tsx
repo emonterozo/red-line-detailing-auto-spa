@@ -7,12 +7,16 @@ import { motion } from "framer-motion";
 type OtpProps = {
   length?: number;
   onVerify: (otp: string) => void;
+  countdown: number;
+  message: string;
   onResend?: () => void;
   isLoading?: boolean;
 };
 const Otp = ({
   length = 4,
   onVerify,
+  countdown,
+  message,
   onResend,
   isLoading = false,
 }: OtpProps) => {
@@ -126,10 +130,12 @@ const Otp = ({
                 Didn&apos;t receive the code?{" "}
                 <button
                   onClick={onResend}
-                  disabled={isLoading}
+                  disabled={isLoading || countdown > 0}
                   className="text-[#dc143c] hover:underline font-medium"
                 >
-                  Resend Code
+                  {countdown > 0
+                    ? `Resend Code (${countdown}s)`
+                    : "Resend Code"}
                 </button>
               </p>
             </div>

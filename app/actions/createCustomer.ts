@@ -2,15 +2,11 @@
 
 import connect from "@/lib/db/mongodb";
 import Customer, { TCustomer } from "@/models/Customer";
-import {
-  generateOtp,
-  generateReferralCode,
-  hashPassword,
-} from "@/lib/server/utils";
+import { generateReferralCode, hashPassword } from "@/lib/server/utils";
 import VehicleSize, { TVehicleSizeDoc } from "@/models/VehicleSize";
-import Otp from "@/models/Otp";
 import { OtpType } from "@/lib/enums";
 import Referral from "@/models/Referral";
+import { sendOtp } from "./sendOtp";
 
 type CreateCustomerProps = Pick<
   TCustomer,
@@ -53,13 +49,13 @@ export const createCustomer = async (customerData: CreateCustomerProps) => {
       referred_by: referred_by,
     });
     await customer.save();
-    const otpCode = generateOtp();
-    const otp = new Otp({
-      customer_id: customer._id,
-      otp: otpCode,
-      type: OtpType.REGISTRATION,
-    });
-    await otp.save();
+
+    const result = await sendOtp(
+      customer._id.toString(),
+      customerData.contact_number,
+      OtpType.REGISTRATION,
+    );
+
     if (referred_by) {
       const referral = new Referral({
         referrer_id: referred_by,
@@ -75,6 +71,7 @@ export const createCustomer = async (customerData: CreateCustomerProps) => {
       message:
         "Your account has been created successfully. Welcome to your premium experience!",
       customer_id: customer._id.toString(),
+      retry_after: result.retry_after,
     };
   } catch (err: unknown) {
     let message =

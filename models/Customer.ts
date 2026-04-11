@@ -83,6 +83,9 @@ const customerSchema = new Schema({
   birth_day: { type: Date, default: null },
   referral_code: { type: String, required: true, unique: true },
   referred_by: { type: Schema.Types.ObjectId, ref: "Customer", default: null },
+  otp_send_count: { type: Number, default: 0 },
+  otp_send_window_start: { type: Date, default: null },
+  otp_send_blocked_until: { type: Date, default: null },
   created_at: { type: Date, default: new Date() },
   updated_at: { type: Date, default: new Date() },
 });
