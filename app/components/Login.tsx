@@ -16,6 +16,8 @@ import { OtpType } from "@/lib/enums";
 import { useRouter } from "next/navigation";
 import { login } from "../actions/login";
 import { sendOtp } from "../actions/sendOtp";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 export const formSchema = z.object({
   contactNumber: z
@@ -26,11 +28,13 @@ export const formSchema = z.object({
       "Please enter a valid contact number (11 digits, starting with 09).",
     ),
   password: z.string().min(8, "Password must be at least 8 characters."),
+  isChecked: z.boolean(),
 });
 
 const defaultValues: FormValues = {
-  contactNumber: "09122011108",
-  password: "ABC1234!",
+  contactNumber: "",
+  password: "",
+  isChecked: false,
 };
 
 export type FormValues = z.infer<typeof formSchema>;
@@ -54,23 +58,26 @@ const Login = () => {
     },
     onSubmit: async ({ value }) => {
       setLoading(true);
+      if (value.isChecked) {
+        localStorage.setItem("contact_number", value.contactNumber);
+      } else {
+        localStorage.removeItem("contact_number");
+      }
       const result = await login({
         contact_number: value.contactNumber,
         password: value.password,
       });
       setLoading(false);
-      if (result.success && result.customer) {
-        if (result.customer.is_number_verify) {
-          router.push(`/customer/${result.customer.customer_id}`);
-        } else {
-          setTimeout(() => {
-            setCustomerId(result.customer.customer_id);
-            setIsOtpStep(true);
-            setCountdown(result.retry_after);
-          }, 1500);
-        }
+      if (result?.success) {
+        router.push(`/customer/me`);
+      } else if (!result?.success && result?.customer) {
+        setTimeout(() => {
+          setCustomerId(result.customer.customer_id);
+          setIsOtpStep(true);
+          setCountdown(result.retry_after);
+        }, 1500);
       } else {
-        showToast(result.message, "error");
+        showToast(result?.message as string, "error");
       }
     },
   });
@@ -81,12 +88,13 @@ const Login = () => {
       customer_id: customerId,
       type: OtpType.REGISTRATION,
       code: code,
+      password: form.getFieldValue("password"),
     });
     setLoading(false);
     if (result.success) {
-      router.push(`/customer/${result.customer_id}`);
+      router.push(`/customer/me`);
     } else {
-      showToast(result.message, "error");
+      showToast(result?.message as string, "error");
     }
   };
 
@@ -124,6 +132,15 @@ const Login = () => {
 
     return () => clearInterval(timer);
   }, [countdown, isLock]);
+
+  useEffect(() => {
+    const contactNumber = localStorage.getItem("contact_number");
+
+    if (contactNumber) {
+      form.setFieldValue("contactNumber", contactNumber);
+      form.setFieldValue("isChecked", true);
+    }
+  }, [form]);
 
   return (
     <div className="relative min-h-screen w-full bg-[#030303] flex overflow-hidden">
@@ -306,6 +323,31 @@ const Login = () => {
                               />
                             )}
                           </Field>
+                        );
+                      }}
+                    </form.Field>
+                    <form.Field name="isChecked">
+                      {(field) => {
+                        return (
+                          <div className="flex items-start gap-3 transition-all duration-300">
+                            <div className="pt-1">
+                              <Checkbox
+                                id={field.name}
+                                name={field.name}
+                                checked={field.state.value}
+                                onCheckedChange={(checked: boolean) =>
+                                  form.setFieldValue("isChecked", checked)
+                                }
+                                className={`w-5 h-5 rounded-md transition-all duration-300 border-white/30 bg-white/5 data-[state=checked]:bg-[#dc143c]`}
+                              />
+                            </div>
+
+                            <Label
+                              className={`text-sm md:text-base leading-relaxed cursor-pointer select-none transition-colors text-gray-400`}
+                            >
+                              Remember me
+                            </Label>
+                          </div>
                         );
                       }}
                     </form.Field>

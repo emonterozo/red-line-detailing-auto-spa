@@ -179,12 +179,12 @@ const Otp = ({
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-[#ff6b81]"></span>
                       </span>
                       <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[#ff6b81]">
-                        System Lockout
+                        Too Many Requests
                       </span>
                     </div>
 
                     <span className="text-[#ff6b81] text-sm font-medium text-center leading-relaxed max-w-[280px]">
-                      Too many attempts detected. Access is restricted for
+                      Limit reached. Please retry in{" "}
                       <span className="font-bold ml-1">
                         {formatCountdown(countdown)}
                       </span>

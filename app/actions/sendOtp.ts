@@ -99,7 +99,7 @@ export const sendOtp = async (
   });
 
   if (existingOtp) {
-    const expiresAt = existingOtp.created_at.getTime() + 180 * 1000;
+    const expiresAt = existingOtp.created_at.getTime() + 10 * 1000;
 
     if (now < expiresAt) {
       const retry_after = Math.ceil((expiresAt - now) / 1000);
@@ -147,6 +147,6 @@ export const sendOtp = async (
     message: "We’ve sent you a verification code.",
     resend_count: customer.otp_send_count,
     remaining_send: LIMIT - customer.otp_send_count,
-    retry_after: 180,
+    retry_after: 10,
   };
 };

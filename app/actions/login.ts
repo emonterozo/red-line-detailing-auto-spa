@@ -1,77 +1,87 @@
 "use server";
 
-import connect from "@/lib/db/mongodb";
-import Customer, { TCustomer, TCustomerDoc } from "@/models/Customer";
-import { comparePassword } from "@/lib/server/utils";
+import Customer, { TCustomer } from "@/models/Customer";
 import { OtpType } from "@/lib/enums";
 import { sendOtp } from "./sendOtp";
 import { formatCountdown } from "@/lib/utils";
+import { signIn } from "@/auth";
+import { AuthError } from "next-auth";
 
 type LoginProps = Pick<TCustomer, "contact_number" | "password">;
 
 export const login = async (customerData: LoginProps) => {
-  await connect();
+  const contact_number = customerData.contact_number;
+  const password = customerData.password;
 
   try {
-    const customer: TCustomerDoc = await Customer.findOne({
-      contact_number: customerData.contact_number,
-    }).lean();
-    if (customer) {
-      const isPasswordCorrect = await comparePassword(
-        customerData.password,
-        customer.password,
-      );
-      if (isPasswordCorrect) {
-        let retry_after = 0;
-        if (!customer.is_number_verify) {
+    await signIn("credentials", {
+      contact_number,
+      password,
+      redirect: false,
+    });
+
+    return { success: true };
+  } catch (error: unknown) {
+    if (error instanceof AuthError) {
+      const errorType = error.cause?.err?.message || error.type;
+
+      switch (errorType) {
+        case "INVALID_CREDENTIALS":
+        case "CredentialsSignin":
+          return {
+            success: false,
+            message:
+              "Incorrect details. Please check your information and try again.",
+          };
+        case "TOO_MANY_ATTEMPTS": {
+          const customer = await Customer.findOne({
+            contact_number: contact_number,
+          }).lean();
+
           const now = Date.now();
+          const countDown = Math.ceil(
+            (customer.otp_send_blocked_until.getTime() - now) / 1000,
+          );
 
-          if (
-            customer.otp_send_blocked_until &&
-            customer.otp_send_blocked_until.getTime() > now
-          ) {
-            const countDown = Math.ceil(
-              (customer.otp_send_blocked_until.getTime() - now) / 1000,
-            );
-
-            return {
-              success: false,
-              message: `Too many attempts detected. Access is restricted for ${formatCountdown(countDown)}`,
-              retry_after: countDown,
-            };
-          }
+          return {
+            success: false,
+            message: `Too many attempts detected. Access is restricted for ${formatCountdown(countDown)}`,
+            retry_after: countDown,
+          };
+        }
+        case "SERVER_ERROR":
+          return {
+            success: false,
+            message: "Our systems are having trouble. Please try again later.",
+          };
+        case "CUSTOMER_NUMBER_NOT_VERIFY": {
+          const customer = await Customer.findOne({
+            contact_number: contact_number,
+          }).lean();
 
           const result = await sendOtp(
             customer._id.toString(),
-            customerData.contact_number,
+            contact_number,
             OtpType.REGISTRATION,
           );
-
-          retry_after = result.retry_after;
+          return {
+            success: false,
+            message:
+              "You’ve successfully logged in. Welcome back to your premium experience!",
+            customer: {
+              customer_id: customer._id.toString(),
+              is_number_verify: customer.is_number_verify,
+            },
+            retry_after: result.retry_after,
+          };
         }
-        return {
-          success: true,
-          message:
-            "You’ve successfully logged in. Welcome back to your premium experience!",
-          customer: {
-            customer_id: customer._id.toString(),
-            is_number_verify: customer.is_number_verify,
-          },
-          retry_after: retry_after,
-        };
+
+        default:
+          return {
+            success: false,
+            message: "An unexpected authentication error occurred.",
+          };
       }
     }
-
-    return {
-      success: false,
-      message:
-        "Incorrect details. Please check your information and try again.",
-    };
-  } catch {
-    return {
-      success: false,
-      message:
-        "Something went wrong while creating your account. Please try again later.",
-    };
   }
 };

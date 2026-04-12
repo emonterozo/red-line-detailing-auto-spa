@@ -35,6 +35,7 @@ export type CustomerDetailsResponse = Omit<
   | "milestone_count"
   | "updated_at"
   | "is_number_verify"
+  | 'otp_send_count'
 > & {
   _id: string;
   milestone_count: {

@@ -20,7 +20,6 @@ import {
   Settings,
 } from "lucide-react";
 import { BookingStatusDisplay, VehicleType } from "@/lib/enums";
-import { useParams } from "next/navigation";
 import { CustomerDetailsResponse, getCustomer } from "../actions/getCustomer";
 import { BookingTableResponse, getBookings } from "../actions/getBookings";
 import {
@@ -63,9 +62,11 @@ const HistoryEmpty = ({ title }: { title: string }) => {
   );
 };
 
-export default function CustomerProfile() {
-  const params = useParams();
-  const customerId = params.id;
+export default function CustomerProfile({
+  customerId,
+}: Readonly<{
+  customerId: string;
+}>) {
   const [customer, setCustomer] = useState<CustomerDetailsResponse | null>(
     null,
   );

@@ -47,11 +47,11 @@ export const formSchema = z.object({
 });
 
 const defaultValues: FormValues = {
-  firstName: "Eric",
-  lastName: "Monterozo",
-  contactNumber: "09122011108",
-  password: "ABC1234!",
-  confirmPassword: "ABC1234!",
+  firstName: "",
+  lastName: "",
+  contactNumber: "",
+  password: "",
+  confirmPassword: "",
 };
 
 export type FormValues = z.infer<typeof formSchema>;
@@ -105,12 +105,13 @@ const Register = () => {
       customer_id: customerId,
       type: OtpType.REGISTRATION,
       code: code,
+      password: form.getFieldValue("password")
     });
     setLoading(false);
     if (result.success) {
-      router.push(`/customer/${result.customer_id}`);
+      router.push(`/customer/me`);
     } else {
-      showToast(result.message, "error");
+      showToast(result?.message as string, "error");
     }
   };
 
