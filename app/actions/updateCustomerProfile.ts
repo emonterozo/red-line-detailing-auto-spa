@@ -61,7 +61,6 @@ export const updateCustomerProfile = async (
     const result = await Customer.findOneAndUpdate(
       { _id: new Types.ObjectId(id) },
       { $set: updatePayload },
-      { new: true },
     );
 
     if (!result) {

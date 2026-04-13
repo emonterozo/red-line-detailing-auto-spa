@@ -40,6 +40,8 @@ import ConfirmationModal from "./ConfirmationModal";
 import { logout } from "../actions/logout";
 import UpdateAddressModal, { LocationProps } from "./UpdateAddressModal";
 import { updateCustomerProfile } from "../actions/updateCustomerProfile";
+import { showToast } from "@/lib/toast";
+import { useRouter } from "next/navigation";
 
 const glassCard =
   "bg-[#111111] border border-white/15 rounded-[2.5rem] p-6 md:p-8 shadow-2xl";
@@ -77,6 +79,7 @@ export default function CustomerProfile({
 }: Readonly<{
   customerId: string;
 }>) {
+  const router = useRouter();
   const [customer, setCustomer] = useState<CustomerDetailsResponse | null>(
     null,
   );
@@ -142,10 +145,21 @@ export default function CustomerProfile({
         latitude: location.latitude as number,
         longitude: location.longitude as number,
       });
-      toggleAddressModal()
+      toggleAddressModal();
       const data = await getCustomer(customerId);
       setCustomer(data);
       setIsSubmitting(false);
+    }
+  };
+
+  const handlePressBook = () => {
+    if (customer?.address) {
+      router.push("/customer/me/booking");
+    } else {
+      showToast(
+        "Oops! You need to set your address before you can book a service.",
+        "error",
+      );
     }
   };
 
@@ -388,7 +402,10 @@ export default function CustomerProfile({
                         </p>
                       </div>
                     </div>
-                    <button className="w-full py-4 bg-[#dc143c] text-white rounded-2xl flex items-center justify-center gap-2 text-xs font-black tracking-widest shadow-[0_10px_20px_rgba(220,20,60,0.2)] active:scale-95 transition-all">
+                    <button
+                      onClick={handlePressBook}
+                      className="w-full py-4 bg-[#dc143c] text-white rounded-2xl flex items-center justify-center gap-2 text-xs font-black tracking-widest shadow-[0_10px_20px_rgba(220,20,60,0.2)] active:scale-95 transition-all"
+                    >
                       BOOK A SERVICE NOW <ChevronRight className="w-4 h-4" />
                     </button>
                   </div>
