@@ -30,7 +30,6 @@ const BOOKING_FIELDS: (keyof TBooking)[] = [
   "discount",
   "point_used",
   "reference_number",
-  "referral_code_used",
   "promotion_id",
   "promo_code_used",
   "notes",
@@ -76,7 +75,6 @@ export type BookingResponse = Pick<
   | "point_used"
   | "reference_number"
   | "promo_code_used"
-  | "referral_code_used"
   | "notes"
 > & {
   _id: string;
@@ -127,7 +125,6 @@ type BookingDoc = Pick<
   | "discount"
   | "point_used"
   | "reference_number"
-  | "referral_code_used"
   | "notes"
 >;
 

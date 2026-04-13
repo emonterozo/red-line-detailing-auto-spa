@@ -90,7 +90,6 @@ const bookingSchema = new Schema({
   discount: { type: Number, default: 0, required: true },
   point_used: { type: Number, default: 0, required: true },
   reference_number: { type: String, required: true, unique: true },
-  referral_code_used: { type: String, default: null },
   promotion_id: {
     type: Schema.Types.ObjectId,
     ref: Promotion.modelName,

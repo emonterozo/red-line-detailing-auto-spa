@@ -153,6 +153,7 @@ export default function BookingDetails() {
         };
       });
 
+      const travelDistanceInMeters = Number(value.travelDistance) * 1000;
       const result = await updateBooking({
         bookingId: booking?._id ?? "",
         sizeId: value.vehicleSizes[0]._id,
@@ -160,7 +161,7 @@ export default function BookingDetails() {
         timeSlotId: booking?.time_slot._id ?? "",
         reservationFee: value.reservationFee,
         travelFee: value.travelFee,
-        travelDistance: Number.parseFloat(value.travelDistance),
+        travelDistance: travelDistanceInMeters,
         discount: value.discount,
         pointsUsed: value.pointsUsed,
         totalAmount: value.totalAmount,
@@ -206,7 +207,7 @@ export default function BookingDetails() {
         form.setFieldValue("totalAmount", bookingData.total_amount);
         form.setFieldValue(
           "travelDistance",
-          bookingData.travel_distance.toString(),
+          (bookingData.travel_distance / 1000).toString(),
         );
         form.setFieldValue("travelFee", bookingData.travel_fee);
         form.setFieldValue(
@@ -699,7 +700,7 @@ export default function BookingDetails() {
                   {(field) => (
                     <Field>
                       <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
-                        Travel Distance
+                        Travel Distance (km)
                       </FieldLabel>
                       <Input
                         id={field.name}

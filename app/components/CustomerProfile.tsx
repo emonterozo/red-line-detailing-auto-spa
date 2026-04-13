@@ -18,6 +18,10 @@ import {
   ExternalLink,
   Motorbike,
   Settings,
+  Copy,
+  PencilLine,
+  MapPin,
+  Lock,
 } from "lucide-react";
 import { BookingStatusDisplay, VehicleType } from "@/lib/enums";
 import { CustomerDetailsResponse, getCustomer } from "../actions/getCustomer";
@@ -32,6 +36,10 @@ import {
 } from "../actions/getCustomerClaimedMilestones";
 import { CustomerBadge } from "./CustomerBadge";
 import FullScreenLoader from "./FullScreenLoader";
+import ConfirmationModal from "./ConfirmationModal";
+import { logout } from "../actions/logout";
+import UpdateAddressModal, { LocationProps } from "./UpdateAddressModal";
+import { updateCustomerProfile } from "../actions/updateCustomerProfile";
 
 const glassCard =
   "bg-[#111111] border border-white/15 rounded-[2.5rem] p-6 md:p-8 shadow-2xl";
@@ -62,6 +70,8 @@ const HistoryEmpty = ({ title }: { title: string }) => {
   );
 };
 
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
+
 export default function CustomerProfile({
   customerId,
 }: Readonly<{
@@ -78,6 +88,9 @@ export default function CustomerProfile({
     [],
   );
   const [isLoading, setIsLoading] = useState(true);
+  const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
+  const [isUpdateAddressVisible, setIsUpdateAddressVisible] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -110,9 +123,58 @@ export default function CustomerProfile({
     window.open(`/booking/${reference}`, "_blank");
   };
 
+  const toggleModal = () => setIsLogoutModalVisible(!isLogoutModalVisible);
+
+  const handleLogout = async () => {
+    await logout();
+  };
+
+  const toggleAddressModal = () =>
+    setIsUpdateAddressVisible(!isUpdateAddressVisible);
+
+  const onUpdateAddress = async (location: LocationProps) => {
+    if (customer) {
+      setIsSubmitting(true);
+      await updateCustomerProfile(customer?._id, {
+        address: location.address,
+        google_address: location.googleAddress,
+        travel_distance: location.distance,
+        latitude: location.latitude as number,
+        longitude: location.longitude as number,
+      });
+      toggleAddressModal()
+      const data = await getCustomer(customerId);
+      setCustomer(data);
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#050505] text-white selection:bg-[#dc143c]/50 relative pb-20">
       {isLoading && <FullScreenLoader />}
+      <ConfirmationModal
+        isVisible={isLogoutModalVisible}
+        chipTitle="Account Security"
+        title="Log Out Confirmation"
+        subTitle="Confirm your request to end session"
+        description="Are you sure you want to sign out? You’ll need to log in again to access your account."
+        onCancel={toggleModal}
+        onConfirm={handleLogout}
+      />
+      <UpdateAddressModal
+        isVisible={isUpdateAddressVisible}
+        toggleModal={toggleAddressModal}
+        addressLastUpdated={customer?.address_updated_at}
+        currentAddress={customer?.address}
+        distance={customer?.travel_distance as number}
+        currentLocation={{
+          latitude: customer?.location?.coordinates[1] ?? 0,
+          longitude: customer?.location?.coordinates[0] ?? 0,
+        }}
+        onSubmit={onUpdateAddress}
+        isSubmitting={isSubmitting}
+      />
+
       {customer ? (
         <div>
           <header className="relative pt-20 pb-10 px-6">
@@ -163,6 +225,7 @@ export default function CustomerProfile({
                     Edit Profile
                   </button>
                 </div>
+
                 <div className="mb-6">
                   {customer.badge ? (
                     <CustomerBadge
@@ -175,42 +238,106 @@ export default function CustomerProfile({
                     <CustomerBadge type="locked" />
                   )}
                 </div>
-                <div className="space-y-5 text-left">
-                  <div className="p-3 bg-white/5 rounded-2xl border border-white/5">
-                    <p className="text-[10px] text-neutral-400 font-black uppercase mb-1 tracking-widest">
-                      Member Since
+
+                <div className="space-y-4 text-left">
+                  <div className="p-4 bg-gradient-to-br from-white/10 to-transparent rounded-2xl border border-white/10 overflow-hidden relative">
+                    <p className="text-[10px] text-neutral-400 font-black uppercase mb-2 tracking-widest">
+                      Your Referral Link
                     </p>
-                    <p className="font-bold text-white text-md">
-                      {customer.verified_at
-                        ? new Date(customer.verified_at).toLocaleDateString(
-                            "en-US",
-                            {
-                              month: "long",
-                              day: "numeric",
-                              year: "numeric",
-                            },
-                          )
-                        : "Complete booking to unlock "}
-                    </p>
+                    {customer.badge ? (
+                      <div className="flex items-center gap-2 bg-black/40 p-2 rounded-xl border border-white/5 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                        <code className="flex-1 text-xs text-neutral-300 truncate pl-2 font-mono">
+                          {`${BASE_URL}/register?referral=${customer.referral_code}`}
+                        </code>
+                        <button
+                          onClick={() =>
+                            navigator.clipboard.writeText(
+                              `${BASE_URL}/register?referral=${customer.referral_code}`,
+                            )
+                          }
+                          className="p-2 bg-white/10 hover:bg-white/20 active:scale-90 rounded-lg transition-all group"
+                          title="Copy Link"
+                        >
+                          <Copy className="w-3.5 h-3.5 text-white group-hover:text-red-400" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between gap-3 bg-white/5 p-3 rounded-xl border border-dashed border-white/10">
+                        <div className="flex items-center gap-2">
+                          <Lock className="w-3.5 h-3.5 text-neutral-500" />
+                          <p className="text-[11px] font-bold text-neutral-500 uppercase tracking-tight">
+                            Unlock by earning a badge
+                          </p>
+                        </div>
+                        <div className="h-1.5 w-12 bg-neutral-800 rounded-full overflow-hidden">
+                          <div className="h-full bg-[#dc143c] w-1/3 animate-pulse" />{" "}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div className="p-3 bg-white/5 rounded-2xl border border-white/5">
-                    <p className="text-[10px] text-neutral-400 font-black uppercase mb-1 tracking-widest">
-                      Contact Number
-                    </p>
-                    <p className="font-bold text-white text-md">
-                      {customer.contact_number}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-white/5 rounded-2xl border border-white/5">
-                    <p className="text-[10px] text-neutral-400 font-black uppercase mb-1 tracking-widest">
-                      Primary Address
-                    </p>
-                    <p className="text-sm text-white leading-relaxed font-medium">
-                      {customer.address ?? "Not data provided"}
-                    </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-3 bg-white/5 rounded-2xl border border-white/5">
+                      <p className="text-[10px] text-neutral-400 font-black uppercase mb-1 tracking-widest">
+                        Member Since
+                      </p>
+                      <p className="font-bold text-white text-sm">
+                        {customer.verified_at
+                          ? new Date(customer.verified_at).toLocaleDateString(
+                              "en-US",
+                              {
+                                month: "long",
+                                day: "numeric",
+                                year: "numeric",
+                              },
+                            )
+                          : "No data"}
+                      </p>
+                    </div>
+                    <div className="p-3 bg-white/5 rounded-2xl border border-white/5">
+                      <p className="text-[10px] text-neutral-400 font-black uppercase mb-1 tracking-widest">
+                        Contact Number
+                      </p>
+                      <p className="font-bold text-white text-sm">
+                        {customer.contact_number}
+                      </p>
+                    </div>
                   </div>
 
-                  <button className="w-full mt-4 py-4 rounded-2xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 flex items-center justify-center gap-3 text-red-400 font-black text-xs transition-all">
+                  <div className="group relative p-4 bg-white/5 rounded-2xl border border-white/5 transition-all hover:bg-white/[0.07]">
+                    <div className="flex justify-between items-start mb-2">
+                      <p className="text-[10px] text-neutral-400 font-black uppercase tracking-widest">
+                        Primary Address
+                      </p>
+                      <button
+                        onClick={toggleAddressModal}
+                        className="text-[10px] text-neutral-500 hover:text-white font-bold flex items-center gap-1 transition-colors"
+                      >
+                        <PencilLine className="w-3 h-3" /> EDIT
+                      </button>
+                    </div>
+
+                    <div className="flex items-end justify-between gap-4">
+                      <a
+                        href={`https://www.google.com/maps?q=${customer?.location?.coordinates[1]},${customer?.location?.coordinates[0]}`}
+                        target="_blank"
+                        className="text-sm text-white leading-snug font-medium line-clamp-2 flex-1 hover:text-[#ff6b81] hover:underline"
+                      >
+                        {customer.address ?? "No available data"}
+                      </a>
+                      {!!customer.travel_distance && (
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 shrink-0 mb-0.5">
+                          <MapPin className="w-3 h-3 text-[#dc143c]" />
+                          <span className="text-[11px] font-bold text-neutral-300 whitespace-nowrap">
+                            {`${customer.travel_distance / 1000} km`}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={toggleModal}
+                    className="w-full mt-4 py-4 rounded-2xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 flex items-center justify-center gap-3 text-red-400 font-black text-xs transition-all"
+                  >
                     <LogOut className="w-4 h-4" /> LOGOUT ACCOUNT
                   </button>
                 </div>

@@ -64,6 +64,8 @@ export const createCustomer = async (customerData: CreateCustomerProps) => {
         referee_id: customer._id,
         referral_code: customerData.referral_code,
         reward_given: false,
+        created_at: new Date(),
+        updated_at: new Date(),
       });
       await referral.save();
     }

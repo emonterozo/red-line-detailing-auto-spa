@@ -308,7 +308,12 @@ export default function Transaction() {
         reservation_fee: value.downPayment,
         total_service_amount: totalAmount,
         additional_cost: value.additionalCost,
-        points_earned: pointsEarned,
+        points: {
+          total: pointsEarned,
+          service: pointsEarned,
+          badge: 0,
+          referral: 0,
+        },
         travel_fee: value.travelFee,
         discount: value.totalDiscount,
         points_used: value.pointsUsed,
@@ -317,7 +322,6 @@ export default function Transaction() {
         total_discount: totalDiscount,
         milestone_reward,
         milestone_discount: value.milestoneDiscount,
-        referral_code_used: null,
         promotion_id: null,
         promo_code_used: null,
       });

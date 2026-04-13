@@ -79,13 +79,15 @@ export const createTransaction = async (
       reservation_fee: transactionData.reservation_fee,
       total_service_amount: transactionData.total_service_amount,
       additional_cost: transactionData.additional_cost,
-      points_earned: transactionData.points_earned,
+      points: transactionData.points,
       travel_fee: transactionData.travel_fee,
       discount: transactionData.discount,
       points_used: transactionData.points_used,
       net_total: transactionData.net_total,
       gross_total: transactionData.gross_total,
       total_discount: transactionData.total_discount,
+      created_at: new Date(),
+      updated_at: new Date(),
     };
 
     const newTransaction = new Transaction(data);
@@ -103,7 +105,7 @@ export const createTransaction = async (
             type: BookingStatus.COMPLETED,
             ref: booking.reference_number,
             date: "",
-            points: transactionData.points_earned.toString(),
+            points: transactionData.points?.service.toString(),
           },
           !transactionData.customer_id,
         );
@@ -159,6 +161,8 @@ export const createTransaction = async (
           size_id: vehicleSize._id,
           vehicle_model: transactionData.vehicle_model,
           discount: transactionData.milestone_discount,
+          created_at: new Date(),
+          updated_at: new Date(),
         };
 
         let selectedBadge = {};
@@ -212,6 +216,7 @@ export const createTransaction = async (
           }
         }
 
+        const servicePoints = transactionData.points?.service ?? 0;
         const update: UpdateQuery<{
           milestone_count: number;
           earned_points: number;
@@ -221,7 +226,7 @@ export const createTransaction = async (
             milestone_count,
             earned_points:
               customer_updated_points +
-              transactionData.points_earned +
+              servicePoints +
               badgePoints +
               referralPoints,
             ...(customer.is_verify
@@ -231,6 +236,7 @@ export const createTransaction = async (
                   is_verify: true,
                   badge: { ...selectedBadge },
                 }),
+            updated_at: new Date(),
           },
         };
 
@@ -239,6 +245,16 @@ export const createTransaction = async (
         }
 
         await Customer.findByIdAndUpdate(transactionData.customer_id, update);
+        await Transaction.findByIdAndUpdate(newTransaction._id, {
+          $set: {
+            points: {
+              total: newTransaction.points.total + badgePoints + referralPoints,
+              service: newTransaction.points.service,
+              badge: badgePoints,
+              referral: referralPoints,
+            },
+          },
+        });
       }
 
       message = getSmsContent(
@@ -248,7 +264,7 @@ export const createTransaction = async (
           type: BookingStatus.COMPLETED,
           ref: referenceNumber,
           date: "",
-          points: transactionData.points_earned.toString(),
+          points: transactionData.points?.service.toString(),
         },
         !transactionData.customer_id,
       );

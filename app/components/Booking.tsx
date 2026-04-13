@@ -3,11 +3,7 @@
 import { useEffect, useState } from "react";
 import { useForm } from "@tanstack/react-form";
 import * as z from "zod";
-import {
-  Field,
-  FieldError,
-  FieldLabel,
-} from "@/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -386,6 +382,7 @@ export default function Booking() {
       const [vehicleSizesData, schedulesData, servicesData] = await Promise.all(
         [getVehicleSizes(), fetchSchedules(), getServices()],
       );
+
       const result = await requestUserLocation();
       setLocation(result);
       if (result.success && result.latitude && result.longitude) {
@@ -407,9 +404,10 @@ export default function Booking() {
   }, [form]);
 
   const getTravelFee = (distance: number) => {
+    const distanceInKm = distance / 1000;
     const fee = Math.max(
       0,
-      (distance - Number.parseInt(config.free_distance!)) *
+      (distanceInKm - Number.parseInt(config.free_distance!)) *
         Number.parseInt(config.fee!),
     );
     return Math.ceil(fee);
@@ -420,6 +418,7 @@ export default function Booking() {
       <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] rounded-full bg-[#dc143c]/[0.06] blur-[120px]" />
       <div className="pointer-events-none absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full bg-[#dc143c]/[0.04] blur-[100px]" />
       {initializing && <FullScreenLoader />}
+      {location && !location.success && <LocationPermissionModal />}
 
       <div className="relative max-w-3xl mx-auto px-4 sm:px-6 py-16 md:py-24">
         <motion.div
@@ -442,7 +441,6 @@ export default function Booking() {
             <div className="h-[1px] w-12 bg-gradient-to-l from-transparent to-[#dc143c]" />
           </div>
         </motion.div>
-        {location && !location.success && <LocationPermissionModal />}
 
         <form
           onSubmit={(e) => {
@@ -1131,7 +1129,7 @@ export default function Booking() {
                         <span className="text-gray-500 text-sm">
                           Travel Distance
                         </span>
-                        <span className="text-white font-medium">{`${distance} km`}</span>
+                        <span className="text-white font-medium">{`${distance / 1000} km`}</span>
                       </div>
                       <div className="flex justify-between items-center py-2 px-3">
                         <span className="text-gray-500 text-sm">
@@ -1160,7 +1158,10 @@ export default function Booking() {
                             preliminary estimate
                           </span>{" "}
                           based on the information you provided. Our team will{" "}
-                          <span className="text-gray-300">verify your inputs</span>{" "}and provide the finalized cost.
+                          <span className="text-gray-300">
+                            verify your inputs
+                          </span>{" "}
+                          and provide the finalized cost.
                         </p>
                       </div>
                     </>

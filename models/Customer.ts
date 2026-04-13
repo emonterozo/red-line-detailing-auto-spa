@@ -50,9 +50,13 @@ const customerSchema = new Schema({
     type: {
       type: String,
       enum: ["Point"],
+      default: "Point",
+      required: true,
     },
     coordinates: {
       type: [Number],
+      default: [0,0],
+      require: true,
     },
   },
   travel_distance: { type: Number, default: 0 },
@@ -89,6 +93,8 @@ const customerSchema = new Schema({
   created_at: { type: Date, default: new Date() },
   updated_at: { type: Date, default: new Date() },
 });
+
+customerSchema.index({ location: "2dsphere" });
 
 const Customer = models.Customer || model("Customer", customerSchema);
 
