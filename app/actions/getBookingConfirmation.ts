@@ -188,7 +188,5 @@ export const getBookingConfirmation = async (
     },
   };
 
-  console.log(JSON.stringify(bookingDoc));
-
   return bookingJson;
 };

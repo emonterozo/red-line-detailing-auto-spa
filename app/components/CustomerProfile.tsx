@@ -42,6 +42,7 @@ import UpdateAddressModal, { LocationProps } from "./UpdateAddressModal";
 import { updateCustomerProfile } from "../actions/updateCustomerProfile";
 import { showToast } from "@/lib/toast";
 import { useRouter } from "next/navigation";
+import { CONFIG } from "../config/config";
 
 const glassCard =
   "bg-[#111111] border border-white/15 rounded-[2.5rem] p-6 md:p-8 shadow-2xl";
@@ -71,8 +72,6 @@ const HistoryEmpty = ({ title }: { title: string }) => {
     </div>
   );
 };
-
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
 export default function CustomerProfile({
   customerId,
@@ -265,12 +264,12 @@ export default function CustomerProfile({
                     {customer.badge ? (
                       <div className="flex items-center gap-2 bg-black/40 p-2 rounded-xl border border-white/5 animate-in fade-in slide-in-from-bottom-2 duration-500">
                         <code className="flex-1 text-xs text-neutral-300 truncate pl-2 font-mono">
-                          {`${BASE_URL}/register?referral=${customer.referral_code}`}
+                          {`${CONFIG.BASE_URL}/register?referral=${customer.referral_code}`}
                         </code>
                         <button
                           onClick={() =>
                             navigator.clipboard.writeText(
-                              `${BASE_URL}/register?referral=${customer.referral_code}`,
+                              `${CONFIG.BASE_URL}/register?referral=${customer.referral_code}`,
                             )
                           }
                           className="p-2 bg-white/10 hover:bg-white/20 active:scale-90 rounded-lg transition-all group"

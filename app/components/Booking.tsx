@@ -52,11 +52,7 @@ import LocationPermissionModal from "./LocationPermissionModal";
 import { getAddressAndDistance } from "../actions/getAddressAndDistance";
 import FullScreenLoader from "./FullScreenLoader";
 import { generateReference } from "@/lib/utils";
-
-const config = {
-  fee: Number(process.env.NEXT_PUBLIC_TRAVEL_FEE_PER_KM),
-  free_distance: Number(process.env.NEXT_PUBLIC_FREE_TRAVEL_DISTANCE_KM),
-};
+import { CONFIG } from "../config/config";
 
 const today = new Date();
 today.setHours(23, 59, 59, 59);
@@ -405,7 +401,11 @@ export default function Booking() {
 
   const getTravelFee = (distance: number) => {
     const distanceInKm = distance / 1000;
-    const fee = Math.max(0, (distanceInKm - config.free_distance) * config.fee);
+    const fee = Math.max(
+      0,
+      (distanceInKm - CONFIG.FREE_TRAVEL_DISTANCE_KM) *
+        CONFIG.TRAVEL_FEE_PER_KM,
+    );
     return Math.ceil(fee);
   };
 

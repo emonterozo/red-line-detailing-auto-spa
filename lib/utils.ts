@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { RewardType } from "./enums";
+import { CONFIG } from "@/app/config/config";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -40,7 +41,6 @@ export const formatCountdown = (countdown: number): string => {
   return `${hours} hour${hours === 1 ? "" : "s"}`;
 };
 
-
 export const isOverDays = (createdAt: Date, days: number) => {
   const now = new Date();
 
@@ -48,22 +48,27 @@ export const isOverDays = (createdAt: Date, days: number) => {
   const daysPassed = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
   return daysPassed >= days;
-}
+};
 
-export const getDistanceInMeters = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-  const R = 6371e3; 
+export const getDistanceInMeters = (
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+) => {
+  const R = 6371e3;
   const φ1 = (lat1 * Math.PI) / 180;
   const φ2 = (lat2 * Math.PI) / 180;
   const Δφ = ((lat2 - lat1) * Math.PI) / 180;
   const Δλ = ((lon2 - lon1) * Math.PI) / 180;
 
-  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-            Math.cos(φ1) * Math.cos(φ2) *
-            Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-  
+  const a =
+    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-  return R * c; 
+  return R * c;
 };
 
 export const calculateMilestoneRewardDiscount = (
@@ -72,8 +77,8 @@ export const calculateMilestoneRewardDiscount = (
     reward_type: RewardType;
     discount_amount: number;
     discount_percentage: number;
-  }
-) =>  {
+  },
+) => {
   if (milestoneReward.reward_type === RewardType.DISCOUNT) {
     if (milestoneReward.discount_amount === 0) {
       return price * (milestoneReward.discount_percentage / 100);
@@ -82,4 +87,14 @@ export const calculateMilestoneRewardDiscount = (
   }
 
   return price;
-}
+};
+
+export const generateDiscountTiers = (
+  discounts = [50, 100, 150],
+  percentage = CONFIG.PERCENTAGE_LIMIT_MULTIPLIER,
+) => {
+  return discounts.map((off) => ({
+    off,
+    min: Math.ceil(off / percentage),
+  }));
+};

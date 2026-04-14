@@ -7,6 +7,7 @@ import { sendMessage } from "@/lib/sendMessage";
 import Booking from "@/models/Booking";
 import Schedule from "@/models/Schedule";
 import { Types } from "mongoose";
+import { CONFIG } from "../config/config";
 
 type UpdateBookingRequest = {
   sizeId: string;
@@ -24,12 +25,8 @@ type UpdateBookingRequest = {
   status: BookingStatus;
   address: string;
   social: string;
-  milestone_reward_id: string | null
+  milestone_reward_id: string | null;
 };
-
-const dpMultiplier =
-  Number.parseInt(process.env.NEXT_PUBLIC_DOWN_PAYMENT_PERCENTAGE as string) /
-  100;
 
 export const updateBooking = async (request: UpdateBookingRequest) => {
   await connect();
@@ -49,7 +46,9 @@ export const updateBooking = async (request: UpdateBookingRequest) => {
       {
         $set: {
           size_id: new Types.ObjectId(request.sizeId),
-          milestone_reward_id: request.milestone_reward_id ? new Types.ObjectId(request.milestone_reward_id) : null,
+          milestone_reward_id: request.milestone_reward_id
+            ? new Types.ObjectId(request.milestone_reward_id)
+            : null,
           reservation_fee: request.reservationFee,
           travel_fee: request.travelFee,
           total_amount: request.totalAmount,
@@ -90,7 +89,10 @@ export const updateBooking = async (request: UpdateBookingRequest) => {
 
     let message = "";
     const totalBill = result.total_amount + result.travel_fee;
-    const depositValue = Math.max(0, totalBill * dpMultiplier);
+    const depositValue = Math.max(
+      0,
+      totalBill * CONFIG.DOWN_PAYMENT_MULTIPLIER,
+    );
     const amount = Math.floor(depositValue).toLocaleString();
     switch (request.status) {
       case BookingStatus.FOR_CHECKING:

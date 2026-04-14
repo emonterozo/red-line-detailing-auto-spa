@@ -53,14 +53,7 @@ import {
   MilestoneRewardsResponse,
 } from "../actions/getMilestoneRewards";
 import { calculateMilestoneRewardDiscount } from "@/lib/utils";
-
-const config = {
-  fee: process.env.NEXT_PUBLIC_TRAVEL_FEE_PER_KM,
-  free_distance: process.env.NEXT_PUBLIC_FREE_TRAVEL_DISTANCE_KM,
-  deposit: process.env.NEXT_PUBLIC_DOWN_PAYMENT_PERCENTAGE,
-};
-
-const dpMultiplier = Number.parseInt(config.deposit as string) / 100;
+import { CONFIG } from "../config/config";
 
 export const pricingPerSizeSchema = z.object({
   _id: z.string(),
@@ -199,7 +192,10 @@ export default function BookingDetails() {
         address: value.address,
         social: value.social,
         services: selectedServices,
-        milestone_reward_id: value.milestoneReward.length > 0 ? value.milestoneReward[0]._id : null
+        milestone_reward_id:
+          value.milestoneReward.length > 0
+            ? value.milestoneReward[0]._id
+            : null,
       });
       setLoading(false);
 
@@ -741,7 +737,7 @@ export default function BookingDetails() {
                                   className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-600 hover:text-white hover:bg-white/[0.06] transition-colors"
                                 >
                                   <span className="text-sm">
-                                    {mr.reward_service_id.title}
+                                    {mr.reward_service_id.title} + {mr.required_progress_count}
                                   </span>
                                   {isSelected && (
                                     <Check className="w-4 h-4 text-[#dc143c]" />
@@ -889,9 +885,9 @@ export default function BookingDetails() {
                           const fee = Math.floor(
                             Math.max(
                               0,
-                              (distance -
-                                Number.parseInt(config.free_distance ?? "0")) *
-                                Number.parseInt(config.fee ?? "0"),
+                              distance -
+                                CONFIG.FREE_TRAVEL_DISTANCE_KM *
+                                  CONFIG.TRAVEL_FEE_PER_KM,
                             ),
                           );
                           field.handleChange(v);
@@ -1035,7 +1031,8 @@ export default function BookingDetails() {
                         <div className="space-y-2">
                           <div className="flex justify-between items-center text-[13px]">
                             <span className="text-neutral-500 font-medium">
-                              Reservation Deposit ({dpMultiplier * 100}%)
+                              Reservation Deposit (
+                              {CONFIG.DOWN_PAYMENT_PERCENTAGE}%)
                             </span>
                             <span className="text-white font-bold">
                               ₱
@@ -1048,7 +1045,7 @@ export default function BookingDetails() {
                                     milestoneDiscount -
                                     pointsUsed -
                                     discount) *
-                                    dpMultiplier,
+                                    CONFIG.DOWN_PAYMENT_MULTIPLIER,
                                 ),
                               ).toLocaleString()}
                             </span>

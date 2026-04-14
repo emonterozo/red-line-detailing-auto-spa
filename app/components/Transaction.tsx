@@ -49,7 +49,11 @@ import { CustomerMilestonesPanel } from "./CustomerMilestonesPanel";
 import { ReadOnlyField } from "./ReadOnlyField";
 import FullScreenLoader from "./FullScreenLoader";
 import { showToast } from "@/lib/toast";
-import { calculateMilestoneRewardDiscount } from "@/lib/utils";
+import {
+  calculateMilestoneRewardDiscount,
+  generateDiscountTiers,
+} from "@/lib/utils";
+import { CONFIG } from "../config/config";
 
 export const pricingPerSizeSchema = z.object({
   _id: z.string(),
@@ -201,9 +205,6 @@ function Chip({ label }: Readonly<{ label: string }>) {
   );
 }
 
-const multiplier =
-  Number.parseInt(process.env.NEXT_PUBLIC_PERCENTAGE_LIMIT as string) / 100;
-
 export default function Transaction() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -232,12 +233,7 @@ export default function Transaction() {
   }, [customerQuery]);
 
   const getPointsEarned = (amount: number) => {
-    return (
-      Math.floor(
-        amount /
-          Number.parseInt(process.env.NEXT_PUBLIC_PESO_PER_POINTS ?? "100"),
-      ) * Number.parseInt(process.env.NEXT_PUBLIC_POINTS_PER_UNIT ?? "2")
-    );
+    return Math.floor(amount / CONFIG.PESO_PER_POINTS) * CONFIG.POINTS_PER_UNIT;
   };
 
   const form = useForm({
@@ -1030,11 +1026,7 @@ export default function Transaction() {
 
               <form.Subscribe selector={(s) => s.values.totalAmount}>
                 {(total) => {
-                  const tiers = [
-                    { off: 50, min: 125 },
-                    { off: 100, min: 250 },
-                    { off: 150, min: 375 },
-                  ];
+                  const tiers = generateDiscountTiers();
                   const next = tiers.find((t) => total < t.min);
 
                   return (
@@ -1177,7 +1169,8 @@ export default function Transaction() {
                     const pointsEarned = getPointsEarned(amountPaid);
 
                     const maximumPoints =
-                      (total + additionalCost - discount) * multiplier;
+                      (total + additionalCost - discount) *
+                      CONFIG.PERCENTAGE_LIMIT_MULTIPLIER;
 
                     return (
                       <div className="space-y-1">

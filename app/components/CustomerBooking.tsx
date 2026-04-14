@@ -23,6 +23,8 @@ import {
   Receipt,
   AlertCircle,
   Lock,
+  Info,
+  Star,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -51,6 +53,7 @@ import { useRouter } from "next/navigation";
 import FullScreenLoader from "./FullScreenLoader";
 import {
   calculateMilestoneRewardDiscount,
+  generateDiscountTiers,
   generateReference,
 } from "@/lib/utils";
 import {
@@ -59,13 +62,7 @@ import {
 } from "../actions/getMilestoneRewards";
 import { CustomerDetailsResponse, getCustomer } from "../actions/getCustomer";
 import { useSession } from "next-auth/react";
-
-const config = {
-  fee: Number(process.env.NEXT_PUBLIC_TRAVEL_FEE_PER_KM),
-  free_distance: Number(process.env.NEXT_PUBLIC_FREE_TRAVEL_DISTANCE_KM),
-  minimum_points: Number(process.env.NEXT_PUBLIC_MINIMUM_REDEEM_POINTS),
-  percentage_limit: Number(process.env.NEXT_PUBLIC_PERCENTAGE_LIMIT) / 100,
-};
+import { CONFIG } from "../config/config";
 
 const today = new Date();
 today.setHours(23, 59, 59, 59);
@@ -145,14 +142,14 @@ export const formSchema = z
     milestoneRewardDiscount: z.number(),
     pointsUsed: z
       .number()
-      .refine((val) => val === 0 || val >= config.minimum_points, {
-        message: `Minimum redeemable points is ${config.minimum_points}.`,
+      .refine((val) => val === 0 || val >= CONFIG.MINIMUM_REDEEM_POINTS, {
+        message: `Minimum redeemable points is ${CONFIG.MINIMUM_REDEEM_POINTS}.`,
       }),
     totalAmount: z.number(),
   })
   .refine(
     (data) => {
-      const maxPointsValue = data.totalAmount * config.percentage_limit;
+      const maxPointsValue = data.totalAmount * CONFIG.PERCENTAGE_LIMIT;
       return data.pointsUsed <= maxPointsValue;
     },
     {
@@ -496,7 +493,11 @@ export default function CustomerBooking() {
 
   const getTravelFee = (distance: number) => {
     const distanceInKm = distance / 1000;
-    const fee = Math.max(0, (distanceInKm - config.free_distance) * config.fee);
+    const fee = Math.max(
+      0,
+      (distanceInKm - CONFIG.FREE_TRAVEL_DISTANCE_KM) *
+        CONFIG.TRAVEL_FEE_PER_KM,
+    );
     return Math.ceil(fee);
   };
 
@@ -1079,7 +1080,7 @@ export default function CustomerBooking() {
             subtitle="What's being performed?"
           >
             <div className="space-y-4">
-              <form.Field name="milestoneReward">
+              {/* <form.Field name="milestoneReward">
                 {(field) => (
                   <Field>
                     <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
@@ -1134,87 +1135,218 @@ export default function CustomerBooking() {
                     </Popover>
                   </Field>
                 )}
-              </form.Field>
-              <form.Field name="pointsUsed">
+              </form.Field> */}
+              <form.Field name="milestoneReward">
                 {(field) => {
-                  const isInvalid =
-                    field.state.meta.isTouched && !field.state.meta.isValid;
+                  const currentVehicle =
+                    form.getFieldValue("vehicleSizes")?.[0];
+                  const qualifyingServices = [
+                    "Premium Detailer Wash",
+                    "Full Decontamination Wash",
+                  ];
+                  const selectedServices = form.getFieldValue("services") || [];
+
+                  const isCorrectService = selectedServices.some((service) =>
+                    qualifyingServices.includes(service.title),
+                  );
+
+                  const vehicleProgressObj = customer?.milestone_count.find(
+                    (m) =>
+                      m.vehicle_type === currentVehicle?.type &&
+                      m.vehicle_size === currentVehicle?.size,
+                  );
+                  const currentProgress =
+                    (vehicleProgressObj?.progress ?? 0) + 1;
+
+                  const filteredRewards = milestoneRewards.filter(
+                    (r) => r.vehicle_type === currentVehicle?.type,
+                  );
+
                   return (
-                    <Field>
-                      <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
-                        Points Used
-                      </FieldLabel>
-                      <Input
-                        id={field.name}
-                        name={field.name}
-                        value={field.state.value}
-                        onBlur={field.handleBlur}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          const points = v === "" ? 0 : Number.parseInt(v);
-                          form.setFieldValue("pointsUsed", points);
-                        }}
-                        className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
-                      />
-                      {isInvalid && (
-                        <FieldError
-                          className="text-[#ff6b81] text-xs mt-1"
-                          errors={field.state.meta.errors}
-                        />
+                    <Field className="space-y-2">
+                      <div className="flex justify-between items-end px-1">
+                        <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest font-semibold">
+                          Milestone Rewards
+                        </FieldLabel>
+                      </div>
+
+                      {!currentVehicle ? (
+                        /* LOCKED STATE: Matches the "Points Used" input style */
+                        <div className="relative h-12 w-full overflow-hidden rounded-xl border border-white/10 bg-white/[0.02]">
+                          <div className="absolute inset-0 z-10 flex items-center justify-between px-4 bg-black/40 backdrop-blur-[1.5px]">
+                            <div className="flex items-center gap-2">
+                              <Lock className="w-3.5 h-3.5 text-white/40" />
+                              <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.1em]">
+                                Select vehicle to unlock
+                              </p>
+                            </div>
+                            <div className="h-1.5 w-16 rounded-full bg-white/5" />
+                          </div>
+                        </div>
+                      ) : (
+                        /* ACTIVE STATE: Your existing Rewards Grid */
+                        <div className="grid grid-cols-1 gap-3 pt-1">
+                          {filteredRewards.length > 0 ? (
+                            filteredRewards.map((mr) => {
+                              const hasProgress =
+                                currentProgress >= mr.required_progress_count;
+                              const isUnlocked =
+                                hasProgress && isCorrectService;
+                              const isSelected = field.state.value.some(
+                                (item) => item._id === mr._id,
+                              );
+
+                              const rewardLabel =
+                                mr.reward_type === "free_service"
+                                  ? "FREE SERVICE"
+                                  : mr.discount_percentage > 0
+                                    ? `${mr.discount_percentage}% DISCOUNT`
+                                    : `₱${mr.discount_amount.toLocaleString()} OFF`;
+
+                              return (
+                                <button
+                                  key={mr._id}
+                                  type="button"
+                                  disabled={!isUnlocked}
+                                  onClick={() => onSelectMilestoneReward(mr)}
+                                  className={`relative overflow-hidden text-left p-4 rounded-2xl border transition-all duration-300 ${
+                                    isSelected
+                                      ? "bg-[#dc143c]/10 border-[#dc143c]/40 ring-1 ring-[#dc143c]/20"
+                                      : isUnlocked
+                                        ? "bg-white/[0.04] border-white/10 hover:bg-white/[0.08] hover:border-white/20"
+                                        : "bg-black/20 border-white/5 opacity-40 cursor-not-allowed"
+                                  }`}
+                                >
+                                  <div className="flex justify-between items-start">
+                                    <div className="space-y-1">
+                                      <p
+                                        className={`text-sm font-bold ${isUnlocked ? "text-white" : "text-gray-500"}`}
+                                      >
+                                        {mr.reward_service_id.title}
+                                      </p>
+                                      <p
+                                        className={`text-[10px] font-black tracking-widest uppercase ${
+                                          isUnlocked
+                                            ? mr.reward_type === "free_service"
+                                              ? "text-emerald-400"
+                                              : "text-[#ff6b81]"
+                                            : "text-gray-600"
+                                        }`}
+                                      >
+                                        {rewardLabel}
+                                      </p>
+                                    </div>
+                                    <div className="flex flex-col items-end gap-2">
+                                      {isSelected ? (
+                                        <div className="bg-[#dc143c] p-1 rounded-full">
+                                          <Check className="w-3 h-3 text-white" />
+                                        </div>
+                                      ) : isUnlocked ? (
+                                        <div className="bg-emerald-500/20 p-1 rounded-full animate-bounce">
+                                          <Star className="w-3 h-3 text-emerald-400" />
+                                        </div>
+                                      ) : (
+                                        <div className="bg-white/5 p-1 rounded-full text-gray-600">
+                                          <Lock className="w-3 h-3" />
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </button>
+                              );
+                            })
+                          ) : (
+                            <div className="p-4 text-center text-gray-600 text-xs italic">
+                              No rewards found for this vehicle type.
+                            </div>
+                          )}
+                        </div>
                       )}
                     </Field>
                   );
                 }}
               </form.Field>
-
+              {customer &&
+                customer.earned_points >= CONFIG.MINIMUM_REDEEM_POINTS && (
+                  <form.Field name="pointsUsed">
+                    {(field) => {
+                      const isInvalid =
+                        field.state.meta.isTouched && !field.state.meta.isValid;
+                      return (
+                        <Field>
+                          <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
+                            Points Used
+                          </FieldLabel>
+                          <Input
+                            id={field.name}
+                            name={field.name}
+                            value={field.state.value}
+                            onBlur={field.handleBlur}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              const points = v === "" ? 0 : Number.parseInt(v);
+                              form.setFieldValue("pointsUsed", points);
+                            }}
+                            className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
+                          />
+                          {isInvalid && (
+                            <FieldError
+                              className="text-[#ff6b81] text-xs mt-1"
+                              errors={field.state.meta.errors}
+                            />
+                          )}
+                        </Field>
+                      );
+                    }}
+                  </form.Field>
+                )}
               <form.Subscribe selector={(s) => s.values.totalAmount}>
                 {(total) => {
-                  const userPoints = 20;
-                  const isLocked = userPoints < 50;
+                  const userPoints = customer?.earned_points ?? 0;
+                  const isLocked = userPoints < CONFIG.MINIMUM_REDEEM_POINTS;
 
-                  const tiers = [
-                    { off: 50, min: 125 },
-                    { off: 100, min: 250 },
-                    { off: 150, min: 375 },
-                  ];
+                  const tiers = generateDiscountTiers();
                   const next = tiers.find((t) => total < t.min);
 
                   return (
-                    <div className="relative mt-4 overflow-hidden rounded-xl border border-white/10 bg-white/[0.02]">
+                    <div className="relative mt-4 overflow-hidden rounded-xl">
                       {isLocked && (
-                        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/60 backdrop-blur-[1.5px] transition-all duration-500">
-                          <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/5 shadow-xl">
-                            <Lock className="w-4 h-4 text-white shadow-2xl" />
+                        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/60 backdrop-blur-[1.5px] transition-all duration-500 rounded-xl">
+                          <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/5">
+                            <Lock className="w-4 h-4 text-white/80" />
                           </div>
-
-                          <div className="text-center px-6">
-                            <p className="text-white font-black text-[11px] uppercase tracking-[0.2em] mb-1">
-                              Rewards Locked
-                            </p>
-                            <p className="text-white/50 text-[10px] leading-tight max-w-[140px] mx-auto font-medium">
-                              Earn{" "}
-                              <span className="text-white font-bold">
-                                {50 - userPoints} more points
-                              </span>{" "}
-                              to unlock spend discounts.
-                            </p>
-                          </div>
+                          <p className="text-white font-black text-[11px] uppercase tracking-[0.15em]">
+                            Unlock Discounts
+                          </p>
+                          <p className="text-white/40 text-[10px] font-medium mt-1">
+                            Earn {CONFIG.MINIMUM_REDEEM_POINTS - userPoints}{" "}
+                            more points to use rewards
+                          </p>
                         </div>
                       )}
+
                       <div
-                        className={`p-4 space-y-3 transition-all duration-700 ${isLocked ? "blur-[1px] opacity-40 pointer-events-none scale-[0.98]" : ""}`}
+                        className={`rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-3 transition-all duration-500 ${
+                          isLocked
+                            ? "blur-[1.5px] opacity-40 pointer-events-none"
+                            : ""
+                        }`}
                       >
                         <div className="flex items-center justify-between">
                           <p className="text-gray-400 text-xs uppercase tracking-widest font-semibold">
                             Spend Discounts
                           </p>
-                          {next && !isLocked && (
+                          {next ? (
                             <p className="text-gray-500 text-xs">
                               ₱
                               <span className="text-white font-semibold">
                                 {next.min - total}
                               </span>{" "}
-                              more to unlock
+                              more to unlock ₱{next.off} off
+                            </p>
+                          ) : (
+                            <p className="text-[#ff6b81] text-xs font-semibold">
+                              All tiers unlocked 🎉
                             </p>
                           )}
                         </div>
@@ -1225,6 +1357,14 @@ export default function CustomerBooking() {
                               width: `${Math.min(100, (total / 375) * 100)}%`,
                             }}
                           />
+
+                          {tiers.map((t) => (
+                            <div
+                              key={t.min}
+                              className="absolute top-1/2 -translate-y-1/2 w-1 h-1 rounded-full bg-white/40"
+                              style={{ left: `${(t.min / 375) * 100}%` }}
+                            />
+                          ))}
                         </div>
 
                         <div className="grid grid-cols-3 gap-2">
@@ -1233,20 +1373,30 @@ export default function CustomerBooking() {
                             return (
                               <div
                                 key={t.min}
-                                className={`rounded-xl p-3 border text-center ${
+                                className={`rounded-xl p-3 border text-center transition-all duration-300 ${
                                   unlocked
                                     ? "bg-[#dc143c]/15 border-[#dc143c]/40"
                                     : "bg-white/[0.02] border-white/[0.08]"
                                 }`}
                               >
                                 <p
-                                  className={`text-lg font-bold leading-none ${unlocked ? "text-[#ff6b81]" : "text-neutral-500"}`}
+                                  className={`text-lg font-bold leading-none ${unlocked ? "text-[#ff6b81]" : "text-gray-600"}`}
                                 >
                                   ₱{t.off}
+                                  <span className="text-xs font-normal ml-0.5">
+                                    off
+                                  </span>
                                 </p>
-                                <p className="text-[9px] mt-1 text-neutral-600 uppercase font-bold tracking-tighter">
+                                <p
+                                  className={`text-xs mt-1 ${unlocked ? "text-gray-400" : "text-gray-600"}`}
+                                >
                                   min ₱{t.min}
                                 </p>
+                                {unlocked && (
+                                  <div className="mt-1.5 inline-flex items-center gap-1 text-[10px] text-[#dc143c] font-semibold">
+                                    <Check className="w-2.5 h-2.5" /> Unlocked
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
