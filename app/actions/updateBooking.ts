@@ -24,6 +24,7 @@ type UpdateBookingRequest = {
   status: BookingStatus;
   address: string;
   social: string;
+  milestone_reward_id: string | null
 };
 
 const dpMultiplier =
@@ -48,6 +49,7 @@ export const updateBooking = async (request: UpdateBookingRequest) => {
       {
         $set: {
           size_id: new Types.ObjectId(request.sizeId),
+          milestone_reward_id: request.milestone_reward_id ? new Types.ObjectId(request.milestone_reward_id) : null,
           reservation_fee: request.reservationFee,
           travel_fee: request.travelFee,
           total_amount: request.totalAmount,

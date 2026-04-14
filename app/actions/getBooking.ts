@@ -4,6 +4,10 @@ import connect from "@/lib/db/mongodb";
 import { ServiceType, VehicleSize, VehicleType } from "@/lib/enums";
 import Booking, { TBooking, TBookingDoc } from "@/models/Booking";
 import Customer, { TCustomer, TCustomerDoc } from "@/models/Customer";
+import MilestoneReward, {
+  TMilestoneReward,
+  TMilestoneRewardDoc,
+} from "@/models/MilestoneReward";
 import { TSchedule } from "@/models/Schedule";
 import { TVehicleSize } from "@/models/VehicleSize";
 import { Types } from "mongoose";
@@ -33,6 +37,7 @@ const BOOKING_FIELDS: (keyof TBooking)[] = [
   "promotion_id",
   "promo_code_used",
   "notes",
+  "milestone_reward_id",
 ];
 
 const CUSTOMER_FIELDS: (keyof TCustomer)[] = [
@@ -85,12 +90,14 @@ export type BookingResponse = Pick<
     type: ServiceType;
     title: string;
     price: number;
+    discount: number;
   }[];
   add_ons: {
     _id: string;
     type: ServiceType;
     title: string;
     price: number;
+    discount: number;
   }[];
   preferred_date: Pick<TSchedule, "date"> & {
     _id: string;
@@ -99,6 +106,7 @@ export type BookingResponse = Pick<
     _id: string;
     time: string;
   };
+  milestone_reward: BookingMilestoneRewardResponse | null;
 };
 
 type BookingDoc = Pick<
@@ -126,6 +134,7 @@ type BookingDoc = Pick<
   | "point_used"
   | "reference_number"
   | "notes"
+  | "milestone_reward_id"
 >;
 
 type CustomerDoc = Pick<TCustomerDoc, "_id" | "earned_points"> & {
@@ -139,6 +148,14 @@ type CustomerDoc = Pick<TCustomerDoc, "_id" | "earned_points"> & {
     };
     progress: number;
   }[];
+};
+
+export type BookingMilestoneRewardResponse = Pick<
+  TMilestoneReward,
+  "reward_type" | "discount_percentage" | "discount_amount" | "vehicle_type"
+> & {
+  _id: string;
+  reward_service_id: string;
 };
 
 export const getBooking = async (
@@ -183,11 +200,35 @@ export const getBooking = async (
     };
   }
 
+  let milestone_reward: BookingMilestoneRewardResponse | null = null;
+  if (bookingDoc.milestone_reward_id) {
+    const milestoneRewardDoc: Pick<
+      TMilestoneRewardDoc,
+      | "_id"
+      | "reward_type"
+      | "discount_percentage"
+      | "discount_amount"
+      | "reward_service_id"
+      | "vehicle_type"
+    > = await MilestoneReward.findById(bookingDoc.milestone_reward_id)
+      .select(
+        "reward_type discount_percentage discount_amount reward_service_id vehicle_type",
+      )
+      .lean();
+
+    milestone_reward = {
+      ...milestoneRewardDoc,
+      _id: milestoneRewardDoc._id.toString(),
+      reward_service_id: milestoneRewardDoc.reward_service_id._id.toString(),
+    };
+  }
+
   const formattedServices = bookingDoc.services.map((item) => ({
     _id: item._id.toString(),
     title: item.title,
     type: item.type,
     price: item.price,
+    discount: item.discount,
   }));
 
   const formattedAddOns = bookingDoc.add_ons.map((item) => ({
@@ -195,9 +236,14 @@ export const getBooking = async (
     title: item.title,
     type: item.type,
     price: item.price,
+    discount: item.discount,
   }));
 
-  const { customer_id: _customer_id, ...restBooking } = bookingDoc;
+  const {
+    customer_id: _customer_id,
+    milestone_reward_id: _milestone_reward_id,
+    ...restBooking
+  } = bookingDoc;
 
   const bookingJson = {
     ...restBooking,
@@ -214,6 +260,7 @@ export const getBooking = async (
       ...bookingDoc.time_slot,
       _id: bookingDoc.time_slot._id?.toString() ?? "",
     },
+    milestone_reward,
   };
 
   return bookingJson;

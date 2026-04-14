@@ -55,6 +55,19 @@ export const createTransaction = async (
   let contactNumber = "";
   let referenceNumber = "";
 
+  if (transactionData.booking_id) {
+    const bookingTransaction = await Transaction.findOne({
+      booking_id: new Types.ObjectId(transactionData.booking_id),
+    });
+
+    if (bookingTransaction)
+      return {
+        success: false,
+        message:
+          "A transaction for this booking has already been created.",
+      };
+  }
+
   const services = transactionData.services.map((item) => ({
     ...item,
     _id: new Types.ObjectId(item._id),

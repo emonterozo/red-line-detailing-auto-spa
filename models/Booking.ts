@@ -11,6 +11,7 @@ import { BookingStatus, ServiceType } from "@/lib/enums";
 import VehicleSize, { TVehicleSizeDoc } from "./VehicleSize";
 import Customer, { TCustomerDoc } from "./Customer";
 import Promotion, { TPromotionDoc } from "./Promotion";
+import MilestoneReward from "./MilestoneReward";
 
 export type TBooking = InferSchemaType<typeof bookingSchema>;
 export type TBookingDoc = HydratedDocument<TBooking>;
@@ -28,6 +29,7 @@ const serviceSchema = new Schema({
   title: { type: String, required: true },
   type: { type: String, enum: ServiceType, required: true },
   price: { type: Number, default: 0, required: true },
+  discount: { type: Number, default: 0, required: true },
 });
 
 const bookingSchema = new Schema({
@@ -54,6 +56,11 @@ const bookingSchema = new Schema({
   add_ons: {
     type: [serviceSchema],
     default: [],
+  },
+  milestone_reward_id: {
+    type: Schema.Types.ObjectId,
+    ref: MilestoneReward.modelName,
+    default: null,
   },
   preferred_date: {
     type: new Schema({

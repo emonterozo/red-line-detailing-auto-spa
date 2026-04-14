@@ -28,6 +28,7 @@ import {
 import {
   BookingStatus,
   BookingStatusDisplay,
+  RewardType,
   ServiceType,
   VehicleSize,
   VehicleType,
@@ -47,6 +48,11 @@ import { SelectTrigger } from "./SelectTrigger";
 import FullScreenLoader from "./FullScreenLoader";
 import { showToast } from "@/lib/toast";
 import { CustomerMilestonesPanel } from "./CustomerMilestonesPanel";
+import {
+  getMilestoneRewards,
+  MilestoneRewardsResponse,
+} from "../actions/getMilestoneRewards";
+import { calculateMilestoneRewardDiscount } from "@/lib/utils";
 
 const config = {
   fee: process.env.NEXT_PUBLIC_TRAVEL_FEE_PER_KM,
@@ -83,6 +89,23 @@ export const vehicleSizeSchema = z.object({
   description: z.string(),
 });
 
+export const milestoneRewardSchema = z.object({
+  _id: z.string(),
+  service_id: z.object({
+    _id: z.string(),
+    title: z.string(),
+  }),
+  reward_service_id: z.object({
+    _id: z.string(),
+    title: z.string(),
+  }),
+  required_progress_count: z.number(),
+  reward_type: z.enum(RewardType),
+  discount_percentage: z.number(),
+  discount_amount: z.number(),
+  vehicle_type: z.enum(VehicleType),
+});
+
 export const formSchema = z.object({
   social: z.string(),
   vehicleSizes: z
@@ -97,8 +120,9 @@ export const formSchema = z.object({
   travelDistance: z.string(),
   totalAmount: z.number(),
   notes: z.string(),
-
   status: z.enum(BookingStatus),
+  milestoneReward: z.array(milestoneRewardSchema),
+  milestoneDiscount: z.number(),
 });
 
 export type FormValues = z.infer<typeof formSchema>;
@@ -116,6 +140,8 @@ const defaultValues: FormValues = {
   social: "",
   address: "",
   status: BookingStatus.FOR_CHECKING,
+  milestoneReward: [],
+  milestoneDiscount: 0,
 };
 
 function Chip({ label }: Readonly<{ label: string }>) {
@@ -133,6 +159,9 @@ export default function BookingDetails() {
   const [booking, setBooking] = useState<BookingResponse | null>(null);
   const [vehicleSizes, setVehicleSizes] = useState<VehicleSizeResponse[]>([]);
   const [services, setServices] = useState<ServiceResponse[]>([]);
+  const [milestoneRewards, setMilestoneRewards] = useState<
+    MilestoneRewardsResponse[]
+  >([]);
   const [loading, setLoading] = useState(false);
   const [initializing, setInitializing] = useState(true);
 
@@ -170,6 +199,7 @@ export default function BookingDetails() {
         address: value.address,
         social: value.social,
         services: selectedServices,
+        milestone_reward_id: value.milestoneReward.length > 0 ? value.milestoneReward[0]._id : null
       });
       setLoading(false);
 
@@ -190,12 +220,21 @@ export default function BookingDetails() {
     const init = async () => {
       if (bookingId) {
         setInitializing(true);
-        const [servicesData, bookingData, vehicleSizesData] = await Promise.all(
-          [getServices(), getBooking(bookingId.toString()), getVehicleSizes()],
-        );
+        const [
+          servicesData,
+          bookingData,
+          vehicleSizesData,
+          milestoneRewardData,
+        ] = await Promise.all([
+          getServices(),
+          getBooking(bookingId.toString()),
+          getVehicleSizes(),
+          getMilestoneRewards(),
+        ]);
         setServices(servicesData);
         setBooking(bookingData);
         setVehicleSizes(vehicleSizesData);
+        setMilestoneRewards(milestoneRewardData);
 
         if (!bookingData) return;
 
@@ -235,6 +274,32 @@ export default function BookingDetails() {
 
         form.setFieldValue("services", selectedServices);
         form.setFieldValue("vehicleSizes", vehicleTypeSize);
+
+        const selectedMilestoneRewards = milestoneRewardData.filter(
+          (item) => item._id === bookingData.milestone_reward?._id,
+        );
+        form.setFieldValue("milestoneReward", selectedMilestoneRewards);
+
+        if (selectedMilestoneRewards.length > 0) {
+          const mrService = servicesData.find(
+            (s) => s._id === selectedMilestoneRewards[0].reward_service_id._id,
+          );
+
+          const mrPrice =
+            mrService?.pricing_per_sizes.find(
+              (p) =>
+                p.type === vehicleTypeSize[0].type &&
+                p.size === vehicleTypeSize[0].size,
+            )?.price ?? 0;
+
+          const discount = calculateMilestoneRewardDiscount(mrPrice, {
+            reward_type: selectedMilestoneRewards[0].reward_type,
+            discount_amount: selectedMilestoneRewards[0].discount_amount,
+            discount_percentage:
+              selectedMilestoneRewards[0].discount_percentage,
+          });
+          form.setFieldValue("milestoneDiscount", discount);
+        }
 
         setInitializing(false);
       }
@@ -290,6 +355,49 @@ export default function BookingDetails() {
       return total + (pricing?.price ?? 0);
     }, 0);
     form.setFieldValue("totalAmount", price);
+
+    const selectedMilestoneRewards = form.getFieldValue("milestoneReward");
+    if (selectedMilestoneRewards.length > 0) {
+      const mrService = services.find(
+        (s) => s._id === selectedMilestoneRewards[0].reward_service_id._id,
+      );
+
+      const mrPrice =
+        mrService?.pricing_per_sizes.find(
+          (p) => p.type === size.type && p.size === size.size,
+        )?.price ?? 0;
+
+      const discount = calculateMilestoneRewardDiscount(mrPrice, {
+        reward_type: selectedMilestoneRewards[0].reward_type,
+        discount_amount: selectedMilestoneRewards[0].discount_amount,
+        discount_percentage: selectedMilestoneRewards[0].discount_percentage,
+      });
+      form.setFieldValue("milestoneDiscount", discount);
+    }
+  };
+
+  const onSelectMilestoneReward = (mr: MilestoneRewardsResponse) => {
+    const current = form.getFieldValue("milestoneReward");
+    const isSelected = current.some((item) => item._id === mr._id);
+    form.setFieldValue("milestoneReward", isSelected ? [] : [mr]);
+
+    const mrService = services.find((s) => s._id === mr.reward_service_id._id);
+    const mrPrice =
+      mrService?.pricing_per_sizes.find(
+        (p) =>
+          p.type === form.getFieldValue("vehicleSizes")[0].type &&
+          p.size === form.getFieldValue("vehicleSizes")[0].size,
+      )?.price ?? 0;
+
+    let discountAmount = 0;
+    if (!isSelected) {
+      discountAmount = calculateMilestoneRewardDiscount(mrPrice, {
+        reward_type: mr.reward_type,
+        discount_amount: mr.discount_amount,
+        discount_percentage: mr.discount_percentage,
+      });
+    }
+    form.setFieldValue("milestoneDiscount", discountAmount);
   };
 
   return (
@@ -474,23 +582,24 @@ export default function BookingDetails() {
                 <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
                   Google Address
                 </FieldLabel>
-                <Textarea
-                  readOnly
-                  rows={3}
-                  value={booking?.google_address}
-                  className="px-4 rounded-xl bg-white/[0.04] border-white/10 text-white placeholder:text-gray-600 text-sm focus-visible:outline-none focus-visible:ring-0 focus-visible:border-white/10 resize-none"
-                />
+                <a
+                  href={`https://www.google.com/maps?q=${booking?.location?.coordinates[1]},${booking?.location?.coordinates[0]}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block group/address cursor-pointer"
+                >
+                  <div className="px-4 py-3 rounded-xl bg-white/[0.04] border border-white/10 text-white text-sm min-h-[80px] transition-all group-hover/address:bg-white/[0.08] group-hover/address:border-white/20">
+                    <p className="whitespace-pre-wrap leading-relaxed">
+                      {booking?.google_address}
+                    </p>
+                    <div className="flex justify-end mt-2">
+                      <span className="text-[10px] font-black text-[#dc143c] uppercase tracking-widest opacity-0 group-hover/address:opacity-100 transition-opacity">
+                        Open in Maps →
+                      </span>
+                    </div>
+                  </div>
+                </a>
               </Field>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <ReadOnlyField
-                  label="Latitude"
-                  value={booking?.location?.coordinates[1].toString() ?? ""}
-                />
-                <ReadOnlyField
-                  label="Longitude"
-                  value={booking?.location?.coordinates[0].toString() ?? ""}
-                />
-              </div>
             </div>
           </SectionCard>
 
@@ -520,14 +629,75 @@ export default function BookingDetails() {
             title="Services"
             subtitle="What's being performed?"
           >
-            <form.Field name="services">
-              {(field) => {
-                const isInvalid =
-                  field.state.meta.isTouched && !field.state.meta.isValid;
-                return (
+            <div className="space-y-4">
+              <form.Field name="services">
+                {(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
+                  return (
+                    <Field>
+                      <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
+                        Availed Services
+                      </FieldLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button type="button" className="w-full">
+                            <SelectTrigger
+                              hasValue={field.state.value.length > 0}
+                            >
+                              {field.state.value.length > 0 ? (
+                                <div className="overflow-x-auto scrollbar-services w-0 min-w-0 flex-1 py-2 flex-1">
+                                  <div className="flex gap-2 flex-nowrap min-w-max items-center">
+                                    {field.state.value.map((item) => (
+                                      <Chip key={item._id} label={item.title} />
+                                    ))}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span>Choose services...</span>
+                              )}
+                            </SelectTrigger>
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="backdrop-blur-md border border-white/20 rounded-xl p-3 shadow-lg max-h-80 overflow-y-auto">
+                          <Command>
+                            {services.map((service) => {
+                              const isSelected = field.state.value.find(
+                                (item) => item._id === service._id,
+                              );
+                              return (
+                                <CommandItem
+                                  key={service._id}
+                                  onSelect={() => toggleService(service)}
+                                  className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-600 hover:text-white hover:bg-white/[0.06] transition-colors"
+                                >
+                                  <span className="text-sm">
+                                    {service.title}
+                                  </span>
+                                  {isSelected && (
+                                    <Check className="w-4 h-4 text-[#dc143c]" />
+                                  )}
+                                </CommandItem>
+                              );
+                            })}
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      {isInvalid && (
+                        <FieldError
+                          className="text-[#ff6b81] text-xs mt-1"
+                          errors={field.state.meta.errors}
+                        />
+                      )}
+                    </Field>
+                  );
+                }}
+              </form.Field>
+              <form.Field name="milestoneReward">
+                {(field) => (
                   <Field>
                     <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
-                      Availed Services
+                      Milestone Reward
                     </FieldLabel>
                     <Popover>
                       <PopoverTrigger asChild>
@@ -536,51 +706,56 @@ export default function BookingDetails() {
                             hasValue={field.state.value.length > 0}
                           >
                             {field.state.value.length > 0 ? (
-                              <div className="overflow-x-auto scrollbar-services w-0 min-w-0 flex-1 py-2 flex-1">
+                              <div className="overflow-x-auto scrollbar-none w-0 flex-1">
                                 <div className="flex gap-2 flex-nowrap min-w-max items-center">
                                   {field.state.value.map((item) => (
-                                    <Chip key={item._id} label={item.title} />
+                                    <Chip
+                                      key={item._id}
+                                      label={item.reward_service_id.title}
+                                    />
                                   ))}
                                 </div>
                               </div>
                             ) : (
-                              <span>Choose services...</span>
+                              <span>Choose a milestone reward...</span>
                             )}
                           </SelectTrigger>
                         </button>
                       </PopoverTrigger>
                       <PopoverContent className="backdrop-blur-md border border-white/20 rounded-xl p-3 shadow-lg max-h-80 overflow-y-auto">
                         <Command>
-                          {services.map((service) => {
-                            const isSelected = field.state.value.find(
-                              (item) => item._id === service._id,
-                            );
-                            return (
-                              <CommandItem
-                                key={service._id}
-                                onSelect={() => toggleService(service)}
-                                className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-600 hover:text-white hover:bg-white/[0.06] transition-colors"
-                              >
-                                <span className="text-sm">{service.title}</span>
-                                {isSelected && (
-                                  <Check className="w-4 h-4 text-[#dc143c]" />
-                                )}
-                              </CommandItem>
-                            );
-                          })}
+                          {milestoneRewards
+                            .filter(
+                              (r) =>
+                                r.vehicle_type ===
+                                form.getFieldValue("vehicleSizes")[0].type,
+                            )
+                            .map((mr) => {
+                              const isSelected = field.state.value.find(
+                                (item) => item._id === mr._id,
+                              );
+                              return (
+                                <CommandItem
+                                  key={mr._id}
+                                  onSelect={() => onSelectMilestoneReward(mr)}
+                                  className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-600 hover:text-white hover:bg-white/[0.06] transition-colors"
+                                >
+                                  <span className="text-sm">
+                                    {mr.reward_service_id.title}
+                                  </span>
+                                  {isSelected && (
+                                    <Check className="w-4 h-4 text-[#dc143c]" />
+                                  )}
+                                </CommandItem>
+                              );
+                            })}
                         </Command>
                       </PopoverContent>
                     </Popover>
-                    {isInvalid && (
-                      <FieldError
-                        className="text-[#ff6b81] text-xs mt-1"
-                        errors={field.state.meta.errors}
-                      />
-                    )}
                   </Field>
-                );
-              }}
-            </form.Field>
+                )}
+              </form.Field>
+            </div>
           </SectionCard>
 
           <SectionCard
@@ -756,77 +931,166 @@ export default function BookingDetails() {
                   travelFee: s.values.travelFee,
                   pointsUsed: s.values.pointsUsed,
                   discount: s.values.discount,
+                  milestoneReward: s.values.milestoneReward,
+                  milestoneDiscount: s.values.milestoneDiscount,
+                  vehicleSizes: s.values.vehicleSizes,
                 })}
               >
-                {({ fee, total, travelFee, pointsUsed, discount }) => (
-                  <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] divide-y divide-white/[0.06]">
-                    <div className="flex justify-between items-center px-4 py-3">
-                      <span className="text-gray-500 text-sm">
-                        Services Total Amount
-                      </span>
-                      <span className="text-white font-medium text-sm">
-                        + ₱{total.toLocaleString()}
-                      </span>
+                {({
+                  fee,
+                  total,
+                  travelFee,
+                  pointsUsed,
+                  discount,
+                  milestoneReward,
+                  milestoneDiscount,
+                  vehicleSizes,
+                }) => {
+                  const milestoneRewardPrice = (() => {
+                    if (!milestoneReward.length) return 0;
+                    const rewardService = services.find(
+                      (s) => s._id === milestoneReward[0].reward_service_id._id,
+                    );
+                    return (
+                      rewardService?.pricing_per_sizes.find(
+                        (p) =>
+                          p.type === vehicleSizes[0].type &&
+                          p.size === vehicleSizes[0].size,
+                      )?.price ?? 0
+                    );
+                  })();
+
+                  return (
+                    <div className="rounded-[22px] border border-white/10 bg-white/[0.02] overflow-hidden shadow-2xl">
+                      <div className="p-4 space-y-3">
+                        <div className="flex justify-between items-center text-[13px]">
+                          <span className="text-neutral-400 font-medium tracking-wide">
+                            Services Total Amount
+                          </span>
+                          <span className="text-white font-bold">
+                            + ₱{total.toLocaleString()}
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between items-center text-[13px]">
+                          <span className="text-neutral-400 font-medium tracking-wide">
+                            Milestone Service Amount
+                          </span>
+                          <span className="text-white font-bold">
+                            + ₱{milestoneRewardPrice.toLocaleString()}
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between items-center text-[13px]">
+                          <span className="text-neutral-400 font-medium tracking-wide">
+                            Travel Fee
+                          </span>
+                          <span className="text-white font-bold">
+                            + ₱{travelFee.toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="px-4 py-3 bg-white/[0.03] border-y border-white/[0.06] space-y-2.5">
+                        <div className="flex justify-between items-center text-[13px]">
+                          <span className="text-neutral-400 font-medium tracking-wide">
+                            Total Discount
+                          </span>
+                          <span className="text-[#00ff88] font-bold">
+                            - ₱{(discount + pointsUsed).toLocaleString()}
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between items-center text-[13px]">
+                          <span className="text-neutral-400 font-medium tracking-wide">
+                            Milestone Service Discount
+                          </span>
+                          <span className="text-[#00ff88] font-bold">
+                            - ₱{milestoneDiscount.toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="p-4 space-y-4">
+                        <div className="flex justify-between items-center pt-1">
+                          <span className="text-white font-black text-xs uppercase tracking-widest">
+                            Total Amount
+                          </span>
+                          <span className="text-xl font-black text-white tracking-tighter">
+                            ₱
+                            {Math.max(
+                              0,
+                              total +
+                                travelFee +
+                                milestoneRewardPrice -
+                                milestoneDiscount -
+                                pointsUsed -
+                                discount,
+                            ).toLocaleString()}
+                          </span>
+                        </div>
+
+                        <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center text-[13px]">
+                            <span className="text-neutral-500 font-medium">
+                              Reservation Deposit ({dpMultiplier * 100}%)
+                            </span>
+                            <span className="text-white font-bold">
+                              ₱
+                              {Math.floor(
+                                Math.max(
+                                  0,
+                                  (total +
+                                    milestoneRewardPrice +
+                                    travelFee -
+                                    milestoneDiscount -
+                                    pointsUsed -
+                                    discount) *
+                                    dpMultiplier,
+                                ),
+                              ).toLocaleString()}
+                            </span>
+                          </div>
+
+                          <div className="flex justify-between items-center text-[13px]">
+                            <span className="text-neutral-500 font-medium">
+                              Deposit Amount Paid
+                            </span>
+                            <span className="text-white font-bold">
+                              ₱{fee.toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-[#dc143c]/10 border-t border-[#dc143c]/20 px-4 py-4 flex justify-between items-center">
+                        <div>
+                          <p className="text-[#ff6b81] font-black text-[10px] uppercase tracking-[0.15em] leading-none mb-1">
+                            Remaining Balance
+                          </p>
+                          <p className="text-white/40 text-[9px] font-medium italic">
+                            Payable after service completion
+                          </p>
+                        </div>
+                        <span className="text-[#ff6b81] font-black text-lg tracking-tighter">
+                          ₱
+                          {Math.max(
+                            0,
+                            total +
+                              travelFee +
+                              milestoneRewardPrice -
+                              milestoneDiscount -
+                              pointsUsed -
+                              discount -
+                              fee,
+                          ).toLocaleString()}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex justify-between items-center px-4 py-3">
-                      <span className="text-gray-500 text-sm">Travel Fee</span>
-                      <span className="text-white font-medium text-sm">
-                        + ₱{travelFee.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center px-4 py-3">
-                      <span className="text-gray-500 text-sm">
-                        Total Discount
-                      </span>
-                      <span className="text-white font-medium text-sm">
-                        - ₱{(discount + pointsUsed).toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center px-4 py-3">
-                      <span className="text-gray-500 text-sm">
-                        {`Reservation Deposit - ${dpMultiplier * 100}%`}
-                      </span>
-                      <span className="text-white font-medium text-sm">
-                        ₱
-                        {Math.floor(
-                          Math.max(0, (total + travelFee) * dpMultiplier),
-                        ).toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center px-4 py-3">
-                      <span className="text-gray-500 text-sm">
-                        Deposit Amount Paid
-                      </span>
-                      <span className="text-white font-medium text-sm">
-                        ₱{fee.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center px-4 py-3">
-                      <span className="text-gray-500 text-sm">
-                        Remaining Balance
-                      </span>
-                      <span className="text-white font-medium text-sm">
-                        ₱
-                        {Math.max(
-                          0,
-                          total + travelFee - pointsUsed - discount - fee,
-                        ).toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center px-4 py-3 bg-[#dc143c]/10 rounded-b-xl">
-                      <span className="text-white font-semibold text-sm">
-                        Total Amount
-                      </span>
-                      <span className="text-[#ff6b81] font-bold text-lg">
-                        ₱
-                        {Math.max(
-                          0,
-                          total + travelFee - pointsUsed - discount,
-                        ).toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                )}
+                  );
+                }}
               </form.Subscribe>
 
               <form.Field name="notes">

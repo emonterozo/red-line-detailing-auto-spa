@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { RewardType } from "./enums";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -64,3 +65,21 @@ export const getDistanceInMeters = (lat1: number, lon1: number, lat2: number, lo
 
   return R * c; 
 };
+
+export const calculateMilestoneRewardDiscount = (
+  price: number,
+  milestoneReward: {
+    reward_type: RewardType;
+    discount_amount: number;
+    discount_percentage: number;
+  }
+) =>  {
+  if (milestoneReward.reward_type === RewardType.DISCOUNT) {
+    if (milestoneReward.discount_amount === 0) {
+      return price * (milestoneReward.discount_percentage / 100);
+    }
+    return milestoneReward.discount_amount;
+  }
+
+  return price;
+}

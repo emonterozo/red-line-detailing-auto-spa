@@ -23,7 +23,7 @@ import {
   MapPin,
   Lock,
 } from "lucide-react";
-import { BookingStatusDisplay, VehicleType } from "@/lib/enums";
+import { BookingStatus, BookingStatusDisplay, VehicleType } from "@/lib/enums";
 import { CustomerDetailsResponse, getCustomer } from "../actions/getCustomer";
 import { BookingTableResponse, getBookings } from "../actions/getBookings";
 import {
@@ -107,7 +107,11 @@ export default function CustomerProfile({
           milestoneClaimedData,
         ] = await Promise.all([
           getCustomer(customerId),
-          getBookings(1, 10, customerId),
+          getBookings(1, 10, customerId, [
+            BookingStatus.FOR_CHECKING,
+            BookingStatus.PENDING_PAYMENT,
+            BookingStatus.RESERVED,
+          ]),
           getTransactions(1, 10, customerId),
           getCustomerClaimedMilestones(customerId, 1, 10),
         ]);

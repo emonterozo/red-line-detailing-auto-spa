@@ -1,6 +1,7 @@
 "use server";
 
 import connect from "@/lib/db/mongodb";
+import { BookingStatus } from "@/lib/enums";
 import Booking, { TBooking, TBookingDoc } from "@/models/Booking";
 import { TSchedule } from "@/models/Schedule";
 import { Types } from "mongoose";
@@ -13,7 +14,7 @@ const BOOKING_FIELDS: (keyof TBooking)[] = [
   "vehicle_model",
   "preferred_date",
   "time_slot",
-  "reference_number"
+  "reference_number",
 ];
 
 export interface IPaginatedBookings {
@@ -26,7 +27,12 @@ export interface IPaginatedBookings {
 
 export type BookingTableResponse = Pick<
   TBooking,
-  "name" | "contact_number" | "vehicle_model" | "status" | "created_at" | 'reference_number'
+  | "name"
+  | "contact_number"
+  | "vehicle_model"
+  | "status"
+  | "created_at"
+  | "reference_number"
 > & {
   _id: string;
   preferred_date: Pick<TSchedule, "date"> & {
@@ -42,6 +48,7 @@ export const getBookings = async (
   page: number = 1,
   limit: number = 10,
   customer_id?: string,
+  status?: BookingStatus[],
 ): Promise<IPaginatedBookings> => {
   await connect();
 
@@ -51,6 +58,10 @@ export const getBookings = async (
 
   if (customer_id && typeof customer_id === "string") {
     query.customer_id = new Types.ObjectId(customer_id);
+  }
+
+  if (status && status.length > 0) {
+    query.status = { $in: status };
   }
 
   const bookingsDoc: Pick<

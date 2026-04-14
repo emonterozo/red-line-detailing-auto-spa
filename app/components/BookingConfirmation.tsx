@@ -32,6 +32,11 @@ const formattedDate = (date: Date) => {
   });
 };
 
+type Item = {
+  price: number;
+  discount?: number;
+};
+
 export default function BookingConfirmation() {
   const params = useParams();
   const bookingReference = params.id;
@@ -71,6 +76,48 @@ export default function BookingConfirmation() {
     };
     init();
   }, [bookingReference]);
+
+  const computeTotals = () => {
+    if (booking) {
+      const sum = (arr: Item[]) =>
+        arr.reduce(
+          (acc, item) => {
+            acc.totalPrice += item.price || 0;
+            acc.totalDiscount += item.discount || 0;
+            return acc;
+          },
+          { totalPrice: 0, totalDiscount: 0 },
+        );
+
+      const serviceTotals = sum(booking.services || []);
+      const addOnTotals = sum(booking.add_ons || []);
+      const milestoneTotals = sum(booking.milestone_reward || []);
+
+      const totalDiscount =
+        serviceTotals.totalDiscount +
+        addOnTotals.totalDiscount +
+        milestoneTotals.totalDiscount +
+        (booking.discount || 0) +
+        (booking.point_used || 0);
+
+      const subtotal =
+        serviceTotals.totalPrice +
+        addOnTotals.totalPrice +
+        milestoneTotals.totalPrice;
+
+      const finalAmount = subtotal + (booking.travel_fee || 0) - totalDiscount;
+
+      return {
+        totalDiscount,
+        finalAmount,
+      };
+    }
+    return {
+      totalDiscount: 0,
+      finalAmount: 0,
+    };
+  };
+
   return (
     <section className="min-h-screen bg-[#0a0a0a] relative overflow-hidden">
       {isLoading && <FullScreenLoader />}
@@ -249,7 +296,11 @@ export default function BookingConfirmation() {
                   </div>
 
                   <div className="divide-y divide-white/[0.06]">
-                    {[...booking.services, ...booking.add_ons].map((item) => (
+                    {[
+                      ...booking.services,
+                      ...booking.add_ons,
+                      ...booking.milestone_reward,
+                    ].map((item) => (
                       <div
                         key={item._id}
                         className="flex justify-between items-center px-5 py-4 hover:bg-white/[0.01] transition-colors"
@@ -274,6 +325,18 @@ export default function BookingConfirmation() {
                         {`₱${booking.travel_fee.toLocaleString()}`}
                       </span>
                     </div>
+                    {computeTotals().totalDiscount > 0 && (
+                      <div className="flex justify-between items-center px-5 py-4 hover:bg-white/[0.01] transition-colors">
+                        <div>
+                          <p className="text-white/90 text-sm font-bold tracking-tight">
+                            Discount
+                          </p>
+                        </div>
+                        <span className="text-white font-mono text-sm font-bold">
+                          {`₱${computeTotals().totalDiscount.toLocaleString()}`}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="relative px-5 py-5 bg-gradient-to-b from-white/[0.04] to-transparent border-t border-white/[0.1]">
@@ -288,7 +351,7 @@ export default function BookingConfirmation() {
                       </div>
                       <div className="flex flex-col items-end">
                         <span className="text-[#ff6b81] font-russo text-2xl tracking-tighter shadow-sm">
-                          {`₱${(booking.total_amount + booking.travel_fee).toLocaleString()}`}
+                          {`₱${computeTotals()?.finalAmount.toLocaleString()}`}
                         </span>
                         <div className="h-0.5 w-16 bg-[#dc143c] mt-1 shadow-[0_0_12px_rgba(220,20,60,0.6)]" />
                       </div>
