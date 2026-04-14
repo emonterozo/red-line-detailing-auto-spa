@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Russo_One, Poppins } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
+import AuthProvider from "./components/AuthProvider";
 
 const russoOne = Russo_One({
   variable: "--font-russo-one",
@@ -29,7 +30,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${russoOne.variable} ${poppins.variable}`}>
-        {children}
+        <AuthProvider> {children}</AuthProvider>
         <Toaster
           toastOptions={{
             unstyled: true,

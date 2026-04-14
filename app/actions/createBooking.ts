@@ -12,7 +12,7 @@ import { getSmsContent } from "@/lib/getSmsTemplate";
 import { sendMessage } from "@/lib/sendMessage";
 
 interface CreateBookingProps {
-  user_id?: string;
+  customer_id?: string;
   size_id?: string;
   first_name: string;
   last_name: string;
@@ -34,10 +34,11 @@ interface CreateBookingProps {
   travel_distance: number;
   reference_number: string;
   notes: string;
+  milestone_reward_id?: string | null;
+  point_used?: number
 }
 
 export const createBooking = async (bookingData: CreateBookingProps) => {
-  const userId = null;
   await connect();
 
   const formattedDate = bookingData.preferred_date.date.toLocaleDateString(
@@ -80,13 +81,18 @@ export const createBooking = async (bookingData: CreateBookingProps) => {
       );
       if (schedule) {
         const newBooking = new Booking({
-          user_id: userId,
           ...bookingData,
           name: `${bookingData.first_name} ${bookingData.last_name}`,
           location: {
             type: "Point",
             coordinates: [bookingData.longitude, bookingData.latitude],
           },
+          customer_id: bookingData.customer_id
+            ? new Types.ObjectId(bookingData.customer_id)
+            : null,
+          milestone_reward_id: bookingData.milestone_reward_id
+            ? new Types.ObjectId(bookingData.milestone_reward_id)
+            : null,
         });
         await newBooking.save();
 
@@ -142,13 +148,13 @@ export const createBooking = async (bookingData: CreateBookingProps) => {
           model: bookingData.vehicle_model,
           type: BookingStatus.FOR_CHECKING,
           ref: bookingData.reference_number,
-          date: new Date(bookingData.preferred_date.date).toDateString()
+          date: new Date(bookingData.preferred_date.date).toDateString(),
         });
 
         sendMessage({
           message,
-          phoneNumbers: [bookingData.contact_number]
-        })
+          phoneNumbers: [bookingData.contact_number],
+        });
 
         return {
           success: true,

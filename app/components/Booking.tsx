@@ -21,8 +21,8 @@ import {
   User,
   Wrench,
   Calendar as CalendarIcon,
-  Info,
   Receipt,
+  AlertCircle,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -54,8 +54,8 @@ import FullScreenLoader from "./FullScreenLoader";
 import { generateReference } from "@/lib/utils";
 
 const config = {
-  fee: process.env.NEXT_PUBLIC_TRAVEL_FEE_PER_KM,
-  free_distance: process.env.NEXT_PUBLIC_FREE_TRAVEL_DISTANCE_KM,
+  fee: Number(process.env.NEXT_PUBLIC_TRAVEL_FEE_PER_KM),
+  free_distance: Number(process.env.NEXT_PUBLIC_FREE_TRAVEL_DISTANCE_KM),
 };
 
 const today = new Date();
@@ -405,11 +405,7 @@ export default function Booking() {
 
   const getTravelFee = (distance: number) => {
     const distanceInKm = distance / 1000;
-    const fee = Math.max(
-      0,
-      (distanceInKm - Number.parseInt(config.free_distance!)) *
-        Number.parseInt(config.fee!),
-    );
+    const fee = Math.max(0, (distanceInKm - config.free_distance) * config.fee);
     return Math.ceil(fee);
   };
 
@@ -1145,23 +1141,15 @@ export default function Booking() {
                           {`₱${(servicesAmount + addOnsAmount + getTravelFee(distance)).toLocaleString()}`}
                         </span>
                       </div>
-                      <div className="mt-6 p-4 rounded-2xl bg-white/[0.03] border border-white/5 flex gap-3 items-start animate-in fade-in slide-in-from-bottom-2">
-                        <div className="p-1.5 rounded-lg bg-[#dc143c]/10 mt-0.5">
-                          <Info className="w-3 h-3 text-[#dc143c]" />
-                        </div>
-                        <p className="text-[13px] text-gray-500 leading-relaxed font-medium">
-                          <span className="text-white not-italic font-black uppercase tracking-tighter mr-1.5">
+                      <div className="mt-6 flex items-start gap-3 p-4 rounded-2xl bg-amber-500/5 border border-amber-500/10">
+                        <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                        <p className="text-[11px] leading-relaxed text-amber-200/60 font-medium">
+                          <strong className="text-amber-500 uppercase text-[10px] block mb-0.5">
                             Note:
-                          </span>
-                          This total is a{" "}
-                          <span className="text-gray-300">
-                            preliminary estimate
-                          </span>{" "}
-                          based on the information you provided. Our team will{" "}
-                          <span className="text-gray-300">
-                            verify your inputs
-                          </span>{" "}
-                          and provide the finalized cost.
+                          </strong>
+                          This total is a preliminary estimate based on the
+                          information you provided. Our team will verify your
+                          inputs and provide the finalized cost.
                         </p>
                       </div>
                     </>

@@ -14,6 +14,7 @@ const CUSTOMER_FIELDS: (keyof TCustomer)[] = [
   "contact_number",
   "social",
   "address",
+  "google_address",
   "location",
   "address_updated_at",
   "is_verify",
@@ -30,7 +31,7 @@ const CUSTOMER_FIELDS: (keyof TCustomer)[] = [
 export type CustomerDetailsResponse = Omit<
   TCustomer,
   | "name"
-  | "google_address"
+
   | "password"
   | "milestone_count"
   | "updated_at"
@@ -57,7 +58,6 @@ export type CustomerDetailsResponse = Omit<
 type CustomerDoc = Omit<
   TCustomer,
   | "name"
-  | "google_address"
   | "password"
   | "milestone_count"
   | "updated_at"
@@ -111,6 +111,7 @@ export const getCustomer = async (
     email: customerDoc.email,
     social: customerDoc.social,
     address: customerDoc.address,
+    google_address: customerDoc.google_address,
     location: customerDoc.location,
     address_updated_at: customerDoc.address_updated_at,
     verified_at: customerDoc.verified_at,
