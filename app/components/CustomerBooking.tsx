@@ -23,7 +23,6 @@ import {
   Receipt,
   AlertCircle,
   Lock,
-  Info,
   Star,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
@@ -53,6 +52,7 @@ import { useRouter } from "next/navigation";
 import FullScreenLoader from "./FullScreenLoader";
 import {
   calculateMilestoneRewardDiscount,
+  calculateTravelFee,
   generateDiscountTiers,
   generateReference,
 } from "@/lib/utils";
@@ -187,109 +187,144 @@ function Chip({ label }: Readonly<{ label: string }>) {
 export default function CustomerBooking() {
   const { data: session } = useSession();
   const router = useRouter();
-  const [vehicleSizes, setVehicleSizes] = useState<VehicleSizeResponse[]>([]);
-  const [schedules, setSchedules] = useState<ScheduleResponse[]>([]);
-  const [services, setServices] = useState<ServiceResponse[]>([]);
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [slots, setSlots] = useState<(ITimeSlot & { _id: string })[]>([]);
-  const [isSlotPickerOpen, setIsSlotPickerOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [initializing, setInitializing] = useState(true);
-  const [milestoneRewards, setMilestoneRewards] = useState<
-    MilestoneRewardsResponse[]
-  >([]);
-  const [customer, setCustomer] = useState<CustomerDetailsResponse | null>(
-    null,
-  );
-  const [vehicleMilestoneRewards, setVehicleMilestoneRewards] = useState<
-    MilestoneRewardsResponse[]
-  >([]);
+
+  const [data, setData] = useState({
+    vehicleSizes: [] as VehicleSizeResponse[],
+    schedules: [] as ScheduleResponse[],
+    services: [] as ServiceResponse[],
+    milestoneRewards: [] as MilestoneRewardsResponse[],
+    customer: null as CustomerDetailsResponse | null,
+  });
+
+  const [ui, setUi] = useState({
+    loading: false,
+    initializing: true,
+    isCalendarOpen: false,
+    isSlotPickerOpen: false,
+    slots: [] as (ITimeSlot & { _id: string })[],
+    vehicleMilestoneRewards: [] as MilestoneRewardsResponse[],
+  });
+
+  useEffect(() => {
+    const userId = session?.user?.id;
+    if (!userId) return;
+
+    const init = async () => {
+      setUi((prev) => ({ ...prev, initializing: true }));
+
+      try {
+        const [vehicleSizes, schedules, services, milestoneRewards, customer] =
+          await Promise.all([
+            getVehicleSizes(),
+            getSchedules(),
+            getServices(),
+            getMilestoneRewards(),
+            getCustomer(userId),
+          ]);
+
+        form.setFieldValue("address", customer?.address || "");
+
+        setData({
+          vehicleSizes,
+          schedules,
+          services,
+          milestoneRewards,
+          customer,
+        });
+      } catch {
+        // Optional: showToast("Failed to load data", "error");
+      } finally {
+        setUi((prev) => ({ ...prev, initializing: false }));
+      }
+    };
+
+    init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.id]);
 
   const fetchSchedules = async () => {
     const response = await getSchedules();
     return response;
   };
 
-  const toggleService = (service: ServiceResponse, type: ServiceType) => {
-    if (type === ServiceType.SERVICE) {
-      const currentServices = form.getFieldValue("services");
+  const toggleService = (service: ServiceResponse, type: ServiceType): void => {
+    const isMain = type === ServiceType.SERVICE;
+    const field = isMain ? "services" : "addOns";
 
-      let newServices;
+    const current = (form.getFieldValue(field) as ServiceResponse[]) || [];
+    const isSelected = current.some(
+      (s: ServiceResponse) => s._id === service._id,
+    );
 
-      if (currentServices.includes(service)) {
-        newServices = currentServices.filter((s) => s !== service);
-      } else if (service.title === "Premium Detailer Wash") {
-        newServices = [
-          ...currentServices.filter(
-            (s) => s.title !== "Full Decontamination Wash",
-          ),
-          service,
-        ];
-      } else if (service.title === "Full Decontamination Wash") {
-        newServices = [
-          ...currentServices.filter((s) => s.title !== "Premium Detailer Wash"),
-          service,
-        ];
-      } else {
-        newServices = [...currentServices, service];
-      }
+    let nextItems: ServiceResponse[];
 
-      const selectedVehicleSizes = form.getFieldValue("vehicleSizes");
-      if (selectedVehicleSizes.length > 0) {
-        const rewardsPerVehicle = milestoneRewards.filter(
-          (item) => item.vehicle_type === selectedVehicleSizes[0].type,
-        );
-        const selectedVehicleMilestoneCount = customer?.milestone_count.find(
-          (item) => item.size_id === selectedVehicleSizes[0]._id,
-        );
-        const data = rewardsPerVehicle.filter(
-          (item) =>
-            (selectedVehicleMilestoneCount?.progress as number) >=
-            item.required_progress_count - 1,
-        );
+    if (isSelected) {
+      nextItems = current.filter((s: ServiceResponse) => s._id !== service._id);
+    } else if (isMain) {
+      const washConflicts: Record<string, string> = {
+        "Premium Detailer Wash": "Full Decontamination Wash",
+        "Full Decontamination Wash": "Premium Detailer Wash",
+      };
 
-        const isPremiumWashSelected = newServices.find(
-          (item) => item.title === "Premium Detailer Wash",
-        );
-        setVehicleMilestoneRewards(isPremiumWashSelected ? data : []);
-        form.setFieldValue("milestoneReward", []);
-
-        const addOns = form.getFieldValue("addOns") ?? [];
-        const price = getPricing(
-          [...newServices, ...addOns],
-          selectedVehicleSizes,
-        );
-        form.setFieldValue("totalAmount", price);
-      }
-
-      form.setFieldValue("services", newServices);
+      const conflictTitle = washConflicts[service.title];
+      nextItems = conflictTitle
+        ? [
+            ...current.filter(
+              (s: ServiceResponse) => s.title !== conflictTitle,
+            ),
+            service,
+          ]
+        : [...current, service];
     } else {
-      const currentServices = form.getFieldValue("addOns");
+      nextItems = [...current, service];
+    }
 
-      if (currentServices) {
-        let newServices;
-        if (currentServices.includes(service)) {
-          newServices = currentServices.filter((s) => s !== service);
-        } else {
-          newServices = [...currentServices, service];
-        }
-        form.setFieldValue("addOns", newServices);
+    form.setFieldValue(field, nextItems);
 
-        const selectedVehicleSizes = form.getFieldValue("vehicleSizes");
-        if (selectedVehicleSizes.length > 0) {
-          const services = form.getFieldValue("services") ?? [];
-          const price = getPricing(
-            [...newServices, ...services],
-            selectedVehicleSizes,
-          );
-          form.setFieldValue("totalAmount", price);
-        }
+    const selectedSize = form.getFieldValue("vehicleSizes")?.[0] as
+      | VehicleSizeResponse
+      | undefined;
+
+    if (selectedSize) {
+      const services = isMain
+        ? nextItems
+        : (form.getFieldValue("services") as ServiceResponse[]) || [];
+
+      const addOns = isMain
+        ? (form.getFieldValue("addOns") as ServiceResponse[]) || []
+        : nextItems;
+
+      form.setFieldValue(
+        "totalAmount",
+        getPricing([...services, ...addOns], [selectedSize]),
+      );
+
+      if (isMain) {
+        const isPremium = nextItems.some(
+          (s: ServiceResponse) => s.title === "Premium Detailer Wash",
+        );
+
+        const available = isPremium
+          ? data.milestoneRewards.filter((r: MilestoneRewardsResponse) => {
+              const progress =
+                data.customer?.milestone_count.find(
+                  (m) => m.size_id === selectedSize._id,
+                )?.progress ?? 0;
+
+              return (
+                r.vehicle_type === selectedSize.type &&
+                progress >= r.required_progress_count - 1
+              );
+            })
+          : [];
+
+        setUi((prev) => ({ ...prev, vehicleMilestoneRewards: available }));
+        form.setFieldValue("milestoneReward", []);
       }
     }
   };
-
   const availableSet = new Set<number>(
-    schedules?.map((schedule) => {
+    data.schedules?.map((schedule) => {
       const date = new Date(schedule.date);
       date.setHours(23, 59, 59, 59);
       return date.getTime();
@@ -297,7 +332,7 @@ export default function CustomerBooking() {
   );
 
   const fullyBookedSet = new Set<number>(
-    schedules
+    data.schedules
       .filter((schedule) =>
         schedule.time_slots.every((slot) => !slot.is_available),
       )
@@ -315,8 +350,11 @@ export default function CustomerBooking() {
       onSubmit: formSchema,
     },
     onSubmit: async ({ value }) => {
-      setLoading(true);
-      const selectedDate = schedules.find(
+      setUi((prev) => ({
+        ...prev,
+        loading: true,
+      }));
+      const selectedDate = data.schedules.find(
         (schedule) =>
           schedule.date.getDate() === value.preferred_date?.getDate() &&
           schedule.date.getMonth() === value.preferred_date?.getMonth() &&
@@ -365,7 +403,7 @@ export default function CustomerBooking() {
         location,
         travel_distance,
         _id,
-      } = customer as CustomerDetailsResponse;
+      } = data.customer as CustomerDetailsResponse;
 
       const result = await createBooking({
         customer_id: _id,
@@ -393,7 +431,7 @@ export default function CustomerBooking() {
         latitude: location?.coordinates[1] ?? 0,
         longitude: location?.coordinates[0] ?? 0,
         status: BookingStatus.FOR_CHECKING,
-        travel_fee: getTravelFee(travel_distance),
+        travel_fee: calculateTravelFee(travel_distance),
         reservation_fee: 0,
         total_amount: getPricing(
           [...value.services, ...value.addOns!],
@@ -405,7 +443,10 @@ export default function CustomerBooking() {
         size_id: value.vehicleSizes[0]._id,
         point_used: value.pointsUsed,
       });
-      setLoading(false);
+      setUi((prev) => ({
+        ...prev,
+        loading: false,
+      }));
       if (!result.success) showToast(result.message, "error");
       if (
         !result.success &&
@@ -414,7 +455,10 @@ export default function CustomerBooking() {
       ) {
         const data = await fetchSchedules();
         if (result.field === "preferred_date") {
-          setSchedules(data);
+          setData((prev) => ({
+            ...prev,
+            schedules: data,
+          }));
           form.setFieldValue("preferred_date", null);
           form.setFieldValue("timeSlot", "");
           form.fieldInfo.preferred_date.instance?.setErrorMap({
@@ -429,7 +473,10 @@ export default function CustomerBooking() {
                 value.preferred_date?.getFullYear(),
           );
 
-          setSlots(dateTimeSlots?.time_slots ?? []);
+          setUi((prev) => ({
+            ...prev,
+            slots: dateTimeSlots?.time_slots ?? [],
+          }));
           form.setFieldValue("timeSlot", "");
           form.fieldInfo.timeSlot.instance?.setErrorMap({
             onSubmit: { message: result.message },
@@ -437,8 +484,14 @@ export default function CustomerBooking() {
         }
       } else {
         const data = await fetchSchedules();
-        setSchedules(data);
-        setSlots([]);
+        setData((prev) => ({
+          ...prev,
+          schedules: data,
+        }));
+        setUi((prev) => ({
+          ...prev,
+          slots: [],
+        }));
         if (result.success) {
           window.open(`/booking/${reference}`, "_blank");
           router.back();
@@ -460,64 +513,31 @@ export default function CustomerBooking() {
     }, 0);
   };
 
-  useEffect(() => {
-    const init = async () => {
-      setInitializing(true);
-      if (session?.user) {
-        const [
-          vehicleSizesData,
-          schedulesData,
-          servicesData,
-          milestoneRewardData,
-          customerData,
-        ] = await Promise.all([
-          getVehicleSizes(),
-          fetchSchedules(),
-          getServices(),
-          getMilestoneRewards(),
-          getCustomer(session?.user?.id as string),
-        ]);
+  const onSelectMilestoneReward = (mr: MilestoneRewardsResponse): void => {
+    const vehicleSizes = form.getFieldValue(
+      "vehicleSizes",
+    ) as VehicleSizeResponse[];
 
-        form.setFieldValue("address", customerData?.address as string);
-        setCustomer(customerData);
-        setVehicleSizes(vehicleSizesData);
-        setSchedules(schedulesData);
-        setServices(servicesData);
-        setMilestoneRewards(milestoneRewardData);
-        setInitializing(false);
-      }
-    };
-
-    init();
-  }, [form, session]);
-
-  const getTravelFee = (distance: number) => {
-    const distanceInKm = distance / 1000;
-    const fee = Math.max(
-      0,
-      (distanceInKm - CONFIG.FREE_TRAVEL_DISTANCE_KM) *
-        CONFIG.TRAVEL_FEE_PER_KM,
-    );
-    return Math.ceil(fee);
-  };
-
-  const onSelectMilestoneReward = (mr: MilestoneRewardsResponse) => {
-    const vehicleSizes = form.getFieldValue("vehicleSizes");
     if (vehicleSizes.length > 0) {
-      const current = form.getFieldValue("milestoneReward");
-      const isSelected = current.some((item) => item._id === mr._id);
+      const selectedVehicle = vehicleSizes[0];
+      const currentRewards =
+        (form.getFieldValue("milestoneReward") as MilestoneRewardsResponse[]) ||
+        [];
+      const isSelected = currentRewards.some((item) => item._id === mr._id);
+
       form.setFieldValue("milestoneReward", isSelected ? [] : [mr]);
 
-      const mrService = services.find(
+      const mrService = data.services.find(
         (s) => s._id === mr.reward_service_id._id,
       );
-      const mrPrice =
-        mrService?.pricing_per_sizes.find(
-          (p) =>
-            p.type === vehicleSizes[0].type && p.size === vehicleSizes[0].size,
-        )?.price ?? 0;
 
+      const pricing = mrService?.pricing_per_sizes.find(
+        (p) => p.size_id === selectedVehicle._id,
+      );
+
+      const mrPrice = pricing?.price ?? 0;
       let discountAmount = 0;
+
       if (!isSelected) {
         discountAmount = calculateMilestoneRewardDiscount(mrPrice, {
           reward_type: mr.reward_type,
@@ -525,44 +545,61 @@ export default function CustomerBooking() {
           discount_percentage: mr.discount_percentage,
         });
       }
+
       form.setFieldValue("milestoneRewardPrice", mrPrice);
       form.setFieldValue("milestoneRewardDiscount", discountAmount);
     }
   };
 
-  const onSelectVehicleType = (size: VehicleSizeResponse) => {
-    const rewardsPerVehicle = milestoneRewards.filter(
-      (item) => item.vehicle_type === size.type,
-    );
-    const selectedVehicleMilestoneCount = customer?.milestone_count.find(
-      (item) => item.size_id === size._id,
-    );
-    const data = rewardsPerVehicle.filter(
-      (item) =>
-        (selectedVehicleMilestoneCount?.progress as number) >=
-        item.required_progress_count - 1,
-    );
-    const selectedServices = form.getFieldValue("services");
-    const isPremiumWashSelected = selectedServices.find(
-      (item) => item.title === "Premium Detailer Wash",
-    );
-    setVehicleMilestoneRewards(isPremiumWashSelected ? data : []);
+  const onSelectVehicleType = (size: VehicleSizeResponse): void => {
+    const { milestoneRewards, customer } = data;
+    const services =
+      (form.getFieldValue("services") as ServiceResponse[]) || [];
+    const addOns = (form.getFieldValue("addOns") as ServiceResponse[]) || [];
 
-    const selectedAddOns = form.getFieldValue("addOns") ?? [];
-    const totalPrice = getPricing(
-      [...selectedServices, ...selectedAddOns],
-      [size],
+    const isPremiumSelected = services.some(
+      (s) => s.title === "Premium Detailer Wash",
     );
-    form.setFieldValue("totalAmount", totalPrice);
+
+    const availableRewards = isPremiumSelected
+      ? milestoneRewards.filter((reward) => {
+          const progress =
+            customer?.milestone_count.find((m) => m.size_id === size._id)
+              ?.progress ?? 0;
+          return (
+            reward.vehicle_type === size.type &&
+            progress >= reward.required_progress_count - 1
+          );
+        })
+      : [];
+
+    setUi((prev) => ({
+      ...prev,
+      vehicleMilestoneRewards: availableRewards,
+    }));
+
+    const totalPrice = getPricing([...services, ...addOns], [size]);
+
     form.setFieldValue("vehicleSizes", [size]);
+    form.setFieldValue("totalAmount", totalPrice);
+
     form.setFieldValue("milestoneReward", []);
+    form.setFieldValue("milestoneRewardPrice", 0);
+    form.setFieldValue("milestoneRewardDiscount", 0);
+  };
+
+  const toggleCalendar = () => {
+    setUi((prev) => ({
+      ...prev,
+      isCalendarOpen: !prev.isCalendarOpen,
+    }));
   };
 
   return (
     <section className="min-h-screen bg-[#0a0a0a] relative overflow-hidden">
       <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] rounded-full bg-[#dc143c]/[0.06] blur-[120px]" />
       <div className="pointer-events-none absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full bg-[#dc143c]/[0.04] blur-[100px]" />
-      {initializing && <FullScreenLoader />}
+      {ui.initializing && <FullScreenLoader />}
 
       <div className="relative max-w-3xl mx-auto px-4 sm:px-6 py-16 md:py-24">
         <motion.div
@@ -632,7 +669,7 @@ export default function CustomerBooking() {
                         </PopoverTrigger>
                         <PopoverContent className="backdrop-blur-md border border-white/20 rounded-xl p-3 shadow-lg overflow-y-auto">
                           <Command>
-                            {vehicleSizes
+                            {data.vehicleSizes
                               .filter((item) => item.type === VehicleType.CAR)
                               .map((size) => {
                                 const isSelected = field.state.value.find(
@@ -751,8 +788,8 @@ export default function CustomerBooking() {
                         Preferred Date
                       </FieldLabel>
                       <Popover
-                        open={isCalendarOpen}
-                        onOpenChange={setIsCalendarOpen}
+                        open={ui.isCalendarOpen}
+                        onOpenChange={toggleCalendar}
                       >
                         <PopoverTrigger asChild>
                           <button type="button" className="w-full">
@@ -817,7 +854,7 @@ export default function CustomerBooking() {
                             onSelect={(date) => {
                               field.handleChange(date ?? null);
                               form.setFieldValue("timeSlot", "");
-                              const dateTimeSlots = schedules.find(
+                              const dateTimeSlots = data.schedules.find(
                                 (schedule) =>
                                   schedule.date.getDate() === date?.getDate() &&
                                   schedule.date.getMonth() ===
@@ -826,8 +863,11 @@ export default function CustomerBooking() {
                                     date?.getFullYear(),
                               );
 
-                              setSlots(dateTimeSlots?.time_slots ?? []);
-                              setIsCalendarOpen(false);
+                              setUi((prev) => ({
+                                ...prev,
+                                slots: dateTimeSlots?.time_slots ?? [],
+                              }));
+                              toggleCalendar();
                             }}
                           />
                         </PopoverContent>
@@ -855,8 +895,17 @@ export default function CustomerBooking() {
                         Time Slot
                       </FieldLabel>
                       <Popover
-                        open={isSlotPickerOpen}
-                        onOpenChange={() => setIsSlotPickerOpen(!!dateValue)}
+                        open={ui.isSlotPickerOpen}
+                        onOpenChange={(open) => {
+                          if (open && !dateValue) {
+                            return;
+                          }
+
+                          setUi((prev) => ({
+                            ...prev,
+                            isSlotPickerOpen: open,
+                          }));
+                        }}
                       >
                         <PopoverTrigger asChild>
                           <button type="button" className="w-full">
@@ -877,7 +926,7 @@ export default function CustomerBooking() {
                         </PopoverTrigger>
                         <PopoverContent className="backdrop-blur-md border border-white/20 rounded-xl p-3 shadow-lg overflow-y-auto">
                           <Command>
-                            {slots.map((slot) => {
+                            {ui.slots.map((slot) => {
                               const isSelected =
                                 field.state.value === slot.time;
                               return (
@@ -885,7 +934,10 @@ export default function CustomerBooking() {
                                   key={slot._id}
                                   onSelect={() => {
                                     field.handleChange(slot.time);
-                                    setIsSlotPickerOpen(false);
+                                    setUi((prev) => ({
+                                      ...prev,
+                                      isSlotPickerOpen: false,
+                                    }));
                                   }}
                                   disabled={!slot.is_available}
                                   className={`flex justify-between items-center px-4 py-3 rounded-xl cursor-pointer transition-colors duration-200 ${!slot.is_available && "text-gray-500 line-through opacity-100"}`}
@@ -953,7 +1005,7 @@ export default function CustomerBooking() {
                         </PopoverTrigger>
                         <PopoverContent className="backdrop-blur-md border border-white/20 rounded-xl p-3 shadow-lg max-h-80 overflow-y-auto">
                           <Command>
-                            {services
+                            {data.services
                               .filter(
                                 (service) =>
                                   service.type === ServiceType.SERVICE,
@@ -1031,7 +1083,7 @@ export default function CustomerBooking() {
                         </PopoverTrigger>
                         <PopoverContent className="backdrop-blur-md border border-white/20 rounded-xl p-3 shadow-lg max-h-80 overflow-y-auto">
                           <Command>
-                            {services
+                            {data.services
                               .filter(
                                 (service) =>
                                   service.type === ServiceType.ADD_ONS,
@@ -1080,74 +1132,19 @@ export default function CustomerBooking() {
             subtitle="What's being performed?"
           >
             <div className="space-y-4">
-              {/* <form.Field name="milestoneReward">
-                {(field) => (
-                  <Field>
-                    <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
-                      Milestone Reward
-                    </FieldLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <button type="button" className="w-full">
-                          <SelectTrigger
-                            hasValue={field.state.value.length > 0}
-                          >
-                            {field.state.value.length > 0 ? (
-                              <div className="overflow-x-auto scrollbar-none w-0 flex-1">
-                                <div className="flex gap-2 flex-nowrap min-w-max items-center">
-                                  {field.state.value.map((item) => (
-                                    <Chip
-                                      key={item._id}
-                                      label={item.reward_service_id.title}
-                                    />
-                                  ))}
-                                </div>
-                              </div>
-                            ) : (
-                              <span>Choose a milestone reward...</span>
-                            )}
-                          </SelectTrigger>
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent className="backdrop-blur-md border border-white/20 rounded-xl p-3 shadow-lg max-h-80 overflow-y-auto">
-                        <Command>
-                          {vehicleMilestoneRewards.map((mr) => {
-                            const isSelected = field.state.value.find(
-                              (item) => item._id === mr._id,
-                            );
-                            return (
-                              <CommandItem
-                                key={mr._id}
-                                onSelect={() => onSelectMilestoneReward(mr)}
-                                className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-600 hover:text-white hover:bg-white/[0.06] transition-colors"
-                              >
-                                <span className="text-sm">
-                                  {mr.reward_service_id.title}
-                                </span>
-                                {isSelected && (
-                                  <Check className="w-4 h-4 text-[#dc143c]" />
-                                )}
-                              </CommandItem>
-                            );
-                          })}
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                  </Field>
-                )}
-              </form.Field> */}
               <form.Field name="milestoneReward">
                 {(field) => {
+                  const { customer, milestoneRewards } = data;
                   const currentVehicle =
                     form.getFieldValue("vehicleSizes")?.[0];
-                  const qualifyingServices = [
+                  const qualifyingServices = new Set([
                     "Premium Detailer Wash",
                     "Full Decontamination Wash",
-                  ];
+                  ]);
                   const selectedServices = form.getFieldValue("services") || [];
 
                   const isCorrectService = selectedServices.some((service) =>
-                    qualifyingServices.includes(service.title),
+                    qualifyingServices.has(service.title),
                   );
 
                   const vehicleProgressObj = customer?.milestone_count.find(
@@ -1171,7 +1168,6 @@ export default function CustomerBooking() {
                       </div>
 
                       {!currentVehicle ? (
-                        /* LOCKED STATE: Matches the "Points Used" input style */
                         <div className="relative h-12 w-full overflow-hidden rounded-xl border border-white/10 bg-white/[0.02]">
                           <div className="absolute inset-0 z-10 flex items-center justify-between px-4 bg-black/40 backdrop-blur-[1.5px]">
                             <div className="flex items-center gap-2">
@@ -1184,7 +1180,6 @@ export default function CustomerBooking() {
                           </div>
                         </div>
                       ) : (
-                        /* ACTIVE STATE: Your existing Rewards Grid */
                         <div className="grid grid-cols-1 gap-3 pt-1">
                           {filteredRewards.length > 0 ? (
                             filteredRewards.map((mr) => {
@@ -1197,7 +1192,7 @@ export default function CustomerBooking() {
                               );
 
                               const rewardLabel =
-                                mr.reward_type === "free_service"
+                                mr.reward_type === RewardType.FREE_SERVICE
                                   ? "FREE SERVICE"
                                   : mr.discount_percentage > 0
                                     ? `${mr.discount_percentage}% DISCOUNT`
@@ -1266,8 +1261,8 @@ export default function CustomerBooking() {
                   );
                 }}
               </form.Field>
-              {customer &&
-                customer.earned_points >= CONFIG.MINIMUM_REDEEM_POINTS && (
+              {data.customer &&
+                data.customer.earned_points >= CONFIG.MINIMUM_REDEEM_POINTS && (
                   <form.Field name="pointsUsed">
                     {(field) => {
                       const isInvalid =
@@ -1302,6 +1297,7 @@ export default function CustomerBooking() {
                 )}
               <form.Subscribe selector={(s) => s.values.totalAmount}>
                 {(total) => {
+                  const { customer } = data;
                   const userPoints = customer?.earned_points ?? 0;
                   const isLocked = userPoints < CONFIG.MINIMUM_REDEEM_POINTS;
 
@@ -1476,16 +1472,17 @@ export default function CustomerBooking() {
                             </span>
                           </div>
 
-                          {customer && (
+                          {data.customer && (
                             <div className="flex justify-between items-center text-[13px]">
                               <span className="text-neutral-400 font-medium tracking-wide">
-                                Travel Fee ({customer?.travel_distance / 1000}
+                                Travel Fee (
+                                {data.customer?.travel_distance / 1000}
                                 km)
                               </span>
                               <span className="text-white font-bold">
                                 + ₱
-                                {getTravelFee(
-                                  customer?.travel_distance,
+                                {calculateTravelFee(
+                                  data.customer?.travel_distance,
                                 ).toLocaleString()}
                               </span>
                             </div>
@@ -1531,7 +1528,9 @@ export default function CustomerBooking() {
                                 servicesAmount +
                                 addOnsAmount +
                                 milestoneRewardPrice +
-                                getTravelFee(customer?.travel_distance ?? 0) -
+                                calculateTravelFee(
+                                  data.customer?.travel_distance ?? 0,
+                                ) -
                                 milestoneRewardDiscount -
                                 pointsUsed
                               ).toLocaleString()}
@@ -1612,12 +1611,12 @@ export default function CustomerBooking() {
           <div className="pt-2 flex justify-end">
             <button
               type="submit"
-              disabled={loading}
+              disabled={ui.loading}
               className="group relative inline-flex items-center gap-3 px-10 py-4 bg-[#dc143c] hover:bg-[#c01236] active:scale-[0.98] text-white font-bold text-base rounded-2xl transition-all duration-200 shadow-xl shadow-[#dc143c]/30 hover:shadow-[#dc143c]/50 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
             >
               <span className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none" />
 
-              {loading ? (
+              {ui.loading ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
                   Saving...

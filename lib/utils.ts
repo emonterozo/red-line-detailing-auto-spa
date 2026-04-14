@@ -98,3 +98,12 @@ export const generateDiscountTiers = (
     min: Math.ceil(off / percentage),
   }));
 };
+
+export const calculateTravelFee = (distance: number) => {
+  const distanceInKm = distance / 1000;
+  const fee = Math.max(
+    0,
+    (distanceInKm - CONFIG.FREE_TRAVEL_DISTANCE_KM) * CONFIG.TRAVEL_FEE_PER_KM,
+  );
+  return Math.ceil(fee);
+};
