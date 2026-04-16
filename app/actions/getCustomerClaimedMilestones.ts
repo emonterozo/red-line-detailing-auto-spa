@@ -58,7 +58,7 @@ export const getCustomerClaimedMilestones = async (
       .select("vehicle_model price discount created_at")
       .populate("service_id", "title")
       .populate("size_id", "type size")
-      .sort({ createdAt: -1 })
+      .sort({ created_at: -1 })
       .skip(skip)
       .limit(limit)
       .lean();

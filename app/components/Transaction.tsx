@@ -389,34 +389,36 @@ export default function Transaction() {
           form.setFieldValue("vehicleSizes", vehicleTypeSize);
           form.setFieldValue("services", selectedServices);
 
-          const milestoneReward = milestoneRewardData.filter(
-            (item) => item._id === bookingData.milestone_reward?._id,
-          );
+          if (bookingData.milestone_reward) {
+            const milestoneReward = milestoneRewardData.filter(
+              (item) => item._id === bookingData.milestone_reward?._id,
+            );
 
-          const milestoneRewardService = serviceData.find(
-            (item) =>
-              item._id === bookingData.milestone_reward?.reward_service_id,
-          );
-
-          const milestoneRewardServicePrice =
-            milestoneRewardService?.pricing_per_sizes.find(
+            const milestoneRewardService = serviceData.find(
               (item) =>
-                item.size === vehicleTypeSize[0].size &&
-                item.type === vehicleTypeSize[0].type,
-            )?.price ?? 0;
+                item._id === bookingData.milestone_reward?.reward_service_id,
+            );
 
-          form.setFieldValue("milestoneReward", milestoneReward);
+            const milestoneRewardServicePrice =
+              milestoneRewardService?.pricing_per_sizes.find(
+                (item) =>
+                  item.size === vehicleTypeSize[0].size &&
+                  item.type === vehicleTypeSize[0].type,
+              )?.price ?? 0;
 
-          const discountAmount = calculateMilestoneRewardDiscount(
-            milestoneRewardServicePrice,
-            {
-              reward_type: milestoneReward[0].reward_type,
-              discount_amount: milestoneReward[0].discount_amount,
-              discount_percentage: milestoneReward[0].discount_percentage,
-            },
-          );
+            form.setFieldValue("milestoneReward", milestoneReward);
 
-          form.setFieldValue("milestoneDiscount", discountAmount);
+            const discountAmount = calculateMilestoneRewardDiscount(
+              milestoneRewardServicePrice,
+              {
+                reward_type: milestoneReward[0].reward_type,
+                discount_amount: milestoneReward[0].discount_amount,
+                discount_percentage: milestoneReward[0].discount_percentage,
+              },
+            );
+
+            form.setFieldValue("milestoneDiscount", discountAmount);
+          }
         }
       }
 

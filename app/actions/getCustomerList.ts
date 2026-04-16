@@ -39,7 +39,7 @@ export const getCustomerList = async (
     "_id" | "name" | "contact_number" | "email" | "created_at" | "is_verify"
   >[] = await Customer.find({})
     .select(CUSTOMER_TABLE_FIELDS.join(" "))
-    .sort({ createdAt: -1 })
+    .sort({ created_at: -1 })
     .skip(skip)
     .limit(limit)
     .lean();

@@ -1,6 +1,7 @@
 "use server";
 
 import connect from "@/lib/db/mongodb";
+import { hashPassword } from "@/lib/server/utils";
 import Customer, { TCustomer } from "@/models/Customer";
 import { Types } from "mongoose";
 
@@ -14,6 +15,7 @@ type UpdateCustomerProfile = Partial<
     | "email"
     | "social"
     | "travel_distance"
+    | "password"
   > & {
     longitude: number;
     latitude: number;
@@ -39,6 +41,9 @@ export const updateCustomerProfile = async (
     const updatePayload: CustomerUpdatePayload = {
       ...data,
       updated_at: new Date(),
+      ...(data.password && {
+        password: await hashPassword(data.password),
+      }),
     };
 
     if (
@@ -69,10 +74,9 @@ export const updateCustomerProfile = async (
 
     return {
       success: true,
-      message: "Profile updated successfully",
+      message: "Profile updated successfully.",
     };
-  } catch (error) {
-    console.error("Update Error:", error);
+  } catch {
     return {
       success: false,
       message: "Something went wrong while updating the profile.",

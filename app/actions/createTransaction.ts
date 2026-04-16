@@ -63,8 +63,7 @@ export const createTransaction = async (
     if (bookingTransaction)
       return {
         success: false,
-        message:
-          "A transaction for this booking has already been created.",
+        message: "A transaction for this booking has already been created.",
       };
   }
 
@@ -136,8 +135,8 @@ export const createTransaction = async (
         type: transactionData.vehicle_type,
       }).lean();
       if (customer && vehicleSize) {
-        const isAvailedPremiumWash = transactionData.services.find(
-          (service) => service.title === "Premium Detailer Wash",
+        const isAvailedWash = transactionData.services.find((service) =>
+          ["Premium Detailer Wash", "Full Decontamination Wash"].includes(service.title),
         );
 
         const milestone_count = customer.milestone_count.map((count) => {
@@ -149,7 +148,7 @@ export const createTransaction = async (
                 count.progress -
                   transactionData.milestone_reward.required_progress_count,
               );
-            } else if (isAvailedPremiumWash) {
+            } else if (isAvailedWash) {
               newProgress = newProgress + 1;
             }
             return {

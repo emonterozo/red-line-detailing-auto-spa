@@ -22,7 +22,14 @@ import {
   PencilLine,
   MapPin,
   Lock,
+  ChevronLeft,
+  X,
+  Save,
+  EyeOff,
+  Eye,
+  Loader2,
 } from "lucide-react";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { BookingStatus, BookingStatusDisplay, VehicleType } from "@/lib/enums";
 import { CustomerDetailsResponse, getCustomer } from "../actions/getCustomer";
 import { BookingTableResponse, getBookings } from "../actions/getBookings";
@@ -43,6 +50,34 @@ import { updateCustomerProfile } from "../actions/updateCustomerProfile";
 import { showToast } from "@/lib/toast";
 import { useRouter } from "next/navigation";
 import { CONFIG } from "../config/config";
+import {
+  getTransactionDetails,
+  TransactionResponse,
+} from "../actions/getTransactionDetails";
+import { useForm } from "@tanstack/react-form";
+import * as z from "zod";
+import { Input } from "@/components/ui/input";
+
+export const formSchema = z.object({
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters.")
+    .max(100, "Password is too long.")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter.")
+    .regex(/[0-9]/, "Password must contain at least one number.")
+    .regex(
+      /[^a-zA-Z0-9]/,
+      "Password must contain at least one special character.",
+    ),
+  confirmPassword: z.string(),
+});
+
+export type FormValues = z.infer<typeof formSchema>;
+
+const defaultValues: FormValues = {
+  password: "",
+  confirmPassword: "",
+};
 
 const glassCard =
   "bg-[#111111] border border-white/15 rounded-[2.5rem] p-6 md:p-8 shadow-2xl";
@@ -73,6 +108,45 @@ const HistoryEmpty = ({ title }: { title: string }) => {
   );
 };
 
+const Pagination = ({
+  currentPage,
+  totalPages,
+  onPageChange,
+}: {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}) => {
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className="flex items-center justify-between mt-6 px-1">
+      <div className="flex items-center gap-2">
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-500">
+          Page <span className="text-white">{currentPage}</span> of {totalPages}
+        </p>
+      </div>
+      <div className="flex gap-2">
+        <button
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className="p-2 rounded-xl border border-white/5 bg-white/[0.02] text-white disabled:opacity-20 disabled:cursor-not-allowed hover:bg-white/[0.05] transition-all"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className="p-2 rounded-xl border border-white/5 bg-white/[0.02] text-white disabled:opacity-20 disabled:cursor-not-allowed hover:bg-white/[0.05] transition-all"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+};
+const LIMIT = 4;
+
 export default function CustomerProfile({
   customerId,
 }: Readonly<{
@@ -93,6 +167,20 @@ export default function CustomerProfile({
   const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
   const [isUpdateAddressVisible, setIsUpdateAddressVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pagination, setPagination] = useState({
+    transactionPage: 1,
+    transactionTotalPage: 1,
+    milestonePage: 1,
+    milestoneTotalPage: 1,
+  });
+  const [transaction, setTransaction] = useState<TransactionResponse | null>(
+    null,
+  );
+  const [passwordVisibility, setPasswordVisibility] = useState({
+    password: false,
+    confirmPassword: false,
+  });
+  const [isUpdatePasswordVisible, setIsUpdatePasswordVisible] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -106,15 +194,21 @@ export default function CustomerProfile({
           milestoneClaimedData,
         ] = await Promise.all([
           getCustomer(customerId),
-          getBookings(1, 10, customerId, [
+          getBookings(1, LIMIT, customerId, [
             BookingStatus.FOR_CHECKING,
             BookingStatus.PENDING_PAYMENT,
             BookingStatus.RESERVED,
           ]),
-          getTransactions(1, 10, customerId),
-          getCustomerClaimedMilestones(customerId, 1, 10),
+          getTransactions(1, LIMIT, customerId),
+          getCustomerClaimedMilestones(customerId, 1, LIMIT),
         ]);
 
+        setPagination({
+          transactionPage: 1,
+          transactionTotalPage: transactionData.totalPages,
+          milestonePage: 1,
+          milestoneTotalPage: milestoneClaimedData.totalPages,
+        });
         setCustomer(customerData);
         setBookings(bookingData.data);
         setTransactions(transactionData.data);
@@ -166,6 +260,63 @@ export default function CustomerProfile({
     }
   };
 
+  const handlePageChange = async (
+    newPage: number,
+    type: "transaction" | "milestone",
+  ) => {
+    if (type === "transaction") {
+      const res = await getTransactions(newPage, LIMIT, customerId);
+      setTransactions(res.data);
+      setPagination((prev) => ({
+        ...prev,
+        transactionPage: newPage,
+        transactionTotalPage: res.totalPages,
+      }));
+    } else {
+      const res = await getCustomerClaimedMilestones(
+        customerId,
+        newPage,
+        LIMIT,
+      );
+      setMilestones(res.data);
+      setPagination((prev) => ({
+        ...prev,
+        milestonePage: newPage,
+        milestoneTotalPage: res.totalPages,
+      }));
+    }
+  };
+
+  const toggleTransactionModal = () => setTransaction(null);
+
+  const handleShowTransactionDetail = async (id: string) => {
+    const transactionData = await getTransactionDetails(id);
+    setTransaction(transactionData);
+  };
+
+  const form = useForm({
+    defaultValues,
+    validators: {
+      onSubmit: formSchema,
+    },
+    onSubmit: async ({ value }) => {
+      setIsSubmitting(true);
+      const result = await updateCustomerProfile(customerId, {
+        password: value.password,
+      });
+      if (result.success) {
+        toggleUpdatePassword();
+        showToast(result.message, "success");
+      } else {
+        showToast(result.message, "error");
+      }
+      setIsSubmitting(false);
+    },
+  });
+
+  const toggleUpdatePassword = () =>
+    setIsUpdatePasswordVisible((prev) => !prev);
+
   return (
     <div className="min-h-screen bg-[#050505] text-white selection:bg-[#dc143c]/50 relative pb-20">
       {isLoading && <FullScreenLoader />}
@@ -191,7 +342,304 @@ export default function CustomerProfile({
         onSubmit={onUpdateAddress}
         isSubmitting={isSubmitting}
       />
+      {transaction && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6">
+          <button
+            onClick={toggleTransactionModal}
+            className="absolute inset-0 bg-black/60 backdrop-blur-md"
+          />
+          <div className="relative w-full max-w-lg max-h-[90vh] flex flex-col bg-[#0c0c0c] border border-white/10 rounded-[28px] shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+            <div className="h-[3px] bg-gradient-to-r from-[#dc143c] via-[#ff6b81] to-transparent flex-shrink-0" />
+            <div className="px-7 pt-6 pb-5 border-b border-white/[0.07] flex items-start justify-between gap-4 flex-shrink-0">
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#dc143c]/12 border border-[#dc143c]/25 mb-3">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#dc143c]" />
+                  <span className="text-[10px] font-bold text-[#ff6b81] uppercase tracking-widest">
+                    Transaction Details
+                  </span>
+                </div>
+                <h2 className="text-[22px] font-extrabold text-white tracking-tight leading-tight mb-1">
+                  Service Receipt
+                </h2>
+                <p className="text-xs text-white/30">
+                  {`${transaction.vehicle_model} • ${new Date(
+                    transaction.created_at,
+                  ).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}`}
+                </p>
+              </div>
+              <button
+                onClick={toggleTransactionModal}
+                className="flex-shrink-0 w-9 h-9 rounded-xl bg-white/[0.05] border border-white/10 text-white/40 hover:text-white hover:bg-white/10 hover:border-white/20 flex items-center justify-center transition-all duration-200 group"
+              >
+                <X className="w-4 h-4 group-hover:rotate-90 transition-transform duration-200" />
+              </button>
+            </div>
+            <div className="p-7 overflow-y-auto custom-scrollbar space-y-6">
+              <div className="space-y-3">
+                <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] px-1">
+                  Services Availed
+                </p>
+                <div className="space-y-2">
+                  {transaction.services.map((item) => (
+                    <div
+                      key={item._id}
+                      className="flex justify-between items-center p-4 rounded-2xl bg-white/[0.02] border border-white/5"
+                    >
+                      <span className="text-sm font-bold text-white/80">
+                        {item.title}
+                      </span>
+                      <span className="text-sm font-black text-white ">
+                        {`₱${item.price.toLocaleString()}`}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 flex flex-col group hover:border-white/10 transition-colors">
+                  <p className="text-[9px] font-black text-white/30 uppercase tracking-wider">
+                    Earned
+                  </p>
+                  <p className="text-xl font-black text-white mt-1 ">
+                    {`+${transaction.points?.total} `}
+                    <span className="text-[10px] text-white/20 not-italic ml-1">
+                      PTS
+                    </span>
+                  </p>
+                </div>
+                <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 flex flex-col group hover:border-white/10 transition-colors">
+                  <p className="text-[9px] font-black text-white/30 uppercase tracking-wider">
+                    Used
+                  </p>
+                  <p className="text-xl font-black text-[#dc143c] mt-1 ">
+                    {`-${transaction.points_used}`}
+                    <span className="text-[10px] text-[#dc143c]/40 not-italic ml-1">
+                      PTS
+                    </span>
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-2.5 px-1">
+                <div className="flex justify-between text-[11px] font-bold text-white/40 uppercase tracking-tight">
+                  <span>Gross Total</span>
+                  <span className="text-white/60">{`₱${transaction.gross_total.toLocaleString()}`}</span>
+                </div>
+                <div className="flex justify-between text-[11px] font-bold text-white/40 uppercase tracking-tight">
+                  <span>Travel Fee</span>
+                  <span className="text-white/60">{`₱${transaction.travel_fee.toLocaleString()}`}</span>
+                </div>
+                <div className="flex justify-between text-[11px] font-bold text-[#dc143c] uppercase tracking-tight">
+                  <span>Total Discount</span>
+                  <span className="font-black">{`- ₱${transaction.total_discount.toLocaleString()}`}</span>
+                </div>
+                <div className="flex justify-between items-end pt-6 mt-4 border-t border-white/[0.07]">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">
+                      Amount Paid
+                    </span>
+                    <span className="text-4xl font-black text-white leading-none tracking-tighter mt-2">
+                      {`₱${(transaction.net_total + transaction.travel_fee).toLocaleString()}`}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {isUpdatePasswordVisible && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6">
+          <button
+            onClick={toggleUpdatePassword}
+            className="absolute inset-0 bg-black/60 backdrop-blur-md"
+          />
+          <div className="relative w-full max-w-lg flex flex-col bg-[#0c0c0c] border border-white/10 rounded-[28px] shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+            <div className="h-[3px] bg-gradient-to-r from-[#dc143c] via-[#ff6b81] to-transparent flex-shrink-0" />
+            <div className="px-7 pt-6 pb-5 border-b border-white/[0.07] flex items-start justify-between gap-4 flex-shrink-0">
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#dc143c]/12 border border-[#dc143c]/25 mb-3">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#dc143c]" />
+                  <span className="text-[10px] font-bold text-[#ff6b81] uppercase tracking-widest">
+                    Security Settings
+                  </span>
+                </div>
+                <h2 className="text-[22px] font-extrabold text-white tracking-tight leading-tight mb-1">
+                  Update Password
+                </h2>
+                <p className="text-xs text-white/30">
+                  Ensure your account stays secure with a strong password.
+                </p>
+              </div>
+              <button
+                onClick={toggleUpdatePassword}
+                className="flex-shrink-0 w-9 h-9 rounded-xl bg-white/[0.05] border border-white/10 text-white/40 hover:text-white hover:bg-white/10 hover:border-white/20 flex items-center justify-center transition-all duration-200 group"
+              >
+                <X className="w-4 h-4 group-hover:rotate-90 transition-transform duration-200" />
+              </button>
+            </div>
+            <form
+              className="flex flex-col flex-1"
+              onSubmit={(e) => {
+                e.preventDefault();
+                form.handleSubmit();
+              }}
+            >
+              <div className="p-7 space-y-5">
+                <form.Field name="password">
+                  {(field) => {
+                    const isInvalid =
+                      field.state.meta.isTouched && !field.state.meta.isValid;
+                    return (
+                      <Field>
+                        <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
+                          New Password
+                        </FieldLabel>
+                        <div className="relative group">
+                          <Input
+                            id={field.name}
+                            name={field.name}
+                            value={field.state.value}
+                            onBlur={field.handleBlur}
+                            onChange={(e) => field.handleChange(e.target.value)}
+                            aria-invalid={isInvalid}
+                            type={
+                              passwordVisibility.password ? "text" : "password"
+                            }
+                            placeholder="••••••••••••••••"
+                            className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPasswordVisibility({
+                                ...passwordVisibility,
+                                password: !passwordVisibility.password,
+                              })
+                            }
+                            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-[#dc143c] 
+                                         transition-colors duration-200 focus:outline-none"
+                            aria-label={
+                              passwordVisibility.password
+                                ? "Hide password"
+                                : "Show password"
+                            }
+                          >
+                            {passwordVisibility.password ? (
+                              <EyeOff className="w-4 h-4" />
+                            ) : (
+                              <Eye className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+                        {isInvalid && (
+                          <FieldError
+                            className="text-[#ff6b81] text-xs mt-1"
+                            errors={field.state.meta.errors}
+                          />
+                        )}
+                      </Field>
+                    );
+                  }}
+                </form.Field>
+                <form.Field
+                  name="confirmPassword"
+                  validators={{
+                    onChangeListenTo: ["password"],
+                    onChange: ({ value, fieldApi }) => {
+                      if (value !== fieldApi.form.getFieldValue("password")) {
+                        return [{ message: "Passwords do not match." }];
+                      }
+                      return undefined;
+                    },
+                  }}
+                >
+                  {(field) => {
+                    const isInvalid =
+                      field.state.meta.isTouched && !field.state.meta.isValid;
+                    return (
+                      <Field>
+                        <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
+                          Confirm Password
+                        </FieldLabel>
+                        <div className="relative group">
+                          <Input
+                            id={field.name}
+                            name={field.name}
+                            value={field.state.value}
+                            onBlur={field.handleBlur}
+                            onChange={(e) => field.handleChange(e.target.value)}
+                            aria-invalid={isInvalid}
+                            type={
+                              passwordVisibility.confirmPassword
+                                ? "text"
+                                : "password"
+                            }
+                            placeholder="••••••••••••••••"
+                            className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPasswordVisibility({
+                                ...passwordVisibility,
+                                confirmPassword:
+                                  !passwordVisibility.confirmPassword,
+                              })
+                            }
+                            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-[#dc143c] 
+                                         transition-colors duration-200 focus:outline-none"
+                            aria-label={
+                              passwordVisibility.confirmPassword
+                                ? "Hide password"
+                                : "Show password"
+                            }
+                          >
+                            {passwordVisibility.confirmPassword ? (
+                              <EyeOff className="w-4 h-4" />
+                            ) : (
+                              <Eye className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+                        {isInvalid && (
+                          <FieldError
+                            className="text-[#ff6b81] text-xs mt-1"
+                            errors={field.state.meta.errors}
+                          />
+                        )}
+                      </Field>
+                    );
+                  }}
+                </form.Field>
+              </div>
+              <div className="px-7 pb-7 pt-4 border-t border-white/[0.07] bg-[#080808]">
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full group flex items-center justify-center gap-3 h-[56px] bg-[#dc143c] hover:bg-[#c01236] disabled:bg-white/5 disabled:text-white/10 disabled:border-white/5 disabled:shadow-none rounded-2xl transition-all duration-200 font-black text-sm uppercase tracking-widest shadow-lg shadow-[#dc143c]/20 relative overflow-hidden"
+                >
+                  {!isSubmitting && (
+                    <span className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none" />
+                  )}
 
+                  {isSubmitting ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  ) : (
+                    <Save className={`w-4 h-4`} />
+                  )}
+                  <span className="relative">
+                    {isSubmitting ? "Saving Changes..." : "Save Changes"}
+                  </span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       {customer ? (
         <div>
           <header className="relative pt-20 pb-10 px-6">
@@ -237,9 +685,12 @@ export default function CustomerProfile({
                   <h3 className={sectionHeader}>
                     <User className="w-4 h-4" /> Profile Info
                   </h3>
-                  <button className="flex items-center gap-2 text-[11px] font-black text-white bg-[#dc143c] px-4 py-2 rounded-full shadow-lg shadow-[#dc143c]/20 active:scale-95 transition-all">
+                  <button
+                    onClick={toggleUpdatePassword}
+                    className="flex items-center gap-2 text-[11px] font-black text-white bg-[#dc143c] px-4 py-2 rounded-full shadow-lg shadow-[#dc143c]/20 active:scale-95 transition-all"
+                  >
                     <Settings className="w-3 h-3" />
-                    Edit Profile
+                    Update Password
                   </button>
                 </div>
 
@@ -421,29 +872,30 @@ export default function CustomerProfile({
                   <Target className="w-4 h-4" /> Your Milestones
                 </h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4">
-                  {customer.milestone_count.map((m) => (
-                    <div
-                      key={m._id}
-                      className="p-5 rounded-[2rem] bg-[#111111] border border-white/10 flex flex-col items-center shadow-lg"
-                    >
-                      <div className="mb-3 p-2 rounded-xl bg-white/5 text-gray-500 group-hover:text-[#dc143c] transition-colors">
-                        {m.vehicle_type === VehicleType.CAR ? (
-                          <Car className="w-5 h-5 text-white" />
-                        ) : (
-                          <Motorbike className="w-5 h-5 text-white" />
-                        )}
+                  {customer.milestone_count
+                    .toSorted((a, b) => a.sort_order - b.sort_order)
+                    .map((m) => (
+                      <div
+                        key={m._id}
+                        className="p-5 rounded-[2rem] bg-[#111111] border border-white/10 flex flex-col items-center shadow-lg"
+                      >
+                        <div className="mb-3 p-2 rounded-xl bg-white/5 text-gray-500 group-hover:text-[#dc143c] transition-colors">
+                          {m.vehicle_type === VehicleType.CAR ? (
+                            <Car className="w-5 h-5 text-white" />
+                          ) : (
+                            <Motorbike className="w-5 h-5 text-white" />
+                          )}
+                        </div>
+                        <span className="text-[10px] font-black text-neutral-400 uppercase tracking-tighter mb-1">
+                          {m.vehicle_size}
+                        </span>
+                        <span className="text-3xl font-russo text-white group-hover:scale-110 transition-transform">
+                          {m.progress}
+                        </span>
                       </div>
-                      <span className="text-[10px] font-black text-neutral-400 uppercase tracking-tighter mb-1">
-                        {m.vehicle_size}
-                      </span>
-                      <span className="text-3xl font-russo text-white group-hover:scale-110 transition-transform">
-                        {m.progress}
-                      </span>
-                    </div>
-                  ))}
+                    ))}
                 </div>
               </section>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
                 <div className="space-y-5">
                   <h3 className={sectionHeader}>
@@ -452,31 +904,43 @@ export default function CustomerProfile({
                   <div className="space-y-3">
                     {transactions.length > 0 ? (
                       transactions.map((transaction) => (
-                        <div
+                        <button
+                          onClick={() =>
+                            handleShowTransactionDetail(transaction._id)
+                          }
                           key={transaction._id}
-                          className="p-5 rounded-3xl bg-[#111111] border border-white/10 flex items-center justify-between shadow-md"
+                          className="w-full group p-5 rounded-3xl bg-[#111111] border border-white/10 flex items-start justify-between shadow-md transition-all duration-300 cursor-pointer hover:bg-white/[0.03] hover:border-white/20 active:scale-[0.98]"
                         >
-                          <div className="flex items-center gap-4 text-left">
-                            <div className="p-3 rounded-xl bg-[#dc143c]/10 text-[#dc143c] border border-[#dc143c]/20">
+                          <div className="flex items-start gap-4 text-left">
+                            <div className="p-3 rounded-xl bg-[#dc143c]/10 text-[#dc143c] border border-[#dc143c]/20 shrink-0 group-hover:bg-[#dc143c]/20 transition-colors">
                               <Zap className="w-5 h-5" />
                             </div>
                             <div>
-                              <p className="text-sm font-black text-white">
+                              <p className="text-sm font-black text-white leading-tight break-words">
                                 {transaction.vehicle_model}
                               </p>
-                              <p className="text-[11px] text-neutral-400 font-bold uppercase mt-0.5">
+                              <p className="text-[11px] text-neutral-400 font-bold uppercase mt-1">
                                 {transaction.created_at.toDateString()}
                               </p>
                             </div>
                           </div>
-                          <p className="text-lg font-black text-white">
-                            {`₱${transaction.net_total.toLocaleString()}`}
-                          </p>
-                        </div>
+                          <div className="pl-4 pt-0.5 shrink-0">
+                            <p className="text-lg font-black text-white whitespace-nowrap leading-none group-hover:text-[#dc143c] transition-colors">
+                              {`₱${transaction.net_total.toLocaleString()}`}
+                            </p>
+                          </div>
+                        </button>
                       ))
                     ) : (
-                      <HistoryEmpty title=" No Transactions" />
+                      <HistoryEmpty title="No Transactions" />
                     )}
+                    <Pagination
+                      currentPage={pagination.transactionPage}
+                      totalPages={pagination.transactionTotalPage}
+                      onPageChange={(page) =>
+                        handlePageChange(page, "transaction")
+                      }
+                    />
                   </div>
                 </div>
 
@@ -489,31 +953,38 @@ export default function CustomerProfile({
                       milestones.map((item) => (
                         <div
                           key={item._id}
-                          className="p-5 rounded-3xl bg-[#111111] border border-[#dc143c]/30 flex items-center justify-between shadow-md relative overflow-hidden"
+                          className="p-5 rounded-3xl bg-[#111111] border border-[#dc143c]/30 flex items-start justify-between shadow-md relative overflow-hidden"
                         >
-                          <div className="flex items-center gap-4 text-left relative z-10">
-                            <div className="p-3 rounded-xl bg-[#dc143c] text-white shadow-lg">
+                          <div className="flex items-start gap-4 text-left relative z-10">
+                            <div className="p-3 rounded-xl bg-[#dc143c] text-white shadow-lg shrink-0">
                               <Gift className="w-5 h-5" />
                             </div>
                             <div>
-                              <p className="text-sm font-black text-white leading-tight">
+                              <p className="text-sm font-black text-white leading-tight break-words">
                                 {item.service_id.title}
                               </p>
-                              <p className="text-[11px] text-neutral-400 font-bold uppercase mt-0.5">
+                              <p className="text-[11px] text-neutral-400 font-bold uppercase mt-1">
                                 {`${item.created_at.toDateString()} • ${item.vehicle_model}`}
                               </p>
                             </div>
                           </div>
-                          <div className="text-right relative z-10">
-                            <p className="text-lg font-black text-[#dc143c]">
-                              {`- ₱${item.discount}`}
+                          <div className="pl-4 pt-0.5 shrink-0">
+                            <p className="text-lg font-black text-[#dc143c] whitespace-nowrap">
+                              {`- ₱${item.discount.toLocaleString()}`}
                             </p>
                           </div>
                         </div>
                       ))
                     ) : (
-                      <HistoryEmpty title=" No Rewards Claimed" />
+                      <HistoryEmpty title="No Rewards Claimed" />
                     )}
+                    <Pagination
+                      currentPage={pagination.milestonePage}
+                      totalPages={pagination.milestoneTotalPage}
+                      onPageChange={(page) =>
+                        handlePageChange(page, "milestone")
+                      }
+                    />
                   </div>
                 </div>
               </div>

@@ -63,6 +63,7 @@ import {
 import { CustomerDetailsResponse, getCustomer } from "../actions/getCustomer";
 import { useSession } from "next-auth/react";
 import { CONFIG } from "../config/config";
+import { getBookings } from "../actions/getBookings";
 
 const today = new Date();
 today.setHours(23, 59, 59, 59);
@@ -146,17 +147,26 @@ export const formSchema = z
         message: `Minimum redeemable points is ${CONFIG.MINIMUM_REDEEM_POINTS}.`,
       }),
     totalAmount: z.number(),
+    customerPoints: z.number(),
   })
-  .refine(
-    (data) => {
-      const maxPointsValue = data.totalAmount * CONFIG.PERCENTAGE_LIMIT;
-      return data.pointsUsed <= maxPointsValue;
-    },
-    {
-      message: "You can only use up to 40% of the total amount in points.",
-      path: ["pointsUsed"],
-    },
-  );
+  .superRefine((data, ctx) => {
+    const maxPointsValue =
+      data.totalAmount * CONFIG.PERCENTAGE_LIMIT_MULTIPLIER;
+
+    if (data.pointsUsed > maxPointsValue) {
+      ctx.addIssue({
+        code: "custom",
+        message: `Point redemption is capped at ₱${maxPointsValue.toLocaleString()} (${CONFIG.PERCENTAGE_LIMIT}%) of the total amount.`,
+        path: ["pointsUsed"],
+      });
+    } else if (data.pointsUsed > data.customerPoints) {
+      ctx.addIssue({
+        code: "custom",
+        message: `Insufficient balance: You only have ${data.customerPoints} points available.`,
+        path: ["pointsUsed"],
+      });
+    }
+  });
 
 export type FormValues = z.infer<typeof formSchema>;
 
@@ -174,6 +184,7 @@ const defaultValues: FormValues = {
   milestoneRewardDiscount: 0,
   pointsUsed: 0,
   totalAmount: 0,
+  customerPoints: 0,
 };
 
 function Chip({ label }: Readonly<{ label: string }>) {
@@ -213,6 +224,14 @@ export default function CustomerBooking() {
       setUi((prev) => ({ ...prev, initializing: true }));
 
       try {
+        const booking = await getBookings(1, 1, userId, [
+          BookingStatus.FOR_CHECKING,
+          BookingStatus.PENDING_PAYMENT,
+          BookingStatus.RESERVED,
+        ]);
+
+        if (booking.data.length > 0) router.back();
+        
         const [vehicleSizes, schedules, services, milestoneRewards, customer] =
           await Promise.all([
             getVehicleSizes(),
@@ -223,6 +242,7 @@ export default function CustomerBooking() {
           ]);
 
         form.setFieldValue("address", customer?.address || "");
+        form.setFieldValue("customerPoints", customer?.earned_points ?? 0);
 
         setData({
           vehicleSizes,
@@ -232,7 +252,6 @@ export default function CustomerBooking() {
           customer,
         });
       } catch {
-        // Optional: showToast("Failed to load data", "error");
       } finally {
         setUi((prev) => ({ ...prev, initializing: false }));
       }
@@ -1152,6 +1171,7 @@ export default function CustomerBooking() {
                       m.vehicle_type === currentVehicle?.type &&
                       m.vehicle_size === currentVehicle?.size,
                   );
+
                   const currentProgress =
                     (vehicleProgressObj?.progress ?? 0) + 1;
 
@@ -1166,9 +1186,8 @@ export default function CustomerBooking() {
                           Milestone Rewards
                         </FieldLabel>
                       </div>
-
                       {!currentVehicle ? (
-                        <div className="relative h-12 w-full overflow-hidden rounded-xl border border-white/10 bg-white/[0.02]">
+                        <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-white/[0.02]">
                           <div className="absolute inset-0 z-10 flex items-center justify-between px-4 bg-black/40 backdrop-blur-[1.5px]">
                             <div className="flex items-center gap-2">
                               <Lock className="w-3.5 h-3.5 text-white/40" />
@@ -1176,20 +1195,22 @@ export default function CustomerBooking() {
                                 Select vehicle to unlock
                               </p>
                             </div>
-                            <div className="h-1.5 w-16 rounded-full bg-white/5" />
                           </div>
                         </div>
                       ) : (
                         <div className="grid grid-cols-1 gap-3 pt-1">
                           {filteredRewards.length > 0 ? (
                             filteredRewards.map((mr) => {
+                              const isSelected = field.state.value.some(
+                                (item: MilestoneRewardsResponse) =>
+                                  item._id === mr._id,
+                              );
+
                               const hasProgress =
                                 currentProgress >= mr.required_progress_count;
+
                               const isUnlocked =
                                 hasProgress && isCorrectService;
-                              const isSelected = field.state.value.some(
-                                (item) => item._id === mr._id,
-                              );
 
                               const rewardLabel =
                                 mr.reward_type === RewardType.FREE_SERVICE
@@ -1199,60 +1220,75 @@ export default function CustomerBooking() {
                                     : `₱${mr.discount_amount.toLocaleString()} OFF`;
 
                               return (
-                                <button
-                                  key={mr._id}
-                                  type="button"
-                                  disabled={!isUnlocked}
-                                  onClick={() => onSelectMilestoneReward(mr)}
-                                  className={`relative overflow-hidden text-left p-4 rounded-2xl border transition-all duration-300 ${
-                                    isSelected
-                                      ? "bg-[#dc143c]/10 border-[#dc143c]/40 ring-1 ring-[#dc143c]/20"
-                                      : isUnlocked
-                                        ? "bg-white/[0.04] border-white/10 hover:bg-white/[0.08] hover:border-white/20"
-                                        : "bg-black/20 border-white/5 opacity-40 cursor-not-allowed"
-                                  }`}
-                                >
-                                  <div className="flex justify-between items-start">
-                                    <div className="space-y-1">
-                                      <p
-                                        className={`text-sm font-bold ${isUnlocked ? "text-white" : "text-gray-500"}`}
-                                      >
-                                        {mr.reward_service_id.title}
+                                <div key={mr._id} className="relative group">
+                                  <button
+                                    type="button"
+                                    disabled={!isUnlocked}
+                                    onClick={() => onSelectMilestoneReward(mr)}
+                                    className={`w-full relative overflow-hidden text-left p-4 rounded-2xl border transition-all duration-300 ${
+                                      isSelected
+                                        ? "bg-[#dc143c]/10 border-[#dc143c]/40 ring-1 ring-[#dc143c]/20"
+                                        : isUnlocked
+                                          ? "bg-white/[0.04] border-white/10 hover:bg-white/[0.08] hover:border-white/20"
+                                          : "bg-black/20 border-white/5"
+                                    }`}
+                                  >
+                                    <div className="flex justify-between items-start">
+                                      <div className="space-y-1">
+                                        <p
+                                          className={`text-sm font-bold ${isUnlocked ? "text-white" : "text-gray-500/50"}`}
+                                        >
+                                          {mr.reward_service_id.title}
+                                        </p>
+                                        <p
+                                          className={`text-[10px] font-black tracking-widest uppercase ${
+                                            isUnlocked
+                                              ? mr.reward_type ===
+                                                RewardType.FREE_SERVICE
+                                                ? "text-emerald-400"
+                                                : "text-[#ff6b81]"
+                                              : "text-gray-700"
+                                          }`}
+                                        >
+                                          {rewardLabel}
+                                        </p>
+                                      </div>
+
+                                      <div className="flex flex-col items-end gap-2">
+                                        {isSelected && (
+                                          <div className="bg-[#dc143c] p-1 rounded-full shadow-lg shadow-[#dc143c]/20">
+                                            <Check className="w-3 h-3 text-white" />
+                                          </div>
+                                        )}
+                                        {!isSelected && isUnlocked && (
+                                          <div className="bg-emerald-500/20 p-1 rounded-full animate-bounce">
+                                            <Star className="w-3 h-3 text-emerald-400" />
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </button>
+                                  {!isUnlocked && (
+                                    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/60 backdrop-blur-[1.5px] transition-all duration-500 rounded-2xl border border-white/5">
+                                      <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-white/5">
+                                        <Lock className="w-3.5 h-3.5 text-white/80" />
+                                      </div>
+                                      <p className="text-white font-black text-[10px] uppercase tracking-[0.15em]">
+                                        Reward Locked
                                       </p>
-                                      <p
-                                        className={`text-[10px] font-black tracking-widest uppercase ${
-                                          isUnlocked
-                                            ? mr.reward_type === "free_service"
-                                              ? "text-emerald-400"
-                                              : "text-[#ff6b81]"
-                                            : "text-gray-600"
-                                        }`}
-                                      >
-                                        {rewardLabel}
+                                      <p className="text-white/40 text-[9px] font-medium mt-0.5 text-center px-6 leading-tight">
+                                        {!isCorrectService
+                                          ? "Select a Wash Service to use"
+                                          : `Requires ${mr.required_progress_count} total wash counts`}
                                       </p>
                                     </div>
-                                    <div className="flex flex-col items-end gap-2">
-                                      {isSelected ? (
-                                        <div className="bg-[#dc143c] p-1 rounded-full">
-                                          <Check className="w-3 h-3 text-white" />
-                                        </div>
-                                      ) : isUnlocked ? (
-                                        <div className="bg-emerald-500/20 p-1 rounded-full animate-bounce">
-                                          <Star className="w-3 h-3 text-emerald-400" />
-                                        </div>
-                                      ) : (
-                                        <div className="bg-white/5 p-1 rounded-full text-gray-600">
-                                          <Lock className="w-3 h-3" />
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                </button>
+                                  )}
+                                </div>
                               );
                             })
                           ) : (
                             <div className="p-4 text-center text-gray-600 text-xs italic">
-                              No rewards found for this vehicle type.
+                              No rewards available for this vehicle category.
                             </div>
                           )}
                         </div>

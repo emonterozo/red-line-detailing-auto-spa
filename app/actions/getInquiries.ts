@@ -27,7 +27,7 @@ export const getInquiries = async (
 
   // Fetch paginated inquiries
   const inquiriesDoc = (await Inquiry.find({})
-    .sort({ createdAt: -1 })
+    .sort({ created_at: -1 })
     .skip(skip)
     .limit(limit)
     .lean()) as unknown as IInquiriesResponse[];

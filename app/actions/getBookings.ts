@@ -77,7 +77,7 @@ export const getBookings = async (
     | "reference_number"
   >[] = await Booking.find(query)
     .select(BOOKING_FIELDS.join(" "))
-    .sort({ createdAt: -1 })
+    .sort({ created_at: -1 })
     .skip(skip)
     .limit(limit)
     .lean();
