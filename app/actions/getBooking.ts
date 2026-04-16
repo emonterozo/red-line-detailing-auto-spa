@@ -107,6 +107,7 @@ export type BookingResponse = Pick<
     time: string;
   };
   milestone_reward: BookingMilestoneRewardResponse | null;
+  promotion_id: string | null
 };
 
 type BookingDoc = Pick<
@@ -135,6 +136,7 @@ type BookingDoc = Pick<
   | "reference_number"
   | "notes"
   | "milestone_reward_id"
+  | "promotion_id"
 >;
 
 type CustomerDoc = Pick<TCustomerDoc, "_id" | "earned_points"> & {
@@ -242,6 +244,7 @@ export const getBooking = async (
   const {
     customer_id: _customer_id,
     milestone_reward_id: _milestone_reward_id,
+    promotion_id: _promotion_id,
     ...restBooking
   } = bookingDoc;
 
@@ -261,6 +264,7 @@ export const getBooking = async (
       _id: bookingDoc.time_slot._id?.toString() ?? "",
     },
     milestone_reward,
+    promotion_id: bookingDoc.promotion_id?.toString() ?? null,
   };
 
   return bookingJson;

@@ -14,6 +14,8 @@ import { sendMessage } from "@/lib/sendMessage";
 import Booking from "@/models/Booking";
 import Badge, { TBadgeDoc } from "@/models/Badge";
 import Referral from "@/models/Referral";
+import { validatePromo } from "./validatePromo";
+import PromotionUsage from "@/models/PromotionUsage";
 
 type ServiceProps = Pick<TService, "title" | "price"> & {
   _id: string;
@@ -27,6 +29,7 @@ type CreateTransactionProps = Omit<
   | "created_at"
   | "updated_at"
   | "name"
+  | "promotion_id"
 > & {
   services: ServiceProps[];
   milestone_reward: {
@@ -39,6 +42,7 @@ type CreateTransactionProps = Omit<
   milestone_discount: number;
   customer_id: string | null;
   booking_id: string | null;
+  promotion_id: string | null;
 };
 
 const config = {
@@ -67,12 +71,63 @@ export const createTransaction = async (
       };
   }
 
-  const services = transactionData.services.map((item) => ({
-    ...item,
-    _id: new Types.ObjectId(item._id),
-  }));
+  let services = transactionData.services;
 
   try {
+    if (
+      transactionData.promotion_id &&
+      transactionData.customer_id &&
+      transactionData.promo_code_used
+    ) {
+      const cart = transactionData.services.map((item) => ({
+        service_id: item._id,
+        price: item.price,
+      }));
+      const promotion = await validatePromo(
+        transactionData.promo_code_used,
+        transactionData.customer_id,
+        cart,
+      );
+
+      services =
+        transactionData.services.map((service) => {
+          const appliedPromo = promotion.data;
+
+          const isGlobal = appliedPromo?.service_ids.length === 0;
+          const isTargeted = appliedPromo?.service_ids.includes(
+            service._id.toString(),
+          );
+          const isEligible = appliedPromo && (isGlobal || isTargeted);
+
+          let itemDiscount = 0;
+
+          if (isEligible) {
+            const divisor = isGlobal
+              ? transactionData.services.length
+              : appliedPromo.service_ids.length;
+
+            itemDiscount =
+              divisor > 0
+                ? appliedPromo.total_discount / divisor
+                : appliedPromo.total_discount;
+          }
+
+          return {
+            ...service,
+            discount: itemDiscount,
+          };
+        }) ?? [];
+
+      await PromotionUsage.create({
+        promotion_id: promotion.data?._id,
+        user_id: transactionData.customer_id,
+        booking_id: transactionData.booking_id,
+        discount_applied: promotion.data?.total_discount,
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+    }
+
     const data = {
       customer_id: transactionData.customer_id
         ? new Types.ObjectId(transactionData.customer_id)
@@ -80,6 +135,10 @@ export const createTransaction = async (
       booking_id: transactionData.booking_id
         ? new Types.ObjectId(transactionData.booking_id)
         : null,
+      promotion_id: transactionData.promotion_id
+        ? new Types.ObjectId(transactionData.promotion_id)
+        : null,
+      promo_code_used: transactionData.promo_code_used,
       transaction_from: transactionData.transaction_from,
       vehicle_type: transactionData.vehicle_type,
       vehicle_size: transactionData.vehicle_size,
@@ -136,7 +195,9 @@ export const createTransaction = async (
       }).lean();
       if (customer && vehicleSize) {
         const isAvailedWash = transactionData.services.find((service) =>
-          ["Premium Detailer Wash", "Full Decontamination Wash"].includes(service.title),
+          ["Premium Detailer Wash", "Full Decontamination Wash"].includes(
+            service.title,
+          ),
         );
 
         const milestone_count = customer.milestone_count.map((count) => {

@@ -37,7 +37,7 @@ import {
   getCustomersMilestone,
 } from "../actions/getCustomersMilestone";
 import { useRouter, useSearchParams } from "next/navigation";
-import { getBooking } from "../actions/getBooking";
+import { BookingResponse, getBooking } from "../actions/getBooking";
 import {
   getVehicleSizes,
   VehicleSizeResponse,
@@ -224,6 +224,7 @@ export default function Transaction() {
   const [isCustomerOpen, setIsCustomerOpen] = useState(false);
   const [isFabVisible, setIsFabVisible] = useState(false);
   const [initializing, setInitializing] = useState(true);
+  const [booking, setBooking] = useState<BookingResponse | null>(null)
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -321,8 +322,8 @@ export default function Transaction() {
         total_discount: totalDiscount,
         milestone_reward,
         milestone_discount: value.milestoneDiscount,
-        promotion_id: null,
-        promo_code_used: null,
+        promotion_id: booking?.promotion_id ?? null,
+        promo_code_used:  booking?.promo_code_used,
       });
       setLoading(false);
       showToast(result.message, result.success ? "success" : "error");
@@ -352,6 +353,7 @@ export default function Transaction() {
         const bookingData = await getBooking(bookingId);
 
         if (bookingData) {
+          setBooking(bookingData)
           const selectedServiceIds = new Set(
             [...bookingData.services, ...bookingData.add_ons].map(
               (item) => item._id,

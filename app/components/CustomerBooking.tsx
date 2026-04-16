@@ -64,6 +64,7 @@ import { CustomerDetailsResponse, getCustomer } from "../actions/getCustomer";
 import { useSession } from "next-auth/react";
 import { CONFIG } from "../config/config";
 import { getBookings } from "../actions/getBookings";
+import { PromotionResponse, validatePromo } from "../actions/validatePromo";
 
 const today = new Date();
 today.setHours(23, 59, 59, 59);
@@ -113,6 +114,7 @@ export const milestoneRewardSchema = z.object({
 
 export const formSchema = z
   .object({
+    promoCode: z.string(),
     vehicleSizes: z
       .array(vehicleSizeSchema)
       .min(1, "Please choose a vehicle type."),
@@ -171,6 +173,7 @@ export const formSchema = z
 export type FormValues = z.infer<typeof formSchema>;
 
 const defaultValues: FormValues = {
+  promoCode: "",
   vehicleSizes: [],
   vehicleModel: "",
   services: [],
@@ -215,6 +218,11 @@ export default function CustomerBooking() {
     slots: [] as (ITimeSlot & { _id: string })[],
     vehicleMilestoneRewards: [] as MilestoneRewardsResponse[],
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [appliedPromo, setAppliedPromo] = useState<PromotionResponse | null>(
+    null,
+  );
 
   useEffect(() => {
     const userId = session?.user?.id;
@@ -230,8 +238,10 @@ export default function CustomerBooking() {
           BookingStatus.RESERVED,
         ]);
 
-        if (booking.data.length > 0) router.back();
-        
+        if (booking.data.length > 0) {
+          router.back();
+        }
+
         const [vehicleSizes, schedules, services, milestoneRewards, customer] =
           await Promise.all([
             getVehicleSizes(),
@@ -267,6 +277,9 @@ export default function CustomerBooking() {
   };
 
   const toggleService = (service: ServiceResponse, type: ServiceType): void => {
+    setAppliedPromo(null);
+    setPromoError(null);
+    form.setFieldValue("promoCode", "");
     const isMain = type === ServiceType.SERVICE;
     const field = isMain ? "services" : "addOns";
 
@@ -389,11 +402,31 @@ export default function CustomerBooking() {
             (item) => item.size_id === value.vehicleSizes[0]._id,
           )?.price ?? 0;
 
+        const isGlobal = appliedPromo?.service_ids.length === 0;
+        const isTargeted = appliedPromo?.service_ids.includes(
+          service._id.toString(),
+        );
+        const isEligible = appliedPromo && (isGlobal || isTargeted);
+
+        let itemDiscount = 0;
+
+        if (isEligible) {
+          const divisor = isGlobal
+            ? value.services.length
+            : appliedPromo.service_ids.length;
+
+          itemDiscount =
+            divisor > 0
+              ? appliedPromo.total_discount / divisor
+              : appliedPromo.total_discount;
+        }
+
         return {
           _id: service._id,
           title: service.title,
           type: service.type as ServiceType,
           price: price,
+          discount: itemDiscount,
         };
       });
 
@@ -403,11 +436,32 @@ export default function CustomerBooking() {
             service.pricing_per_sizes.find(
               (item) => item.size_id === value.vehicleSizes[0]._id,
             )?.price ?? 0;
+
+          const isGlobal = appliedPromo?.service_ids.length === 0;
+          const isTargeted = appliedPromo?.service_ids.includes(
+            service._id.toString(),
+          );
+          const isEligible = appliedPromo && (isGlobal || isTargeted);
+
+          let itemDiscount = 0;
+
+          if (isEligible) {
+            const divisor = isGlobal
+              ? (value.addOns?.length ?? 0)
+              : appliedPromo.service_ids.length;
+
+            itemDiscount =
+              divisor > 0
+                ? appliedPromo.total_discount / divisor
+                : appliedPromo.total_discount;
+          }
+
           return {
             _id: service._id,
             title: service.title,
             type: service.type as ServiceType,
             price: price,
+            discount: itemDiscount,
           };
         }) ?? [];
 
@@ -461,6 +515,9 @@ export default function CustomerBooking() {
         notes: "",
         size_id: value.vehicleSizes[0]._id,
         point_used: value.pointsUsed,
+        promotion_id: appliedPromo ? appliedPromo._id : null,
+        promo_code_used: appliedPromo ? appliedPromo.promo_code : null,
+        discount: appliedPromo ? appliedPromo.total_discount : 0,
       });
       setUi((prev) => ({
         ...prev,
@@ -571,6 +628,9 @@ export default function CustomerBooking() {
   };
 
   const onSelectVehicleType = (size: VehicleSizeResponse): void => {
+    setAppliedPromo(null);
+    setPromoError(null);
+    form.setFieldValue("promoCode", "");
     const { milestoneRewards, customer } = data;
     const services =
       (form.getFieldValue("services") as ServiceResponse[]) || [];
@@ -1148,7 +1208,7 @@ export default function CustomerBooking() {
           <SectionCard
             icon={<Wrench className="w-4 h-4" />}
             title="Rewards Program & Discount"
-            subtitle="What's being performed?"
+            subtitle="Apply discounts or select a milestone reward"
           >
             <div className="space-y-4">
               <form.Field name="milestoneReward">
@@ -1438,6 +1498,123 @@ export default function CustomerBooking() {
                   );
                 }}
               </form.Subscribe>
+              <form.Field name="promoCode">
+                {(field) => {
+                  const selectedServices = form.getFieldValue("services") || [];
+                  const selectedAddOns = form.getFieldValue("addOns") || [];
+                  const selectedVehicleSizes =
+                    form.getFieldValue("vehicleSizes");
+                  const isLocked =
+                    selectedServices.length === 0 ||
+                    selectedVehicleSizes.length === 0;
+
+                  const handleApplyPromo = async () => {
+                    const userId = session?.user?.id ?? "";
+                    const code = field.state.value;
+                    if (!code) return;
+
+                    setIsLoading(true);
+                    setPromoError(null);
+
+                    const cartItems = [
+                      ...selectedServices,
+                      ...selectedAddOns,
+                    ].map((service) => {
+                      const price =
+                        service.pricing_per_sizes.find(
+                          (item) =>
+                            item.size_id === selectedVehicleSizes[0]._id,
+                        )?.price ?? 0;
+
+                      return {
+                        service_id: service._id,
+
+                        price: price,
+                      };
+                    });
+
+                    // Call your Server Action
+                    const result = await validatePromo(code, userId, cartItems);
+                    console.log(result);
+
+                    if (result.success && result.data) {
+                      setAppliedPromo(result.data);
+                      // Store the promo result in the form state to adjust total price
+                      ///form.setFieldValue("appliedPromotion", result.data);
+
+                      // OPTIONAL: Clear milestone rewards because of "One Promotion Only" rule
+                      // form.setFieldValue("milestoneReward", []);
+                    } else {
+                      setPromoError(result.message as string);
+                      setAppliedPromo(null);
+                      ///form.setFieldValue("appliedPromotion", null);
+                    }
+                    setIsLoading(false);
+                  };
+
+                  return (
+                    <Field className="relative ">
+                      <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
+                        Promo Code
+                      </FieldLabel>
+                      <div className="relative">
+                        {isLocked && (
+                          <div className="absolute inset-0 z-20 flex items-center justify-between px-4 rounded-xl border border-white/5 bg-black/40 backdrop-blur-[1.5px] transition-all duration-500">
+                            <div className="flex items-center gap-2">
+                              <Lock className="w-3.5 h-3.5 text-white/40" />
+                              <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.1em]">
+                                Select vehicle & service to unlock
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="flex gap-2">
+                          <div className="relative flex-1">
+                            <Input
+                              value={field.state.value}
+                              onChange={(e) =>
+                                field.handleChange(e.target.value)
+                              }
+                              placeholder="Enter promo code"
+                              disabled={isLocked}
+                              className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
+                            />
+                            {appliedPromo && (
+                              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                <Check className="w-4 h-4 text-emerald-400" />
+                              </div>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            disabled={
+                              isLoading || !field.state.value || isLocked
+                            }
+                            onClick={handleApplyPromo}
+                            className="h-12 px-6 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] text-white text-xs font-bold uppercase tracking-wider transition-all disabled:opacity-50 border border-white/10"
+                          >
+                            {isLoading ? "..." : "Apply"}
+                          </button>
+                        </div>
+                      </div>
+
+                      {promoError && (
+                        <FieldError
+                          className="text-[#ff6b81] text-xs mt-1"
+                          errors={[{ message: promoError }]}
+                        />
+                      )}
+                      {appliedPromo && (
+                        <FieldError
+                          className="text-[#00ff88] text-xs mt-1"
+                          errors={[{ message: appliedPromo.message }]}
+                        />
+                      )}
+                    </Field>
+                  );
+                }}
+              </form.Field>
             </div>
           </SectionCard>
 
@@ -1552,6 +1729,17 @@ export default function CustomerBooking() {
                               - ₱{pointsUsed.toLocaleString()}
                             </span>
                           </div>
+                          {appliedPromo && appliedPromo.total_discount > 0 && (
+                            <div className="flex justify-between items-center text-[13px]">
+                              <span className="text-neutral-400 font-medium tracking-wide">
+                                Promo Discount
+                              </span>
+                              <span className="text-[#00ff88] font-bold">
+                                - ₱
+                                {appliedPromo.total_discount.toLocaleString()}
+                              </span>
+                            </div>
+                          )}
                         </div>
                         <div className="p-4 space-y-4">
                           <div className="flex justify-between items-center pt-1">
@@ -1568,7 +1756,8 @@ export default function CustomerBooking() {
                                   data.customer?.travel_distance ?? 0,
                                 ) -
                                 milestoneRewardDiscount -
-                                pointsUsed
+                                pointsUsed -
+                                (appliedPromo?.total_discount ?? 0)
                               ).toLocaleString()}
                             </span>
                           </div>

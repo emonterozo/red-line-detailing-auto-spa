@@ -10,6 +10,7 @@ import { bookingTemple } from "../template/booking";
 import { BookingStatus, ServiceType } from "@/lib/enums";
 import { getSmsContent } from "@/lib/getSmsTemplate";
 import { sendMessage } from "@/lib/sendMessage";
+import Promotion from "@/models/Promotion";
 
 interface CreateBookingProps {
   customer_id?: string;
@@ -35,7 +36,10 @@ interface CreateBookingProps {
   reference_number: string;
   notes: string;
   milestone_reward_id?: string | null;
-  point_used?: number
+  point_used?: number;
+  promotion_id?: string | null;
+  promo_code_used?: string | null;
+  discount?: number;
 }
 
 export const createBooking = async (bookingData: CreateBookingProps) => {
@@ -114,6 +118,17 @@ export const createBooking = async (bookingData: CreateBookingProps) => {
         const addOnsString = bookingData.add_ons
           .map((item) => item.title)
           .join(", ");
+
+        if (bookingData.promotion_id) {
+          await Promotion.findByIdAndUpdate(bookingData.promotion_id, {
+            $inc: {
+              current_usage_count: 1,
+            },
+            $set: {
+              updated_at: new Date(),
+            },
+          });
+        }
 
         const html = await bookingTemple(
           `${bookingData.first_name} ${bookingData.last_name}`,

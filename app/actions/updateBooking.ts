@@ -8,6 +8,7 @@ import Booking from "@/models/Booking";
 import Schedule from "@/models/Schedule";
 import { Types } from "mongoose";
 import { CONFIG } from "../config/config";
+import Promotion from "@/models/Promotion";
 
 type UpdateBookingRequest = {
   sizeId: string;
@@ -85,6 +86,17 @@ export const updateBooking = async (request: UpdateBookingRequest) => {
           },
         },
       );
+
+      if (result.promotion_id) {
+        await Promotion.findByIdAndUpdate(result.promotion_id, {
+          $inc: {
+            current_usage_count: isAvailable ? -1 : 0,
+          },
+          $set: {
+            updated_at: new Date(),
+          },
+        });
+      }
     }
 
     let message = "";
