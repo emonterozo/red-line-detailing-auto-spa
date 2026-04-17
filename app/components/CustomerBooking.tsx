@@ -265,8 +265,8 @@ export default function CustomerBooking() {
           milestoneRewards,
           customer,
         });
+        setUi((prev) => ({ ...prev, initializing: false }));
       } catch {
-      } finally {
         setUi((prev) => ({ ...prev, initializing: false }));
       }
     };
