@@ -16,6 +16,7 @@ import { verifyOtp } from "../actions/verifyOtp";
 import { OtpType } from "@/lib/enums";
 import { useRouter, useSearchParams } from "next/navigation";
 import { sendOtp } from "../actions/sendOtp";
+import { useSession } from "next-auth/react";
 
 export const formSchema = z.object({
   firstName: z
@@ -57,6 +58,7 @@ const defaultValues: FormValues = {
 export type FormValues = z.infer<typeof formSchema>;
 
 const Register = () => {
+  const { update } = useSession();
   const searchParams = useSearchParams();
   const referralCode = searchParams.get("referral");
   const router = useRouter();
@@ -105,10 +107,11 @@ const Register = () => {
       customer_id: customerId,
       type: OtpType.REGISTRATION,
       code: code,
-      password: form.getFieldValue("password")
+      password: form.getFieldValue("password"),
     });
     setLoading(false);
     if (result.success) {
+      await update();
       router.push(`/customer/me`);
     } else {
       showToast(result?.message as string, "error");

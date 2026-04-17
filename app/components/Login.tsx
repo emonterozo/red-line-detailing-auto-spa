@@ -18,6 +18,7 @@ import { login } from "../actions/login";
 import { sendOtp } from "../actions/sendOtp";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { useSession } from "next-auth/react";
 
 export const formSchema = z.object({
   contactNumber: z
@@ -40,6 +41,7 @@ const defaultValues: FormValues = {
 export type FormValues = z.infer<typeof formSchema>;
 
 const Login = () => {
+  const { update } = useSession();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [passwordVisibility, setPasswordVisibility] = useState({
@@ -92,6 +94,7 @@ const Login = () => {
     });
     setLoading(false);
     if (result.success) {
+      await update()
       router.push(`/customer/me`);
     } else {
       showToast(result?.message as string, "error");
