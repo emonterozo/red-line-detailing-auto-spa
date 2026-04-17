@@ -8,13 +8,17 @@ import { TService } from "@/models/Service";
 import Customer, { TCustomerDoc } from "@/models/Customer";
 import VehicleSize, { TVehicleSizeDoc } from "@/models/VehicleSize";
 import MilestoneClaimed from "@/models/MilestoneClaimed";
-import { getSmsContent } from "@/lib/getSmsTemplate";
-import { BookingStatus } from "@/lib/enums";
+import { getSmsContent, SmsType } from "@/lib/getSmsTemplate";
+import { CustomerBadge } from "@/lib/enums";
 import { sendMessage } from "@/lib/sendMessage";
 import Booking from "@/models/Booking";
+import Badge, { TBadgeDoc } from "@/models/Badge";
+import Referral from "@/models/Referral";
+import { getPromotionDetails } from "./getPromotionDetails";
 
-type ServiceProps = Pick<TService, "title" | "price"> & {
+type ServiceProps = Pick<TService, "title" | "type" | "price"> & {
   _id: string;
+  discount: number;
 };
 
 type CreateTransactionProps = Omit<
@@ -25,6 +29,7 @@ type CreateTransactionProps = Omit<
   | "created_at"
   | "updated_at"
   | "name"
+  | "promotion_id"
 > & {
   services: ServiceProps[];
   milestone_reward: {
@@ -37,6 +42,13 @@ type CreateTransactionProps = Omit<
   milestone_discount: number;
   customer_id: string | null;
   booking_id: string | null;
+  promotion_id: string | null;
+};
+
+const config = {
+  referral_points: Number.parseInt(
+    process.env.REFERRAL_PROGRAM_BASE_POINTS ?? "50",
+  ),
 };
 
 export const createTransaction = async (
@@ -47,12 +59,34 @@ export const createTransaction = async (
   let contactNumber = "";
   let referenceNumber = "";
 
-  const services = transactionData.services.map((item) => ({
-    ...item,
-    _id: new Types.ObjectId(item._id),
-  }));
+  if (transactionData.booking_id) {
+    const bookingTransaction = await Transaction.findOne({
+      booking_id: new Types.ObjectId(transactionData.booking_id),
+    });
+
+    if (bookingTransaction)
+      return {
+        success: false,
+        message: "A transaction for this booking has already been created.",
+      };
+  }
+
+  let services = transactionData.services;
 
   try {
+    if (
+      transactionData.promotion_id &&
+      transactionData.customer_id &&
+      transactionData.promo_code_used
+    ) {
+      const result = await getPromotionDetails(transactionData.promotion_id, [
+        ...services,
+      ]);
+      if (result.success) {
+        services = result.data?.services ?? [];
+      }
+    }
+
     const data = {
       customer_id: transactionData.customer_id
         ? new Types.ObjectId(transactionData.customer_id)
@@ -60,6 +94,10 @@ export const createTransaction = async (
       booking_id: transactionData.booking_id
         ? new Types.ObjectId(transactionData.booking_id)
         : null,
+      promotion_id: transactionData.promotion_id
+        ? new Types.ObjectId(transactionData.promotion_id)
+        : null,
+      promo_code_used: transactionData.promo_code_used,
       transaction_from: transactionData.transaction_from,
       vehicle_type: transactionData.vehicle_type,
       vehicle_size: transactionData.vehicle_size,
@@ -71,13 +109,15 @@ export const createTransaction = async (
       reservation_fee: transactionData.reservation_fee,
       total_service_amount: transactionData.total_service_amount,
       additional_cost: transactionData.additional_cost,
-      points_earned: transactionData.points_earned,
+      points: transactionData.points,
       travel_fee: transactionData.travel_fee,
       discount: transactionData.discount,
       points_used: transactionData.points_used,
       net_total: transactionData.net_total,
       gross_total: transactionData.gross_total,
       total_discount: transactionData.total_discount,
+      created_at: new Date(),
+      updated_at: new Date(),
     };
 
     const newTransaction = new Transaction(data);
@@ -92,10 +132,10 @@ export const createTransaction = async (
           {
             name: booking.first_name,
             model: transactionData.vehicle_model,
-            type: BookingStatus.COMPLETED,
+            type: SmsType.COMPLETED,
             ref: booking.reference_number,
             date: "",
-            points: transactionData.points_earned.toString(),
+            points: transactionData.points?.service.toString(),
           },
           !transactionData.customer_id,
         );
@@ -104,6 +144,7 @@ export const createTransaction = async (
       }
     }
 
+    let badgePoints = 0;
     if (transactionData.customer_id) {
       const customer: TCustomerDoc = await Customer.findById(
         transactionData.customer_id,
@@ -113,8 +154,10 @@ export const createTransaction = async (
         type: transactionData.vehicle_type,
       }).lean();
       if (customer && vehicleSize) {
-        const isAvailedPremiumWash = transactionData.services.find(
-          (service) => service.title === "Premium Detailer Wash",
+        const isAvailedWash = transactionData.services.find((service) =>
+          ["Premium Detailer Wash", "Full Decontamination Wash"].includes(
+            service.title,
+          ),
         );
 
         const milestone_count = customer.milestone_count.map((count) => {
@@ -126,7 +169,7 @@ export const createTransaction = async (
                 count.progress -
                   transactionData.milestone_reward.required_progress_count,
               );
-            } else if (isAvailedPremiumWash) {
+            } else if (isAvailedWash) {
               newProgress = newProgress + 1;
             }
             return {
@@ -151,7 +194,71 @@ export const createTransaction = async (
           size_id: vehicleSize._id,
           vehicle_model: transactionData.vehicle_model,
           discount: transactionData.milestone_discount,
+          created_at: new Date(),
+          updated_at: new Date(),
         };
+
+        let selectedBadge = {};
+
+        if (!customer.badge) {
+          const theApexBadge: TBadgeDoc = await Badge.findOneAndUpdate(
+            {
+              title: CustomerBadge.THE_APEX,
+              $expr: { $lt: ["$count", "$limit"] },
+            },
+            { $inc: { count: 1 } },
+          ).lean();
+
+          if (theApexBadge) {
+            selectedBadge = {
+              badge_id: theApexBadge._id,
+              count: theApexBadge.count + 1,
+            };
+            badgePoints = theApexBadge.points;
+          } else {
+            const pitCrewBadge: TBadgeDoc = await Badge.findOneAndUpdate(
+              { title: CustomerBadge.PIT_CREW },
+              { $inc: { count: 1 } },
+            ).lean();
+
+            selectedBadge = {
+              badge_id: pitCrewBadge._id,
+              count: pitCrewBadge.count + 1,
+            };
+            badgePoints = pitCrewBadge.points;
+          }
+        }
+
+        let referralPoints = 0;
+        if (customer.referred_by) {
+          const referral = await Referral.findOne({
+            referrer_id: customer.referred_by,
+            referee_id: customer._id,
+            reward_given: false,
+          });
+          const referrer = await Customer.findById(customer.referred_by);
+
+          if (referral && referrer.badge) {
+            referralPoints = config.referral_points;
+            const message = getSmsContent({
+              type: SmsType.REFERRAL_REWARD_UNLOCKED,
+              name: "",
+              friendName: customer.first_name,
+              points: config.referral_points.toString(),
+              ref: "",
+            });
+
+            sendMessage({ message, phoneNumbers: [referrer.contact_number] });
+
+            referral.reward_given = true;
+            referral.updated_at = new Date();
+            await referral.save();
+            referrer.earned_points = referrer.earned_points + referralPoints;
+            await referrer.save();
+          }
+        }
+
+        const servicePoints = transactionData.points?.service ?? 0;
         const update: UpdateQuery<{
           milestone_count: number;
           earned_points: number;
@@ -160,10 +267,18 @@ export const createTransaction = async (
           $set: {
             milestone_count,
             earned_points:
-              customer_updated_points + transactionData.points_earned,
+              customer_updated_points +
+              servicePoints +
+              badgePoints +
+              referralPoints,
             ...(customer.is_verify
               ? {}
-              : { verified_at: new Date(), is_verify: true }),
+              : {
+                  verified_at: new Date(),
+                  is_verify: true,
+                  badge: { ...selectedBadge },
+                }),
+            updated_at: new Date(),
           },
         };
 
@@ -172,16 +287,44 @@ export const createTransaction = async (
         }
 
         await Customer.findByIdAndUpdate(transactionData.customer_id, update);
+        await Transaction.findByIdAndUpdate(newTransaction._id, {
+          $set: {
+            points: {
+              total: newTransaction.points.total + badgePoints + referralPoints,
+              service: newTransaction.points.service,
+              badge: badgePoints,
+              referral: referralPoints,
+            },
+          },
+        });
+      }
+
+      if (badgePoints > 0) {
+        const firstCompletedMessage = getSmsContent(
+          {
+            name: customer.first_name,
+            type:
+              badgePoints === 20
+                ? SmsType.FIRST_SERVICE_COMPLETE
+                : SmsType.FIRST_FIFTEEN_REWARD,
+            ref: "",
+          },
+          !transactionData.customer_id,
+        );
+        sendMessage({
+          message: firstCompletedMessage,
+          phoneNumbers: [contactNumber],
+        });
       }
 
       message = getSmsContent(
         {
           name: customer.first_name,
           model: transactionData.vehicle_model,
-          type: BookingStatus.COMPLETED,
+          type: SmsType.COMPLETED,
           ref: referenceNumber,
           date: "",
-          points: transactionData.points_earned.toString(),
+          points: transactionData.points?.service.toString(),
         },
         !transactionData.customer_id,
       );
@@ -196,7 +339,22 @@ export const createTransaction = async (
       success: true,
       message: "Transaction created successfully.",
     };
-  } catch {
+  } catch (err: unknown) {
+    if (err && typeof err === "object" && "code" in err) {
+      const mongoError = err as {
+        code: number | string;
+        keyPattern?: Record<string, number>;
+      };
+
+      if (mongoError.code === 11000) {
+        return {
+          success: false,
+          message:
+            "A transaction for this booking has already been created. Please check your records.",
+        };
+      }
+    }
+
     return {
       success: false,
       message:

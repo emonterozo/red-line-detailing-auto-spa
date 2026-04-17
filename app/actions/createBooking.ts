@@ -8,11 +8,14 @@ import Schedule from "@/models/Schedule";
 import { Types } from "mongoose";
 import { bookingTemple } from "../template/booking";
 import { BookingStatus, ServiceType } from "@/lib/enums";
-import { getSmsContent } from "@/lib/getSmsTemplate";
+import { getSmsContent, SmsType } from "@/lib/getSmsTemplate";
 import { sendMessage } from "@/lib/sendMessage";
+import Promotion from "@/models/Promotion";
+import PromotionUsage from "@/models/PromotionUsage";
+import { getPromotionDetails } from "./getPromotionDetails";
 
 interface CreateBookingProps {
-  user_id?: string;
+  customer_id?: string;
   size_id?: string;
   first_name: string;
   last_name: string;
@@ -34,10 +37,15 @@ interface CreateBookingProps {
   travel_distance: number;
   reference_number: string;
   notes: string;
+  milestone_reward_id?: string | null;
+  point_used?: number;
+  promotion_id?: string | null;
+  promo_code_used?: string | null;
+  discount?: number;
+  milestone_discount?: number;
 }
 
 export const createBooking = async (bookingData: CreateBookingProps) => {
-  const userId = null;
   await connect();
 
   const formattedDate = bookingData.preferred_date.date.toLocaleDateString(
@@ -80,13 +88,18 @@ export const createBooking = async (bookingData: CreateBookingProps) => {
       );
       if (schedule) {
         const newBooking = new Booking({
-          user_id: userId,
           ...bookingData,
           name: `${bookingData.first_name} ${bookingData.last_name}`,
           location: {
             type: "Point",
             coordinates: [bookingData.longitude, bookingData.latitude],
           },
+          customer_id: bookingData.customer_id
+            ? new Types.ObjectId(bookingData.customer_id)
+            : null,
+          milestone_reward_id: bookingData.milestone_reward_id
+            ? new Types.ObjectId(bookingData.milestone_reward_id)
+            : null,
         });
         await newBooking.save();
 
@@ -108,6 +121,31 @@ export const createBooking = async (bookingData: CreateBookingProps) => {
         const addOnsString = bookingData.add_ons
           .map((item) => item.title)
           .join(", ");
+
+        if (bookingData.promotion_id) {
+          await Promotion.findByIdAndUpdate(bookingData.promotion_id, {
+            $inc: {
+              current_usage_count: 1,
+            },
+            $set: {
+              updated_at: new Date(),
+            },
+          });
+
+          const result = await getPromotionDetails(bookingData.promotion_id, [
+            ...bookingData.services,
+            ...bookingData.add_ons,
+          ]);
+
+          await PromotionUsage.create({
+            promotion_id: bookingData.promotion_id,
+            user_id: bookingData.customer_id,
+            booking_id: newBooking._id,
+            discount_applied: result.data?.total_discount,
+            created_at: new Date(),
+            updated_at: new Date(),
+          });
+        }
 
         const html = await bookingTemple(
           `${bookingData.first_name} ${bookingData.last_name}`,
@@ -140,15 +178,15 @@ export const createBooking = async (bookingData: CreateBookingProps) => {
         const message = getSmsContent({
           name: bookingData.first_name,
           model: bookingData.vehicle_model,
-          type: BookingStatus.FOR_CHECKING,
+          type: SmsType.FOR_CHECKING,
           ref: bookingData.reference_number,
-          date: new Date(bookingData.preferred_date.date).toDateString()
+          date: new Date(bookingData.preferred_date.date).toDateString(),
         });
 
         sendMessage({
           message,
-          phoneNumbers: [bookingData.contact_number]
-        })
+          phoneNumbers: [bookingData.contact_number],
+        });
 
         return {
           success: true,

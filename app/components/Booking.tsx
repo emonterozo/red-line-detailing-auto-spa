@@ -3,11 +3,7 @@
 import { useEffect, useState } from "react";
 import { useForm } from "@tanstack/react-form";
 import * as z from "zod";
-import {
-  Field,
-  FieldError,
-  FieldLabel,
-} from "@/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -25,8 +21,8 @@ import {
   User,
   Wrench,
   Calendar as CalendarIcon,
-  Info,
   Receipt,
+  AlertCircle,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -56,11 +52,7 @@ import LocationPermissionModal from "./LocationPermissionModal";
 import { getAddressAndDistance } from "../actions/getAddressAndDistance";
 import FullScreenLoader from "./FullScreenLoader";
 import { generateReference } from "@/lib/utils";
-
-const config = {
-  fee: process.env.NEXT_PUBLIC_TRAVEL_FEE_PER_KM,
-  free_distance: process.env.NEXT_PUBLIC_FREE_TRAVEL_DISTANCE_KM,
-};
+import { CONFIG } from "../config/config";
 
 const today = new Date();
 today.setHours(23, 59, 59, 59);
@@ -386,6 +378,7 @@ export default function Booking() {
       const [vehicleSizesData, schedulesData, servicesData] = await Promise.all(
         [getVehicleSizes(), fetchSchedules(), getServices()],
       );
+
       const result = await requestUserLocation();
       setLocation(result);
       if (result.success && result.latitude && result.longitude) {
@@ -407,10 +400,11 @@ export default function Booking() {
   }, [form]);
 
   const getTravelFee = (distance: number) => {
+    const distanceInKm = distance / 1000;
     const fee = Math.max(
       0,
-      (distance - Number.parseInt(config.free_distance!)) *
-        Number.parseInt(config.fee!),
+      (distanceInKm - CONFIG.FREE_TRAVEL_DISTANCE_KM) *
+        CONFIG.TRAVEL_FEE_PER_KM,
     );
     return Math.ceil(fee);
   };
@@ -420,6 +414,7 @@ export default function Booking() {
       <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] rounded-full bg-[#dc143c]/[0.06] blur-[120px]" />
       <div className="pointer-events-none absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full bg-[#dc143c]/[0.04] blur-[100px]" />
       {initializing && <FullScreenLoader />}
+      {location && !location.success && <LocationPermissionModal />}
 
       <div className="relative max-w-3xl mx-auto px-4 sm:px-6 py-16 md:py-24">
         <motion.div
@@ -442,7 +437,6 @@ export default function Booking() {
             <div className="h-[1px] w-12 bg-gradient-to-l from-transparent to-[#dc143c]" />
           </div>
         </motion.div>
-        {location && !location.success && <LocationPermissionModal />}
 
         <form
           onSubmit={(e) => {
@@ -1131,7 +1125,7 @@ export default function Booking() {
                         <span className="text-gray-500 text-sm">
                           Travel Distance
                         </span>
-                        <span className="text-white font-medium">{`${distance} km`}</span>
+                        <span className="text-white font-medium">{`${distance / 1000} km`}</span>
                       </div>
                       <div className="flex justify-between items-center py-2 px-3">
                         <span className="text-gray-500 text-sm">
@@ -1147,20 +1141,15 @@ export default function Booking() {
                           {`₱${(servicesAmount + addOnsAmount + getTravelFee(distance)).toLocaleString()}`}
                         </span>
                       </div>
-                      <div className="mt-6 p-4 rounded-2xl bg-white/[0.03] border border-white/5 flex gap-3 items-start animate-in fade-in slide-in-from-bottom-2">
-                        <div className="p-1.5 rounded-lg bg-[#dc143c]/10 mt-0.5">
-                          <Info className="w-3 h-3 text-[#dc143c]" />
-                        </div>
-                        <p className="text-[13px] text-gray-500 leading-relaxed font-medium">
-                          <span className="text-white not-italic font-black uppercase tracking-tighter mr-1.5">
+                      <div className="mt-6 flex items-start gap-3 p-4 rounded-2xl bg-amber-500/5 border border-amber-500/10">
+                        <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                        <p className="text-[11px] leading-relaxed text-amber-200/60 font-medium">
+                          <strong className="text-amber-500 uppercase text-[10px] block mb-0.5">
                             Note:
-                          </span>
-                          This total is a{" "}
-                          <span className="text-gray-300">
-                            preliminary estimate
-                          </span>{" "}
-                          based on the information you provided. Our team will{" "}
-                          <span className="text-gray-300">verify your inputs</span>{" "}and provide the finalized cost.
+                          </strong>
+                          This total is a preliminary estimate based on the
+                          information you provided. Our team will verify your
+                          inputs and provide the finalized cost.
                         </p>
                       </div>
                     </>

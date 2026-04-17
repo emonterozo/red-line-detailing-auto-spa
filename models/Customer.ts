@@ -8,6 +8,7 @@ import {
 } from "mongoose";
 
 import VehicleSize, { TVehicleSizeDoc } from "./VehicleSize";
+import Badge from "./Badge";
 
 export type TCustomer = InferSchemaType<typeof customerSchema>;
 export type TCustomerDoc = HydratedDocument<TCustomer>;
@@ -41,7 +42,7 @@ const customerSchema = new Schema({
   last_name: { type: String, required: true },
   name: { type: String, required: true },
   email: { type: String, default: null },
-  contact_number: { type: String, required: true },
+  contact_number: { type: String, required: true, unique: true },
   social: { type: String, default: null },
   address: { type: String, default: null },
   google_address: { type: String, default: null },
@@ -49,14 +50,19 @@ const customerSchema = new Schema({
     type: {
       type: String,
       enum: ["Point"],
+      default: "Point",
+      required: true,
     },
     coordinates: {
       type: [Number],
+      default: [0,0],
+      require: true,
     },
   },
   travel_distance: { type: Number, default: 0 },
   address_updated_at: { type: Date, default: null },
   password: { type: String, required: true },
+  is_number_verify: { type: Boolean, default: false },
   is_verify: { type: Boolean, default: false },
   verified_at: { type: Date, default: null },
   earned_points: { type: Number, default: 0 },
@@ -64,12 +70,31 @@ const customerSchema = new Schema({
     type: [milestoneCountSchema],
     required: true,
   },
+  badge: {
+    type: new Schema({
+      badge_id: {
+        type: Schema.Types.ObjectId,
+        ref: Badge.modelName,
+        default: null,
+      },
+      count: {
+        type: Number,
+        default: null,
+      },
+    }),
+    default: null,
+  },
   birth_day: { type: Date, default: null },
-  referral_code: { type: String, unique: true, sparse: true },
+  referral_code: { type: String, required: true, unique: true },
   referred_by: { type: Schema.Types.ObjectId, ref: "Customer", default: null },
+  otp_send_count: { type: Number, default: 0 },
+  otp_send_window_start: { type: Date, default: null },
+  otp_send_blocked_until: { type: Date, default: null },
   created_at: { type: Date, default: new Date() },
   updated_at: { type: Date, default: new Date() },
 });
+
+customerSchema.index({ location: "2dsphere" });
 
 const Customer = models.Customer || model("Customer", customerSchema);
 

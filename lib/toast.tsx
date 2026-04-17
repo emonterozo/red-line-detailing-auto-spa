@@ -53,24 +53,12 @@ const config: Record<
   },
 };
 
-const sidebarColor: Record<ToastType, string> = {
-  success: "from-emerald-500 to-emerald-700",
-  error: "from-[#dc143c] to-[#ff6b81]",
-  info: "from-sky-400 to-sky-600",
-  warning: "from-amber-400 to-amber-600",
-};
-
 export function showToast(message: string, type: ToastType = "success") {
   const c = config[type];
 
   toast.custom(
     (t) => (
-      <div className="relative flex items-center gap-3 w-[340px] bg-[#0c0c0c] border border-white/[0.09] rounded-[18px] px-4 py-3.5 shadow-[0_20px_60px_rgba(0,0,0,0.7)] overflow-hidden animate-in slide-in-from-right-4 duration-300">
-        {/* left color bar */}
-        <div
-          className={`absolute left-0 top-0 bottom-0 w-[3px] bg-gradient-to-b ${sidebarColor[type]}`}
-        />
-
+      <div className="relative flex items-center gap-3 w-[360px] bg-[#0c0c0c] border border-white/[0.09] rounded-[18px] px-4 py-3.5 shadow-[0_20px_60px_rgba(0,0,0,0.7)] overflow-hidden animate-in slide-in-from-right-4 duration-300">
         {/* icon */}
         <div
           className={`flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center border ${c.iconBg} ${c.iconBorder} ${c.iconColor}`}

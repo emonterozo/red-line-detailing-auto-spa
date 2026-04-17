@@ -2,15 +2,19 @@
 
 import connect from "@/lib/db/mongodb";
 import { BookingStatus, ServiceType } from "@/lib/enums";
-import { getSmsContent } from "@/lib/getSmsTemplate";
+import { getSmsContent, SmsType } from "@/lib/getSmsTemplate";
 import { sendMessage } from "@/lib/sendMessage";
 import Booking from "@/models/Booking";
 import Schedule from "@/models/Schedule";
 import { Types } from "mongoose";
+import { CONFIG } from "../config/config";
+import Promotion from "@/models/Promotion";
+import { getPromotionDetails } from "./getPromotionDetails";
+import PromotionUsage from "@/models/PromotionUsage";
 
 type UpdateBookingRequest = {
   sizeId: string;
-  services: { _id: string; title: string; type: ServiceType }[];
+  services: { _id: string; title: string; type: ServiceType; price: number }[];
   bookingId: string;
   scheduleId: string;
   timeSlotId: string;
@@ -24,22 +28,37 @@ type UpdateBookingRequest = {
   status: BookingStatus;
   address: string;
   social: string;
+  milestone_reward_id: string | null;
+  promotion_id: string | null;
 };
-
-const dpMultiplier =
-  Number.parseInt(process.env.NEXT_PUBLIC_DOWN_PAYMENT_PERCENTAGE as string) /
-  100;
 
 export const updateBooking = async (request: UpdateBookingRequest) => {
   await connect();
 
   try {
-    const add_ons = request.services.filter(
+    let add_ons = request.services.filter(
       (item) => item.type === ServiceType.ADD_ONS,
     );
-    const services = request.services.filter(
+    let services = request.services.filter(
       (item) => item.type === ServiceType.SERVICE,
     );
+
+    if (request.promotion_id) {
+      const result = await getPromotionDetails(request.promotion_id, [
+        ...services,
+        ...add_ons,
+      ]);
+      if (result.success) {
+        add_ons =
+          result.data?.services.filter(
+            (item) => item.type === ServiceType.ADD_ONS,
+          ) ?? [];
+        services =
+          result.data?.services.filter(
+            (item) => item.type === ServiceType.SERVICE,
+          ) ?? [];
+      }
+    }
 
     const result = await Booking.findOneAndUpdate(
       {
@@ -48,6 +67,9 @@ export const updateBooking = async (request: UpdateBookingRequest) => {
       {
         $set: {
           size_id: new Types.ObjectId(request.sizeId),
+          milestone_reward_id: request.milestone_reward_id
+            ? new Types.ObjectId(request.milestone_reward_id)
+            : null,
           reservation_fee: request.reservationFee,
           travel_fee: request.travelFee,
           total_amount: request.totalAmount,
@@ -84,18 +106,38 @@ export const updateBooking = async (request: UpdateBookingRequest) => {
           },
         },
       );
+
+      if (result.promotion_id && isAvailable) {
+        const promotionUsage = await PromotionUsage.findOneAndDelete({
+          booking_id: new Types.ObjectId(request.bookingId),
+          promotion_id: result.promotion_id,
+        });
+        if (promotionUsage) {
+          await Promotion.findByIdAndUpdate(result.promotion_id, {
+            $inc: {
+              current_usage_count: -1,
+            },
+            $set: {
+              updated_at: new Date(),
+            },
+          });
+        }
+      }
     }
 
     let message = "";
     const totalBill = result.total_amount + result.travel_fee;
-    const depositValue = Math.max(0, totalBill * dpMultiplier);
+    const depositValue = Math.max(
+      0,
+      totalBill * CONFIG.DOWN_PAYMENT_MULTIPLIER,
+    );
     const amount = Math.floor(depositValue).toLocaleString();
     switch (request.status) {
       case BookingStatus.FOR_CHECKING:
         message = getSmsContent({
           name: result.first_name,
           model: result.vehicle_model,
-          type: BookingStatus.FOR_CHECKING,
+          type: SmsType.FOR_CHECKING,
           ref: result.reference_number,
           date: new Date(result.preferred_date.date).toDateString(),
         });
@@ -104,7 +146,7 @@ export const updateBooking = async (request: UpdateBookingRequest) => {
         message = getSmsContent({
           name: result.first_name,
           model: result.vehicle_model,
-          type: BookingStatus.PENDING_PAYMENT,
+          type: SmsType.PENDING_PAYMENT,
           ref: result.reference_number,
           date: result.preferred_date.date.toDateString(),
           amount: `₱${amount}`,
@@ -114,7 +156,7 @@ export const updateBooking = async (request: UpdateBookingRequest) => {
         message = getSmsContent({
           name: result.first_name,
           model: result.vehicle_model,
-          type: BookingStatus.RESERVED,
+          type: SmsType.RESERVED,
           ref: result.reference_number,
           date: result.preferred_date.date.toDateString(),
           time: result.time_slot.time,
@@ -124,7 +166,7 @@ export const updateBooking = async (request: UpdateBookingRequest) => {
         message = getSmsContent(
           {
             name: result.first_name,
-            type: BookingStatus.CANCELLED,
+            type: SmsType.CANCELLED,
             ref: result.reference_number,
             date: result.preferred_date.date.toDateString(),
           },
@@ -135,7 +177,7 @@ export const updateBooking = async (request: UpdateBookingRequest) => {
         message = getSmsContent(
           {
             name: result.first_name,
-            type: BookingStatus.REJECTED,
+            type: SmsType.REJECTED,
             ref: result.reference_number,
             date: result.preferred_date.date.toDateString(),
           },
@@ -146,7 +188,7 @@ export const updateBooking = async (request: UpdateBookingRequest) => {
         message = getSmsContent(
           {
             name: result.first_name,
-            type: BookingStatus.REFUNDED,
+            type: SmsType.REFUNDED,
             ref: result.reference_number,
             date: result.preferred_date.date.toDateString(),
             amount: `₱${result.reservation_fee.toLocaleString()}`,

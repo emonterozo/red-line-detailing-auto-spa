@@ -71,7 +71,7 @@ export const getTransactions = async (
     | "created_at"
   >[] = await Transaction.find(query)
     .select(TRANSACTION_TABLE_FIELDS.join(" "))
-    .sort({ createdAt: -1 })
+    .sort({ created_at: -1 })
     .skip(skip)
     .limit(limit)
     .lean();

@@ -53,15 +53,14 @@ export const getAddressAndDistance = async (
   const distData = await distRes.json();
 
   const distanceMeters = distData.rows[0].elements[0].distance.value;
-  const distanceKm = +(distanceMeters / 1000).toFixed(2);
 
   // 4️⃣ Store in MongoDB
   await Location.insertOne({
     ip: hashedIp,
     location: { type: "Point", coordinates: [lng, lat] },
     address,
-    distance: distanceKm,
+    distance: distanceMeters,
   });
 
-  return { address, distance: distanceKm };
+  return { address, distance: distanceMeters };
 };

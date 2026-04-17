@@ -59,7 +59,7 @@ const Footer = () => {
                 },
                 {
                   icon: "tiktok",
-                  href: "https://www.tiktok.com/@get.redlinedetailing",
+                  href: "https://www.tiktok.com/@redlinedetailing.ph",
                 },
               ].map((social) => (
                 <a

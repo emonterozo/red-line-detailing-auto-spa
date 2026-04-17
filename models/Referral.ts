@@ -30,8 +30,7 @@ const referralSchema = new Schema({
     required: true,
   },
   referral_code: { type: String, required: true },
-  status: { type: String, required: true },
-  reward_given: { type: String, required: true },
+  reward_given: { type: Boolean, required: true },
   created_at: { type: Date, default: new Date() },
   updated_at: { type: Date, default: new Date() },
 });

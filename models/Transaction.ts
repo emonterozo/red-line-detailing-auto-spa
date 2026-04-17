@@ -38,7 +38,6 @@ const transactionSchema = new Schema({
   booking_id: {
     type: Schema.Types.ObjectId,
     ref: Booking.modelName,
-    default: null,
   },
   transaction_from: {
     type: String,
@@ -63,6 +62,7 @@ const transactionSchema = new Schema({
         _id: { type: Types.ObjectId },
         title: { type: String, required: true },
         price: { type: Number, required: true },
+        discount: { type: Number, default: 0, required: true },
       }),
     ],
     required: true,
@@ -76,14 +76,18 @@ const transactionSchema = new Schema({
   reservation_fee: { type: Number, default: 0, required: true },
   total_service_amount: { type: Number, default: 0, required: true },
   additional_cost: { type: Number, default: 0, required: true },
-  points_earned: { type: Number, default: 0, required: true },
+  points: {
+    total: { type: Number, default: 0 },
+    service: { type: Number, default: 0 },
+    referral: { type: Number, default: 0 },
+    badge: { type: Number, default: 0 },
+  },
   travel_fee: { type: Number, default: 0, required: true },
   discount: { type: Number, default: 0, required: true },
   points_used: { type: Number, default: 0, required: true },
   net_total: { type: Number, default: 0, required: true },
   gross_total: { type: Number, default: 0, required: true },
   total_discount: { type: Number, default: 0, required: true },
-  referral_code_used: { type: String, default: null },
   promotion_id: {
     type: Schema.Types.ObjectId,
     ref: Promotion.modelName,

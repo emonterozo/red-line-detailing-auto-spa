@@ -22,6 +22,7 @@ import {
   DiscountType,
   DiscountTypeDisplay,
   RewardType,
+  ServiceType,
   TransactionFrom,
   VehicleSize,
   VehicleType,
@@ -37,7 +38,7 @@ import {
   getCustomersMilestone,
 } from "../actions/getCustomersMilestone";
 import { useRouter, useSearchParams } from "next/navigation";
-import { getBooking } from "../actions/getBooking";
+import { BookingResponse, getBooking } from "../actions/getBooking";
 import {
   getVehicleSizes,
   VehicleSizeResponse,
@@ -49,6 +50,11 @@ import { CustomerMilestonesPanel } from "./CustomerMilestonesPanel";
 import { ReadOnlyField } from "./ReadOnlyField";
 import FullScreenLoader from "./FullScreenLoader";
 import { showToast } from "@/lib/toast";
+import {
+  calculateMilestoneRewardDiscount,
+  generateDiscountTiers,
+} from "@/lib/utils";
+import { CONFIG } from "../config/config";
 
 export const pricingPerSizeSchema = z.object({
   _id: z.string(),
@@ -104,7 +110,7 @@ export const customerSchema = z.object({
         _id: z.string(),
         size: z.enum(VehicleSize),
         type: z.enum(VehicleType),
-        sort_order: z.number()
+        sort_order: z.number(),
       }),
       progress: z.number(),
     }),
@@ -200,9 +206,6 @@ function Chip({ label }: Readonly<{ label: string }>) {
   );
 }
 
-const multiplier =
-  Number.parseInt(process.env.NEXT_PUBLIC_PERCENTAGE_LIMIT as string) / 100;
-
 export default function Transaction() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -222,6 +225,7 @@ export default function Transaction() {
   const [isCustomerOpen, setIsCustomerOpen] = useState(false);
   const [isFabVisible, setIsFabVisible] = useState(false);
   const [initializing, setInitializing] = useState(true);
+  const [booking, setBooking] = useState<BookingResponse | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -231,12 +235,7 @@ export default function Transaction() {
   }, [customerQuery]);
 
   const getPointsEarned = (amount: number) => {
-    return (
-      Math.floor(
-        amount /
-          Number.parseInt(process.env.NEXT_PUBLIC_PESO_PER_POINTS ?? "100"),
-      ) * Number.parseInt(process.env.NEXT_PUBLIC_POINTS_PER_UNIT ?? "2")
-    );
+    return Math.floor(amount / CONFIG.PESO_PER_POINTS) * CONFIG.POINTS_PER_UNIT;
   };
 
   const form = useForm({
@@ -258,7 +257,9 @@ export default function Transaction() {
         return {
           _id: item._id,
           title: item.title,
+          type: item.type as ServiceType,
           price: price,
+          discount: 0,
         };
       });
       if (value.milestoneReward.length > 0) {
@@ -283,7 +284,9 @@ export default function Transaction() {
         availedServices.push({
           _id: value.milestoneReward[0].reward_service_id._id,
           title: value.milestoneReward[0].reward_service_id.title,
+          type: milestoneRewardService?.type as ServiceType,
           price: milestoneRewardPrice,
+          discount: value.milestoneDiscount,
         });
         totalAmount += milestone_reward.price;
         totalDiscount += value.milestoneDiscount;
@@ -308,7 +311,12 @@ export default function Transaction() {
         reservation_fee: value.downPayment,
         total_service_amount: totalAmount,
         additional_cost: value.additionalCost,
-        points_earned: pointsEarned,
+        points: {
+          total: pointsEarned,
+          service: pointsEarned,
+          badge: 0,
+          referral: 0,
+        },
         travel_fee: value.travelFee,
         discount: value.totalDiscount,
         points_used: value.pointsUsed,
@@ -317,9 +325,8 @@ export default function Transaction() {
         total_discount: totalDiscount,
         milestone_reward,
         milestone_discount: value.milestoneDiscount,
-        referral_code_used: null,
-        promotion_id: null,
-        promo_code_used: null,
+        promotion_id: booking?.promotion_id ?? null,
+        promo_code_used: booking?.promo_code_used,
       });
       setLoading(false);
       showToast(result.message, result.success ? "success" : "error");
@@ -349,6 +356,7 @@ export default function Transaction() {
         const bookingData = await getBooking(bookingId);
 
         if (bookingData) {
+          setBooking(bookingData);
           const selectedServiceIds = new Set(
             [...bookingData.services, ...bookingData.add_ons].map(
               (item) => item._id,
@@ -360,7 +368,7 @@ export default function Transaction() {
           );
 
           let discountType = "";
-          if (bookingData.point_used > 0) {
+          if (bookingData.point_used > 0 || bookingData.milestone_reward) {
             discountType = DiscountType.PROMOTIONS;
           } else if (bookingData.point_used === 0 && bookingData.discount > 0) {
             discountType = DiscountType.MANUAL;
@@ -385,6 +393,37 @@ export default function Transaction() {
           );
           form.setFieldValue("vehicleSizes", vehicleTypeSize);
           form.setFieldValue("services", selectedServices);
+
+          if (bookingData.milestone_reward) {
+            const milestoneReward = milestoneRewardData.filter(
+              (item) => item._id === bookingData.milestone_reward?._id,
+            );
+
+            const milestoneRewardService = serviceData.find(
+              (item) =>
+                item._id === bookingData.milestone_reward?.reward_service_id,
+            );
+
+            const milestoneRewardServicePrice =
+              milestoneRewardService?.pricing_per_sizes.find(
+                (item) =>
+                  item.size === vehicleTypeSize[0].size &&
+                  item.type === vehicleTypeSize[0].type,
+              )?.price ?? 0;
+
+            form.setFieldValue("milestoneReward", milestoneReward);
+
+            const discountAmount = calculateMilestoneRewardDiscount(
+              milestoneRewardServicePrice,
+              {
+                reward_type: milestoneReward[0].reward_type,
+                discount_amount: milestoneReward[0].discount_amount,
+                discount_percentage: milestoneReward[0].discount_percentage,
+              },
+            );
+
+            form.setFieldValue("milestoneDiscount", discountAmount);
+          }
         }
       }
 
@@ -495,12 +534,11 @@ export default function Transaction() {
 
     let discountAmount = 0;
     if (!isSelected) {
-      discountAmount =
-        mr.reward_type === RewardType.DISCOUNT
-          ? mr.discount_amount === 0
-            ? mrPrice * (mr.discount_percentage / 100)
-            : mr.discount_amount
-          : mrPrice;
+      discountAmount = calculateMilestoneRewardDiscount(mrPrice, {
+        reward_type: mr.reward_type,
+        discount_amount: mr.discount_amount,
+        discount_percentage: mr.discount_percentage,
+      });
     }
     form.setFieldValue("milestoneDiscount", discountAmount);
   };
@@ -995,11 +1033,7 @@ export default function Transaction() {
 
               <form.Subscribe selector={(s) => s.values.totalAmount}>
                 {(total) => {
-                  const tiers = [
-                    { off: 50, min: 125 },
-                    { off: 100, min: 250 },
-                    { off: 150, min: 375 },
-                  ];
+                  const tiers = generateDiscountTiers();
                   const next = tiers.find((t) => total < t.min);
 
                   return (
@@ -1142,133 +1176,171 @@ export default function Transaction() {
                     const pointsEarned = getPointsEarned(amountPaid);
 
                     const maximumPoints =
-                      (total + additionalCost - discount) * multiplier;
+                      (total + additionalCost - discount) *
+                      CONFIG.PERCENTAGE_LIMIT_MULTIPLIER;
 
                     return (
-                      <>
-                        <div className="flex justify-between items-center py-2 px-3">
-                          <span className="text-gray-500 text-sm">
-                            Points Redemption Limit
-                          </span>
-                          <span className="text-white font-medium">
-                            {maximumPoints.toLocaleString()}
-                          </span>
+                      <div className="space-y-1">
+                        <div className="grid grid-cols-2 gap-2 mb-4">
+                          <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
+                            <p className="text-[9px] font-black text-neutral-500 uppercase tracking-widest mb-1">
+                              Redemption Limit
+                            </p>
+                            <p className="text-sm font-bold text-white">
+                              {maximumPoints.toLocaleString()}{" "}
+                              <span className="text-[10px] text-neutral-500">
+                                pts
+                              </span>
+                            </p>
+                          </div>
+                          <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
+                            <p className="text-[9px] font-black text-neutral-500 uppercase tracking-widest mb-1">
+                              Points to Earn
+                            </p>
+                            <p className="text-sm font-bold text-[#00ff88]">
+                              +{pointsEarned.toLocaleString()}{" "}
+                              <span className="text-[10px] opacity-50 text-[#00ff88]">
+                                pts
+                              </span>
+                            </p>
+                          </div>
                         </div>
-                        <div className="flex justify-between items-center py-2 px-3">
-                          <span className="text-gray-500 text-sm">
-                            Earning Points
-                          </span>
-                          <span className="text-white font-medium">
-                            {pointsEarned.toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center py-2 px-3 border-t border-white/[0.06]">
-                          <span className="text-gray-500 text-sm">
-                            Services Total Amount
-                          </span>
-                          <span className="text-white font-medium">
-                            + ₱{total.toLocaleString()}
-                          </span>
-                        </div>
-                        {milestoneRewardPrice > 0 && (
-                          <div className="flex justify-between items-center py-2 px-3">
-                            <span className="text-gray-500 text-sm">
-                              Milestone Service Price
+
+                        <div className="px-1 space-y-3 pb-3">
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-neutral-400">
+                              Services Subtotal
                             </span>
-                            <span className="text-white font-medium">
-                              + ₱{milestoneRewardPrice.toLocaleString()}
+                            <span className="text-white font-semibold">
+                              ₱{total.toLocaleString()}
                             </span>
                           </div>
-                        )}
-                        <div className="flex justify-between items-center py-2 px-3">
-                          <span className="text-gray-500 text-sm">
-                            Travel Fee
-                          </span>
-                          <span className="text-white font-medium">
-                            + ₱{travelFee.toLocaleString()}
-                          </span>
-                        </div>
 
-                        <div className="flex justify-between items-center py-2 px-3 border-t border-white/[0.06]">
-                          <span className="text-white text-sm">
-                            Gross Total
-                          </span>
-                          <span className="text-white font-medium">
-                            ₱{grossTotal.toLocaleString()}
-                          </span>
-                        </div>
-
-                        <form.Field name="totalDiscount">
-                          {(field) => (
-                            <div className="flex justify-between items-center py-2 px-3">
-                              <span className="text-gray-500 text-sm">
-                                Discount
+                          {milestoneRewardPrice > 0 && (
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="text-neutral-400">
+                                Milestone Service
                               </span>
-                              <Input
-                                id={field.name}
-                                name={field.name}
-                                value={field.state.value}
-                                onBlur={field.handleBlur}
-                                onChange={(e) => {
-                                  const v = e.target.value;
-                                  field.handleChange(
-                                    v === "" ? 0 : Number.parseInt(v),
-                                  );
-                                }}
-                                className="h-8 w-28 text-right px-3 rounded-lg bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60"
-                              />
+                              <span className="text-white font-semibold">
+                                + ₱{milestoneRewardPrice.toLocaleString()}
+                              </span>
                             </div>
                           )}
-                        </form.Field>
-                        <form.Field name="pointsUsed">
-                          {(field) => (
-                            <div className="flex justify-between items-center py-2 px-3">
-                              <span className="text-gray-500 text-sm">
-                                Points Used
+
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-neutral-400">Travel Fee</span>
+                            <span className="text-white font-semibold">
+                              + ₱{travelFee.toLocaleString()}
+                            </span>
+                          </div>
+
+                          <div className="flex justify-between items-center pt-2 border-t border-white/[0.06]">
+                            <span className="text-xs font-black text-white/40 uppercase tracking-widest">
+                              Gross Total
+                            </span>
+                            <span className="text-white font-bold">
+                              ₱{grossTotal.toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="p-4 rounded-[22px] bg-white/[0.03] border border-white/[0.08] space-y-4">
+                          <form.Field name="totalDiscount">
+                            {(field) => (
+                              <div className="flex justify-between items-center">
+                                <div className="flex flex-col">
+                                  <span className="text-sm text-neutral-300 font-medium">
+                                    Manual Discount
+                                  </span>
+                                  <span className="text-[10px] text-neutral-500 font-medium uppercase">
+                                    Subtract from total
+                                  </span>
+                                </div>
+                                <div className="relative">
+                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20 text-xs">
+                                    ₱
+                                  </span>
+                                  <Input
+                                    id={field.name}
+                                    name={field.name}
+                                    value={field.state.value}
+                                    onBlur={field.handleBlur}
+                                    onChange={(e) => {
+                                      const v = e.target.value;
+                                      field.handleChange(
+                                        v === "" ? 0 : Number.parseInt(v),
+                                      );
+                                    }}
+                                    className="h-9 w-32 text-right pl-7 pr-3 rounded-xl bg-black/40 border-white/10 text-white text-sm focus:border-[#dc143c]/60 focus:ring-1 focus:ring-[#dc143c]/20 transition-all"
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </form.Field>
+
+                          <form.Field name="pointsUsed">
+                            {(field) => (
+                              <div className="flex justify-between items-center">
+                                <div className="flex flex-col">
+                                  <span className="text-sm text-neutral-300 font-medium">
+                                    Use Points
+                                  </span>
+                                  <span className="text-[10px] text-neutral-500 font-medium uppercase">
+                                    Max: {maximumPoints}
+                                  </span>
+                                </div>
+                                <Input
+                                  id={field.name}
+                                  name={field.name}
+                                  value={field.state.value}
+                                  onBlur={field.handleBlur}
+                                  onChange={(e) => {
+                                    const v = e.target.value;
+                                    field.handleChange(
+                                      v === "" ? 0 : Number.parseInt(v),
+                                    );
+                                  }}
+                                  className="h-9 w-32 text-right px-3 rounded-xl bg-black/40 border-white/10 text-white text-sm focus:border-[#dc143c]/60 focus:ring-1 focus:ring-[#dc143c]/20 transition-all"
+                                />
+                              </div>
+                            )}
+                          </form.Field>
+
+                          <div className="space-y-2 pt-2 border-t border-white/5">
+                            <div className="flex justify-between items-center text-xs">
+                              <span className="text-neutral-500">
+                                Milestone Discount
                               </span>
-                              <Input
-                                id={field.name}
-                                name={field.name}
-                                value={field.state.value}
-                                onBlur={field.handleBlur}
-                                onChange={(e) => {
-                                  const v = e.target.value;
-                                  field.handleChange(
-                                    v === "" ? 0 : Number.parseInt(v),
-                                  );
-                                }}
-                                className="h-8 w-28 text-right px-3 rounded-lg bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60"
-                              />
+                              <span className="text-[#ff6b81] font-bold">
+                                - ₱{milestoneDiscount.toLocaleString()}
+                              </span>
                             </div>
-                          )}
-                        </form.Field>
-
-                        <div className="flex justify-between items-center py-2 px-3 border-t border-white/[0.06]">
-                          <span className="text-gray-500 text-sm">
-                            Milestone Discount
-                          </span>
-                          <span className="text-[#ff6b81] font-medium">
-                            - ₱{milestoneDiscount.toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center py-2 px-3">
-                          <span className="text-gray-500 text-sm">
-                            Down Payment
-                          </span>
-                          <span className="text-[#ff6b81] font-medium">
-                            - ₱{downPayment.toLocaleString()}
-                          </span>
+                            <div className="flex justify-between items-center text-xs">
+                              <span className="text-neutral-500">
+                                Reservation Down Payment
+                              </span>
+                              <span className="text-[#ff6b81] font-bold">
+                                - ₱{downPayment.toLocaleString()}
+                              </span>
+                            </div>
+                          </div>
                         </div>
 
-                        <div className="mt-2 flex justify-between items-center py-3 px-3 rounded-xl bg-[#dc143c]/10 border border-[#dc143c]/20">
-                          <span className="text-white font-semibold">
-                            Net Total
-                          </span>
-                          <span className="text-[#ff6b81] font-bold text-xl">
+                        <div className="mt-4 p-4 rounded-2xl bg-[#dc143c] flex justify-between items-center shadow-lg shadow-[#dc143c]/20 relative overflow-hidden group">
+                          <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                          <div className="flex flex-col relative">
+                            <span className="text-white font-black text-xs uppercase tracking-[0.2em] leading-none">
+                              Net Balance
+                            </span>
+                            <span className="text-[10px] text-white/60 mt-1">
+                              Final amount due
+                            </span>
+                          </div>
+                          <span className="text-white font-black text-2xl tracking-tighter relative">
                             ₱{netTotal.toLocaleString()}
                           </span>
                         </div>
-                      </>
+                      </div>
                     );
                   }}
                 </form.Subscribe>

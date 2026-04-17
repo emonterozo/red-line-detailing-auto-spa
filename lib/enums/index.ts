@@ -70,5 +70,16 @@ export enum ReferralStatus {
 }
 
 export enum PromotionType {
-  POINTS = "points", DISCOUNT = "discount"
+  POINTS_MULTIPLIER = "points multiplier",
+  POINTS_FIXED = "points fixed",
+  DISCOUNT_PERCENT = "discount percent",
+  DISCOUNT_FIXED = "discount fixed",
+}
+
+export enum OtpType {
+  REGISTRATION = 'registration', FORGOT = 'forgot', 
+}
+
+export enum CustomerBadge {
+  THE_APEX = 'The Apex', PIT_CREW = 'Pit Crew', 
 }
