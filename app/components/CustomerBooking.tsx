@@ -228,53 +228,6 @@ export default function CustomerBooking() {
     null,
   );
 
-  useEffect(() => {
-    const userId = session?.user?.id;
-    if (!userId) return;
-
-    const init = async () => {
-      setUi((prev) => ({ ...prev, initializing: true }));
-
-      try {
-        const booking = await getBookings(1, 1, userId, [
-          BookingStatus.FOR_CHECKING,
-          BookingStatus.PENDING_PAYMENT,
-          BookingStatus.RESERVED,
-        ]);
-
-        if (booking.data.length > 0) {
-          router.back();
-        }
-
-        const [vehicleSizes, schedules, services, milestoneRewards, customer] =
-          await Promise.all([
-            getVehicleSizes(),
-            getSchedules(),
-            getServices(),
-            getMilestoneRewards(),
-            getCustomer(userId),
-          ]);
-
-        form.setFieldValue("address", customer?.address || "");
-        form.setFieldValue("customerPoints", customer?.earned_points ?? 0);
-
-        setData({
-          vehicleSizes,
-          schedules,
-          services,
-          milestoneRewards,
-          customer,
-        });
-        setUi((prev) => ({ ...prev, initializing: false }));
-      } catch {
-        setUi((prev) => ({ ...prev, initializing: false }));
-      }
-    };
-
-    init();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.user?.id]);
-
   const fetchSchedules = async () => {
     const response = await getSchedules();
     return response;
@@ -583,6 +536,53 @@ export default function CustomerBooking() {
       }
     },
   });
+
+  useEffect(() => {
+    const userId = session?.user?.id;
+    if (!userId) return;
+
+    const init = async () => {
+      setUi((prev) => ({ ...prev, initializing: true }));
+
+      try {
+        const booking = await getBookings(1, 1, userId, [
+          BookingStatus.FOR_CHECKING,
+          BookingStatus.PENDING_PAYMENT,
+          BookingStatus.RESERVED,
+        ]);
+
+        if (booking.data.length > 0) {
+          router.back();
+        }
+
+        const [vehicleSizes, schedules, services, milestoneRewards, customer] =
+          await Promise.all([
+            getVehicleSizes(),
+            getSchedules(),
+            getServices(),
+            getMilestoneRewards(),
+            getCustomer(userId),
+          ]);
+
+        form.setFieldValue("address", customer?.address || "");
+        form.setFieldValue("customerPoints", customer?.earned_points ?? 0);
+
+        setData({
+          vehicleSizes,
+          schedules,
+          services,
+          milestoneRewards,
+          customer,
+        });
+        setUi((prev) => ({ ...prev, initializing: false }));
+      } catch {
+        setUi((prev) => ({ ...prev, initializing: false }));
+      }
+    };
+
+    init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session]);
 
   const getPricing = (
     selectedServices: z.infer<typeof serviceSchema>[],
