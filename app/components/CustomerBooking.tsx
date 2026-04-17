@@ -216,7 +216,7 @@ export default function CustomerBooking() {
 
   const [ui, setUi] = useState({
     loading: false,
-    initializing: true,
+    initializing: false,
     isCalendarOpen: false,
     isSlotPickerOpen: false,
     slots: [] as (ITimeSlot & { _id: string })[],
