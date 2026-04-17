@@ -95,6 +95,7 @@ const bookingSchema = new Schema({
   travel_fee: { type: Number, default: 0, required: true },
   travel_distance: { type: Number, default: 0, required: true },
   discount: { type: Number, default: 0, required: true },
+  milestone_discount: { type: Number, default: 0, required: true },
   point_used: { type: Number, default: 0, required: true },
   reference_number: { type: String, required: true, unique: true },
   promotion_id: {

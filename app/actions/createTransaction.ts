@@ -8,17 +8,17 @@ import { TService } from "@/models/Service";
 import Customer, { TCustomerDoc } from "@/models/Customer";
 import VehicleSize, { TVehicleSizeDoc } from "@/models/VehicleSize";
 import MilestoneClaimed from "@/models/MilestoneClaimed";
-import { getSmsContent } from "@/lib/getSmsTemplate";
-import { BookingStatus, CustomerBadge } from "@/lib/enums";
+import { getSmsContent, SmsType } from "@/lib/getSmsTemplate";
+import { CustomerBadge } from "@/lib/enums";
 import { sendMessage } from "@/lib/sendMessage";
 import Booking from "@/models/Booking";
 import Badge, { TBadgeDoc } from "@/models/Badge";
 import Referral from "@/models/Referral";
-import { validatePromo } from "./validatePromo";
-import PromotionUsage from "@/models/PromotionUsage";
+import { getPromotionDetails } from "./getPromotionDetails";
 
-type ServiceProps = Pick<TService, "title" | "price"> & {
+type ServiceProps = Pick<TService, "title" | "type" | "price"> & {
   _id: string;
+  discount: number;
 };
 
 type CreateTransactionProps = Omit<
@@ -79,53 +79,12 @@ export const createTransaction = async (
       transactionData.customer_id &&
       transactionData.promo_code_used
     ) {
-      const cart = transactionData.services.map((item) => ({
-        service_id: item._id,
-        price: item.price,
-      }));
-      const promotion = await validatePromo(
-        transactionData.promo_code_used,
-        transactionData.customer_id,
-        cart,
-      );
-
-      services =
-        transactionData.services.map((service) => {
-          const appliedPromo = promotion.data;
-
-          const isGlobal = appliedPromo?.service_ids.length === 0;
-          const isTargeted = appliedPromo?.service_ids.includes(
-            service._id.toString(),
-          );
-          const isEligible = appliedPromo && (isGlobal || isTargeted);
-
-          let itemDiscount = 0;
-
-          if (isEligible) {
-            const divisor = isGlobal
-              ? transactionData.services.length
-              : appliedPromo.service_ids.length;
-
-            itemDiscount =
-              divisor > 0
-                ? appliedPromo.total_discount / divisor
-                : appliedPromo.total_discount;
-          }
-
-          return {
-            ...service,
-            discount: itemDiscount,
-          };
-        }) ?? [];
-
-      await PromotionUsage.create({
-        promotion_id: promotion.data?._id,
-        user_id: transactionData.customer_id,
-        booking_id: transactionData.booking_id,
-        discount_applied: promotion.data?.total_discount,
-        created_at: new Date(),
-        updated_at: new Date(),
-      });
+      const result = await getPromotionDetails(transactionData.promotion_id, [
+        ...services,
+      ]);
+      if (result.success) {
+        services = result.data?.services ?? [];
+      }
     }
 
     const data = {
@@ -173,7 +132,7 @@ export const createTransaction = async (
           {
             name: booking.first_name,
             model: transactionData.vehicle_model,
-            type: BookingStatus.COMPLETED,
+            type: SmsType.COMPLETED,
             ref: booking.reference_number,
             date: "",
             points: transactionData.points?.service.toString(),
@@ -185,6 +144,7 @@ export const createTransaction = async (
       }
     }
 
+    let badgePoints = 0;
     if (transactionData.customer_id) {
       const customer: TCustomerDoc = await Customer.findById(
         transactionData.customer_id,
@@ -239,7 +199,7 @@ export const createTransaction = async (
         };
 
         let selectedBadge = {};
-        let badgePoints = 0;
+
         if (!customer.badge) {
           const theApexBadge: TBadgeDoc = await Badge.findOneAndUpdate(
             {
@@ -280,6 +240,15 @@ export const createTransaction = async (
 
           if (referral && referrer.badge) {
             referralPoints = config.referral_points;
+            const message = getSmsContent({
+              type: SmsType.REFERRAL_REWARD_UNLOCKED,
+              name: "",
+              friendName: customer.first_name,
+              points: config.referral_points.toString(),
+              ref: "",
+            });
+
+            sendMessage({ message, phoneNumbers: [referrer.contact_number] });
 
             referral.reward_given = true;
             referral.updated_at = new Date();
@@ -330,11 +299,29 @@ export const createTransaction = async (
         });
       }
 
+      if (badgePoints > 0) {
+        const firstCompletedMessage = getSmsContent(
+          {
+            name: customer.first_name,
+            type:
+              badgePoints === 20
+                ? SmsType.FIRST_SERVICE_COMPLETE
+                : SmsType.FIRST_FIFTEEN_REWARD,
+            ref: "",
+          },
+          !transactionData.customer_id,
+        );
+        sendMessage({
+          message: firstCompletedMessage,
+          phoneNumbers: [contactNumber],
+        });
+      }
+
       message = getSmsContent(
         {
           name: customer.first_name,
           model: transactionData.vehicle_model,
-          type: BookingStatus.COMPLETED,
+          type: SmsType.COMPLETED,
           ref: referenceNumber,
           date: "",
           points: transactionData.points?.service.toString(),

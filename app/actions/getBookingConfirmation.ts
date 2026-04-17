@@ -25,6 +25,7 @@ const BOOKING_CONFIRMATION_FIELDS: (keyof TBooking)[] = [
   "milestone_reward_id",
   "point_used",
   "discount",
+  "milestone_discount"
 ];
 
 const VEHICLE_SIZE_FIELDS: (keyof TVehicleSize)[] = ["description", "type"];
@@ -41,6 +42,7 @@ export type BookingConfirmationResponse = Pick<
   | "created_at"
   | "point_used"
   | "discount"
+  | "milestone_discount"
 > & {
   _id: string;
   size_id: Pick<TVehicleSize, "type" | "description"> & {
@@ -94,6 +96,7 @@ type BookingDoc = Pick<
   | "milestone_reward_id"
   | "point_used"
   | "discount"
+  | "milestone_discount"
 > & {
   size_id: Pick<TVehicleSizeDoc, "_id" | "type" | "description">;
 };

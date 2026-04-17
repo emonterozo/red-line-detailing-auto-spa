@@ -150,10 +150,13 @@ export const formSchema = z
       }),
     totalAmount: z.number(),
     customerPoints: z.number(),
+    promoDiscount: z.number(),
   })
   .superRefine((data, ctx) => {
-    const maxPointsValue =
-      data.totalAmount * CONFIG.PERCENTAGE_LIMIT_MULTIPLIER;
+    const maxPointsValue = Math.floor(
+      (data.totalAmount - data.promoDiscount) *
+        CONFIG.PERCENTAGE_LIMIT_MULTIPLIER,
+    );
 
     if (data.pointsUsed > maxPointsValue) {
       ctx.addIssue({
@@ -188,6 +191,7 @@ const defaultValues: FormValues = {
   pointsUsed: 0,
   totalAmount: 0,
   customerPoints: 0,
+  promoDiscount: 0,
 };
 
 function Chip({ label }: Readonly<{ label: string }>) {
@@ -280,6 +284,8 @@ export default function CustomerBooking() {
     setAppliedPromo(null);
     setPromoError(null);
     form.setFieldValue("promoCode", "");
+    form.setFieldValue("pointsUsed", 0);
+    form.setFieldValue("promoDiscount", 0);
     const isMain = type === ServiceType.SERVICE;
     const field = isMain ? "services" : "addOns";
 
@@ -518,6 +524,7 @@ export default function CustomerBooking() {
         promotion_id: appliedPromo ? appliedPromo._id : null,
         promo_code_used: appliedPromo ? appliedPromo.promo_code : null,
         discount: appliedPromo ? appliedPromo.total_discount : 0,
+        milestone_discount: value.milestoneRewardDiscount,
       });
       setUi((prev) => ({
         ...prev,
@@ -631,6 +638,8 @@ export default function CustomerBooking() {
     setAppliedPromo(null);
     setPromoError(null);
     form.setFieldValue("promoCode", "");
+    form.setFieldValue("pointsUsed", 0);
+    form.setFieldValue("promoDiscount", 0);
     const { milestoneRewards, customer } = data;
     const services =
       (form.getFieldValue("services") as ServiceResponse[]) || [];
@@ -1376,6 +1385,10 @@ export default function CustomerBooking() {
                             onChange={(e) => {
                               const v = e.target.value;
                               const points = v === "" ? 0 : Number.parseInt(v);
+                              form.setFieldValue("promoCode", "");
+                              setAppliedPromo(null);
+                              setPromoError(null);
+                              form.setFieldValue("promoDiscount", 0);
                               form.setFieldValue("pointsUsed", points);
                             }}
                             className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
@@ -1502,6 +1515,7 @@ export default function CustomerBooking() {
                 {(field) => {
                   const selectedServices = form.getFieldValue("services") || [];
                   const selectedAddOns = form.getFieldValue("addOns") || [];
+                  const pointsUsed = form.getFieldValue("pointsUsed");
                   const selectedVehicleSizes =
                     form.getFieldValue("vehicleSizes");
                   const isLocked =
@@ -1533,21 +1547,23 @@ export default function CustomerBooking() {
                       };
                     });
 
-                    // Call your Server Action
-                    const result = await validatePromo(code, userId, cartItems);
-                    console.log(result);
+                    const result = await validatePromo(
+                      code,
+                      userId,
+                      cartItems,
+                      pointsUsed > 0,
+                    );
 
                     if (result.success && result.data) {
                       setAppliedPromo(result.data);
-                      // Store the promo result in the form state to adjust total price
-                      ///form.setFieldValue("appliedPromotion", result.data);
-
-                      // OPTIONAL: Clear milestone rewards because of "One Promotion Only" rule
-                      // form.setFieldValue("milestoneReward", []);
+                      form.setFieldValue(
+                        "promoDiscount",
+                        result.data.total_discount,
+                      );
                     } else {
                       setPromoError(result.message as string);
                       setAppliedPromo(null);
-                      ///form.setFieldValue("appliedPromotion", null);
+                      form.setFieldValue("promoDiscount", 0);
                     }
                     setIsLoading(false);
                   };

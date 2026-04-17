@@ -196,6 +196,7 @@ export default function BookingDetails() {
           value.milestoneReward.length > 0
             ? value.milestoneReward[0]._id
             : null,
+        promotion_id: booking?.promotion_id ?? null,
       });
       setLoading(false);
 
@@ -737,7 +738,8 @@ export default function BookingDetails() {
                                   className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-600 hover:text-white hover:bg-white/[0.06] transition-colors"
                                 >
                                   <span className="text-sm">
-                                    {mr.reward_service_id.title} + {mr.required_progress_count}
+                                    {mr.reward_service_id.title} +{" "}
+                                    {mr.required_progress_count}
                                   </span>
                                   {isSelected && (
                                     <Check className="w-4 h-4 text-[#dc143c]" />

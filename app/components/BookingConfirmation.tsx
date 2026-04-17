@@ -94,12 +94,7 @@ export default function BookingConfirmation() {
       const milestoneTotals = sum(booking.milestone_reward || []);
 
       const totalDiscount =
-        serviceTotals.totalDiscount +
-        addOnTotals.totalDiscount +
-        milestoneTotals.totalDiscount +
-        (booking.discount || 0) +
-        (booking.point_used || 0);
-
+        booking.discount + booking.point_used + booking.milestone_discount;
       const subtotal =
         serviceTotals.totalPrice +
         addOnTotals.totalPrice +

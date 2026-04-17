@@ -34,6 +34,7 @@ const promotionSchema = new Schema({
     per_user: { type: Number, default: 1 },
   },
   current_usage_count: { type: Number, default: 0 },
+  stackable: { type: Boolean, default: false },
   created_at: { type: Date, default: Date.now },
   updated_at: { type: Date, default: Date.now },
 });

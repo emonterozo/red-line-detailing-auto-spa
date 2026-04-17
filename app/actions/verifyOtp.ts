@@ -3,6 +3,8 @@
 import { signIn } from "@/auth";
 import connect from "@/lib/db/mongodb";
 import { OtpType } from "@/lib/enums";
+import { getSmsContent, SmsType } from "@/lib/getSmsTemplate";
+import { sendMessage } from "@/lib/sendMessage";
 import Customer from "@/models/Customer";
 import Otp, { TOtpDoc } from "@/models/Otp";
 import { Types } from "mongoose";
@@ -40,6 +42,36 @@ export const verifyOtp = async (data: VerifyOtpProps) => {
           password: data.password,
           redirect: false,
         });
+
+        const message = getSmsContent({
+          type: SmsType.WELCOME_MEMBER,
+          name: customer.first_name,
+          ref: "",
+        });
+
+        sendMessage({
+          message,
+          phoneNumbers: [customer.contact_number],
+        });
+
+        if (customer.referred_by) {
+          const referrer = await Customer.findById(customer.referred_by);
+
+          if (referrer) {
+            const message = getSmsContent({
+              type: SmsType.REFERRAL_JOINED,
+              name: referrer.first_name,
+              friendName: customer.first_name,
+              ref: "",
+            });
+
+            sendMessage({
+              message,
+              phoneNumbers: [referrer.contact_number],
+            });
+          }
+        }
+
         return { success: true };
       } else {
         return {

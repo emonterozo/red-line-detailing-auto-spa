@@ -8,9 +8,11 @@ import Schedule from "@/models/Schedule";
 import { Types } from "mongoose";
 import { bookingTemple } from "../template/booking";
 import { BookingStatus, ServiceType } from "@/lib/enums";
-import { getSmsContent } from "@/lib/getSmsTemplate";
+import { getSmsContent, SmsType } from "@/lib/getSmsTemplate";
 import { sendMessage } from "@/lib/sendMessage";
 import Promotion from "@/models/Promotion";
+import PromotionUsage from "@/models/PromotionUsage";
+import { getPromotionDetails } from "./getPromotionDetails";
 
 interface CreateBookingProps {
   customer_id?: string;
@@ -40,6 +42,7 @@ interface CreateBookingProps {
   promotion_id?: string | null;
   promo_code_used?: string | null;
   discount?: number;
+  milestone_discount?: number;
 }
 
 export const createBooking = async (bookingData: CreateBookingProps) => {
@@ -128,6 +131,20 @@ export const createBooking = async (bookingData: CreateBookingProps) => {
               updated_at: new Date(),
             },
           });
+
+          const result = await getPromotionDetails(bookingData.promotion_id, [
+            ...bookingData.services,
+            ...bookingData.add_ons,
+          ]);
+
+          await PromotionUsage.create({
+            promotion_id: bookingData.promotion_id,
+            user_id: bookingData.customer_id,
+            booking_id: newBooking._id,
+            discount_applied: result.data?.total_discount,
+            created_at: new Date(),
+            updated_at: new Date(),
+          });
         }
 
         const html = await bookingTemple(
@@ -161,7 +178,7 @@ export const createBooking = async (bookingData: CreateBookingProps) => {
         const message = getSmsContent({
           name: bookingData.first_name,
           model: bookingData.vehicle_model,
-          type: BookingStatus.FOR_CHECKING,
+          type: SmsType.FOR_CHECKING,
           ref: bookingData.reference_number,
           date: new Date(bookingData.preferred_date.date).toDateString(),
         });

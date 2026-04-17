@@ -24,6 +24,7 @@ export async function validatePromo(
   promo_code: string,
   user_id: string,
   cart: CartItem[],
+  has_used_points: boolean
 ) {
   try {
     await connect();
@@ -37,6 +38,14 @@ export async function validatePromo(
 
     if (!promo) {
       return { success: false, message: "Promo code not found or inactive." };
+    }
+
+    if (has_used_points && !promo.stackable) {
+      return {
+        success: false,
+        message: "This promotion cannot be combined with point redemption.",
+      };
+
     }
 
     // 2. Temporal Check

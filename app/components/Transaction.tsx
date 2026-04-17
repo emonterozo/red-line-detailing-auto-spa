@@ -22,6 +22,7 @@ import {
   DiscountType,
   DiscountTypeDisplay,
   RewardType,
+  ServiceType,
   TransactionFrom,
   VehicleSize,
   VehicleType,
@@ -224,7 +225,7 @@ export default function Transaction() {
   const [isCustomerOpen, setIsCustomerOpen] = useState(false);
   const [isFabVisible, setIsFabVisible] = useState(false);
   const [initializing, setInitializing] = useState(true);
-  const [booking, setBooking] = useState<BookingResponse | null>(null)
+  const [booking, setBooking] = useState<BookingResponse | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -256,6 +257,7 @@ export default function Transaction() {
         return {
           _id: item._id,
           title: item.title,
+          type: item.type as ServiceType,
           price: price,
           discount: 0,
         };
@@ -282,6 +284,7 @@ export default function Transaction() {
         availedServices.push({
           _id: value.milestoneReward[0].reward_service_id._id,
           title: value.milestoneReward[0].reward_service_id.title,
+          type: milestoneRewardService?.type as ServiceType,
           price: milestoneRewardPrice,
           discount: value.milestoneDiscount,
         });
@@ -323,7 +326,7 @@ export default function Transaction() {
         milestone_reward,
         milestone_discount: value.milestoneDiscount,
         promotion_id: booking?.promotion_id ?? null,
-        promo_code_used:  booking?.promo_code_used,
+        promo_code_used: booking?.promo_code_used,
       });
       setLoading(false);
       showToast(result.message, result.success ? "success" : "error");
@@ -353,7 +356,7 @@ export default function Transaction() {
         const bookingData = await getBooking(bookingId);
 
         if (bookingData) {
-          setBooking(bookingData)
+          setBooking(bookingData);
           const selectedServiceIds = new Set(
             [...bookingData.services, ...bookingData.add_ons].map(
               (item) => item._id,
