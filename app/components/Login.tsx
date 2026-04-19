@@ -71,6 +71,7 @@ const Login = () => {
       });
       setLoading(false);
       if (result?.success) {
+        await update();
         router.push(`/customer/me`);
       } else if (!result?.success && result?.customer) {
         setTimeout(() => {
@@ -94,7 +95,7 @@ const Login = () => {
     });
     setLoading(false);
     if (result.success) {
-      await update()
+      await update();
       router.push(`/customer/me`);
     } else {
       showToast(result?.message as string, "error");

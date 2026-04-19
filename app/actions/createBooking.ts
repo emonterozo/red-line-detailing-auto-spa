@@ -170,7 +170,8 @@ export const createBooking = async (bookingData: CreateBookingProps) => {
 
         await transporter.sendMail({
           from: `Red Line Detailing <${process.env.EMAIL_USER}>`,
-          to: [process.env.EMAIL_USER, process.env.PERSONAL_EMAIL].join(","),
+          //to: [process.env.EMAIL_USER, process.env.PERSONAL_EMAIL].join(","),
+          to: [process.env.EMAIL_USER].join(","),
           subject: subject,
           html: html,
         });
