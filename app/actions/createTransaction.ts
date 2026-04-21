@@ -248,7 +248,7 @@ export const createTransaction = async (
               ref: "",
             });
 
-            sendMessage({ message, phoneNumbers: [referrer.contact_number] });
+            await sendMessage({ message, phoneNumbers: [referrer.contact_number] });
 
             referral.reward_given = true;
             referral.updated_at = new Date();
@@ -311,7 +311,7 @@ export const createTransaction = async (
           },
           !transactionData.customer_id,
         );
-        sendMessage({
+        await sendMessage({
           message: firstCompletedMessage,
           phoneNumbers: [contactNumber],
         });
@@ -332,7 +332,7 @@ export const createTransaction = async (
     }
 
     if (message !== "" && contactNumber !== "") {
-      sendMessage({ message, phoneNumbers: [contactNumber] });
+      await sendMessage({ message, phoneNumbers: [contactNumber] });
     }
 
     return {

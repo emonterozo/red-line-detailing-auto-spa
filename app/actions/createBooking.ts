@@ -184,7 +184,7 @@ export const createBooking = async (bookingData: CreateBookingProps) => {
           date: new Date(bookingData.preferred_date.date).toDateString(),
         });
 
-        sendMessage({
+        await sendMessage({
           message,
           phoneNumbers: [bookingData.contact_number],
         });

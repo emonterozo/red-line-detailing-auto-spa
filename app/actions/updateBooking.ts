@@ -201,7 +201,7 @@ export const updateBooking = async (request: UpdateBookingRequest) => {
     }
 
     if (message !== "") {
-      sendMessage({
+      await sendMessage({
         message: message,
         phoneNumbers: [result.contact_number],
       });

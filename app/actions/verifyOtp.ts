@@ -49,7 +49,7 @@ export const verifyOtp = async (data: VerifyOtpProps) => {
           ref: "",
         });
 
-        sendMessage({
+        await sendMessage({
           message,
           phoneNumbers: [customer.contact_number],
         });
@@ -65,7 +65,7 @@ export const verifyOtp = async (data: VerifyOtpProps) => {
               ref: "",
             });
 
-            sendMessage({
+            await sendMessage({
               message,
               phoneNumbers: [referrer.contact_number],
             });

@@ -126,7 +126,7 @@ export const sendOtp = async (
     created_at: new Date(),
   });
 
-  sendMessage({
+  await sendMessage({
     message: otpMessageTemplate(otpCode, type),
     phoneNumbers: [contact_number],
   });
