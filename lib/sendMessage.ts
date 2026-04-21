@@ -1,3 +1,7 @@
+"use server";
+
+import axios from "axios";
+
 export const sendMessage = async ({
   message,
   phoneNumbers,
@@ -7,28 +11,27 @@ export const sendMessage = async ({
 }) => {
   const formattedNumbers = phoneNumbers.map((num) => "+63" + num.slice(1));
 
+  const auth = Buffer.from(
+    `${process.env.SMS_GATE_USERNAME}:${process.env.SMS_GATE_PASSWORD}`,
+  ).toString("base64");
+
   try {
-    const response = await fetch(
+    const response = await axios.post(
       "https://api.sms-gate.app/3rdparty/v1/messages",
       {
-        method: "POST",
+        textMessage: { text: message },
+        phoneNumbers: formattedNumbers,
+        withDeliveryReport: false,
+      },
+      {
         headers: {
+          Authorization: `Basic ${auth}`,
           "Content-Type": "application/json",
-          Authorization:
-            "Basic " +
-            Buffer.from(
-              `${process.env.SMS_GATE_USERNAME}:${process.env.SMS_GATE_PASSWORD}`,
-            ).toString("base64"),
         },
-        body: JSON.stringify({
-          textMessage: { text: message },
-          phoneNumbers: formattedNumbers,
-          withDeliveryReport: false
-        }),
       },
     );
 
-    const data = await response.json();
+    const { data } = response;
     console.log("SMS sent successfully:", data);
     return data;
   } catch (error) {
