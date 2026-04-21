@@ -80,11 +80,11 @@ export const getSmsContent = (payload: SmsData, isGuest: boolean = false) => {
       break;
 
     case SmsType.FIRST_FIFTEEN_REWARD:
-      body = `Status Unlocked: THE APEX 🏆\n\nHi ${payload.name}! You’re officially one of our first 15 founding customers. To celebrate, we’ve awarded you 'The Apex' Badge + 70 welcome pts! 🏁 You’ve also unlocked the Referral Program—start earning rewards for every friend you bring to the shop.`;
+      body = `Status Unlocked: THE APEX 🏆\n\nHi ${payload.name}! You’re officially one of our first 15 founding customers. To celebrate, we’ve awarded you The Apex Badge + 70 welcome pts! 🏁 You’ve also unlocked the Referral Program—start earning rewards for every friend you bring to the shop.`;
       break;
 
     case SmsType.FIRST_SERVICE_COMPLETE:
-      body = `New Badge Earned: PIT CREW 🧼\n\nThank you for the trust, ${payload.name}! With your first service complete, you’ve officially joined the 'Pit Crew' and earned 20 welcome pts. 🏁 Your personal Referral Link is now active—invite friends and let’s stack up those rewards together!`;
+      body = `New Badge Earned: PIT CREW 🧼\n\nThank you for the trust, ${payload.name}! With your first service complete, you’ve officially joined the Pit Crew and earned 20 welcome pts. 🏁 Your personal Referral Link is now active—invite friends and let’s stack up those rewards together!`;
       break;
 
     case SmsType.WELCOME_MEMBER:

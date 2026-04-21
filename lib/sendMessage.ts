@@ -24,6 +24,7 @@ export const sendMessage = async ({
         body: JSON.stringify({
           textMessage: { text: message },
           phoneNumbers: formattedNumbers,
+          withDeliveryReport: false
         }),
       },
     );
