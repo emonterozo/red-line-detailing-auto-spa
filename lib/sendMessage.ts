@@ -14,7 +14,6 @@ export const sendMessage = async ({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Connection: "close",
           Authorization:
             "Basic " +
             Buffer.from(
