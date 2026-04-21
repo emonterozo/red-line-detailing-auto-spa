@@ -28,6 +28,7 @@ export const sendMessage = async ({
           Authorization: `Basic ${auth}`,
           "Content-Type": "application/json",
         },
+        timeout: 4000,
       },
     );
 
