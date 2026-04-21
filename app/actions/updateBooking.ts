@@ -126,7 +126,8 @@ export const updateBooking = async (request: UpdateBookingRequest) => {
     }
 
     let message = "";
-    const totalBill = result.total_amount + result.travel_fee;
+
+    const totalBill = result.total_amount + result.travel_fee - result.discount;
     const depositValue = Math.max(
       0,
       totalBill * CONFIG.DOWN_PAYMENT_MULTIPLIER,
