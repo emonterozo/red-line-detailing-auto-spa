@@ -70,8 +70,8 @@ const Register = () => {
   const [isOtpStep, setIsOtpStep] = useState(false);
   const [customerId, setCustomerId] = useState("");
   const [isLock, setIsLock] = useState(true);
-
   const [countdown, setCountdown] = useState(0);
+  const [isResending, setIsResending] = useState(false);
 
   const form = useForm({
     defaultValues,
@@ -120,6 +120,7 @@ const Register = () => {
 
   const resendOtp = async () => {
     if (customerId !== "") {
+      setIsResending(true);
       const result = await sendOtp(
         customerId,
         form.getFieldValue("contactNumber"),
@@ -129,7 +130,7 @@ const Register = () => {
       if (result.message.includes("Too many attempts detected")) {
         setIsLock(true);
       }
-
+      setIsResending(false);
       setCountdown(result.retry_after);
     }
   };
@@ -210,6 +211,7 @@ const Register = () => {
                   onBack={() => setIsOtpStep(false)}
                   previousScreen="Registration"
                   isLock={isLock}
+                  isResending={isResending}
                 />
               </motion.div>
             ) : (

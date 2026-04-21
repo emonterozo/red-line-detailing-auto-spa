@@ -14,6 +14,7 @@ type OtpProps = {
   onBack?: () => void;
   previousScreen: string;
   isLock?: boolean;
+  isResending?: boolean
 };
 
 const Otp = ({
@@ -25,6 +26,7 @@ const Otp = ({
   onBack,
   previousScreen,
   isLock,
+  isResending = false
 }: OtpProps) => {
   const [otp, setOtp] = useState<string[]>(new Array(length).fill(""));
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -208,10 +210,12 @@ const Otp = ({
                   <button
                     type="button"
                     onClick={onResend}
-                    disabled={isLoading || countdown > 0}
-                    className="text-[#dc143c] hover:text-[#ff6b81] hover:underline font-medium transition-colors"
+                    disabled={isLoading || isResending || countdown > 0}
+                    className="text-[#dc143c] hover:text-[#ff6b81] hover:underline font-medium transition-colors disabled:opacity-50 disabled:no-underline"
                   >
-                    {countdown > 0 ? (
+                    {isResending ? (
+                      "Sending..."
+                    ) : countdown > 0 ? (
                       <span>Resend Code in {formatCountdown(countdown)}</span>
                     ) : (
                       "Resend Code"

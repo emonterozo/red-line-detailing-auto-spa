@@ -52,6 +52,7 @@ const Login = () => {
   const [customerId, setCustomerId] = useState("");
   const [countdown, setCountdown] = useState(0);
   const [isLock, setIsLock] = useState(true);
+  const [isResending, setIsResending] = useState(false);
 
   const form = useForm({
     defaultValues,
@@ -71,6 +72,7 @@ const Login = () => {
       });
       setLoading(false);
       if (result?.success) {
+        await update();
         router.push(`/customer/me`);
       } else if (!result?.success && result?.customer) {
         setTimeout(() => {
@@ -94,7 +96,7 @@ const Login = () => {
     });
     setLoading(false);
     if (result.success) {
-      await update()
+      await update();
       router.push(`/customer/me`);
     } else {
       showToast(result?.message as string, "error");
@@ -103,6 +105,7 @@ const Login = () => {
 
   const resendOtp = async () => {
     if (customerId !== "") {
+      setIsResending(true);
       const result = await sendOtp(
         customerId,
         form.getFieldValue("contactNumber"),
@@ -112,7 +115,7 @@ const Login = () => {
       if (result.message.includes("Too many attempts detected")) {
         setIsLock(true);
       }
-
+      setIsResending(false);
       setCountdown(result.retry_after);
     }
   };
@@ -202,6 +205,7 @@ const Login = () => {
                   previousScreen="Login"
                   onBack={() => setIsOtpStep(false)}
                   isLock={isLock}
+                  isResending={isResending}
                 />
               </motion.div>
             ) : (
