@@ -1,4 +1,4 @@
-import CustomerProfile from "@/app/components/CustomerProfile";
+import CustomerProfile from "@/app/components/customer/CustomerProfile";
 
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";

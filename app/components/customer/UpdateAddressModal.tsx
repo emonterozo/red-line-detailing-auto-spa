@@ -1,3 +1,4 @@
+import { getAddressAndDistance } from "@/app/actions/getAddressAndDistance";
 import { LocationResult, requestUserLocation } from "@/lib/requestUserLocation";
 import { getDistanceInMeters, isOverDays } from "@/lib/utils";
 import {
@@ -12,8 +13,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useState, useEffect } from "react";
-import { getAddressAndDistance } from "../actions/getAddressAndDistance";
-import LocationPermissionModal from "./LocationPermissionModal";
+import LocationPermissionModal from "../LocationPermissionModal";
 
 export type LocationProps = Pick<LocationResult, "latitude" | "longitude"> & {
   address: string;
