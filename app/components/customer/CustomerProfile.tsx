@@ -87,8 +87,10 @@ export default function CustomerProfile({
   const [isUpdateAddressVisible, setIsUpdateAddressVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pagination, setPagination] = useState({
+    transactionTotal: 0,
     transactionPage: 1,
     transactionTotalPage: 1,
+    milestoneTotal: 0,
     milestonePage: 1,
     milestoneTotalPage: 1,
   });
@@ -102,13 +104,22 @@ export default function CustomerProfile({
     transactions: true,
     milestones: true,
   });
+  const [transactionSkeletonCount, setTransactionSkeletonCount] =
+    useState(LIMIT);
+  const [milestoneSkeletonCount, setMilestoneSkeletonCount] = useState(LIMIT);
 
   const fetchTransactions = async (page: number) => {
+    const itemsProcessed = (page - 1) * LIMIT;
+    const remaining = pagination.transactionTotal - itemsProcessed;
+    const nextSkeletonCount = Math.max(0, Math.min(LIMIT, remaining));
+    setTransactionSkeletonCount(nextSkeletonCount || LIMIT);
+
     setLoadingStates((prev) => ({ ...prev, transactions: true }));
     const res = await getTransactions(page, LIMIT, customerId);
     setTransactions(res.data);
     setPagination((prev) => ({
       ...prev,
+      transactionTotal: res.total,
       transactionPage: page,
       transactionTotalPage: res.totalPages,
     }));
@@ -116,11 +127,17 @@ export default function CustomerProfile({
   };
 
   const fetchMilestones = async (page: number) => {
+    const itemsProcessed = (page - 1) * LIMIT;
+    const remaining = pagination.milestoneTotal - itemsProcessed;
+    const nextSkeletonCount = Math.max(0, Math.min(LIMIT, remaining));
+    setMilestoneSkeletonCount(nextSkeletonCount || LIMIT);
+
     setLoadingStates((prev) => ({ ...prev, milestones: true }));
     const res = await getClaimedMilestones(customerId, page, LIMIT);
     setMilestones(res.data);
     setPagination((prev) => ({
       ...prev,
+      milestoneTotal: res.total,
       milestonePage: page,
       milestoneTotalPage: res.totalPages,
     }));
@@ -618,10 +635,13 @@ export default function CustomerProfile({
                 </h3>
                 <div className="space-y-3">
                   {loadingStates.transactions &&
-                    [1, 2, 3, 4].map((item) => (
-                      <HistorySkeleton key={item} color="#ffffff" />
+                    Array.from({ length: transactionSkeletonCount }).map(() => (
+                      <HistorySkeleton
+                        key={crypto.randomUUID()}
+                        color="#ffffff"
+                      />
                     ))}
-                  {transactions.length > 0
+                  {!loadingStates.transactions && transactions.length > 0
                     ? transactions.map((transaction) => (
                         <button
                           onClick={() =>
@@ -653,13 +673,15 @@ export default function CustomerProfile({
                     : !loadingStates.transactions && (
                         <HistoryEmpty title="No Transactions" icon={Zap} />
                       )}
-                  <Pagination
-                    currentPage={pagination.transactionPage}
-                    totalPages={pagination.transactionTotalPage}
-                    onPageChange={(page) =>
-                      handlePageChange(page, "transaction")
-                    }
-                  />
+                  {!loadingStates.transactions && (
+                    <Pagination
+                      currentPage={pagination.transactionPage}
+                      totalPages={pagination.transactionTotalPage}
+                      onPageChange={(page) =>
+                        handlePageChange(page, "transaction")
+                      }
+                    />
+                  )}
                 </div>
               </div>
 
@@ -669,10 +691,13 @@ export default function CustomerProfile({
                 </h3>
                 <div className="space-y-3">
                   {loadingStates.milestones &&
-                    [1, 2, 3, 4].map((item) => (
-                      <HistorySkeleton key={item} color="#dc143c" />
+                    Array.from({ length: milestoneSkeletonCount }).map(() => (
+                      <HistorySkeleton
+                        key={crypto.randomUUID()}
+                        color="#dc143c"
+                      />
                     ))}
-                  {milestones.length > 0
+                  {!loadingStates.milestones && milestones.length > 0
                     ? milestones.map((item) => (
                         <div
                           key={item._id}
@@ -701,11 +726,15 @@ export default function CustomerProfile({
                     : !loadingStates.milestones && (
                         <HistoryEmpty title="No Rewards Claimed" icon={Gift} />
                       )}
-                  <Pagination
-                    currentPage={pagination.milestonePage}
-                    totalPages={pagination.milestoneTotalPage}
-                    onPageChange={(page) => handlePageChange(page, "milestone")}
-                  />
+                  {!loadingStates.milestones && (
+                    <Pagination
+                      currentPage={pagination.milestonePage}
+                      totalPages={pagination.milestoneTotalPage}
+                      onPageChange={(page) =>
+                        handlePageChange(page, "milestone")
+                      }
+                    />
+                  )}
                 </div>
               </div>
             </div>
