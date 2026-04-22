@@ -63,8 +63,8 @@ import {
 import { CustomerDetailsResponse, getCustomer } from "../actions/getCustomer";
 import { useSession } from "next-auth/react";
 import { CONFIG } from "../config/config";
-import { getBookings } from "../actions/getBookings";
 import { PromotionResponse, validatePromo } from "../actions/validatePromo";
+import { getCustomerBooking } from "../actions/customer/getCustomerBooking";
 
 const today = new Date();
 today.setHours(23, 59, 59, 59);
@@ -545,13 +545,9 @@ export default function CustomerBooking() {
       setUi((prev) => ({ ...prev, initializing: true }));
 
       try {
-        const booking = await getBookings(1, 1, userId, [
-          BookingStatus.FOR_CHECKING,
-          BookingStatus.PENDING_PAYMENT,
-          BookingStatus.RESERVED,
-        ]);
+        const booking = await getCustomerBooking(userId);
 
-        if (booking.data.length > 0) {
+        if (booking) {
           router.back();
         }
 
