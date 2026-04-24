@@ -102,7 +102,7 @@ const Otp = ({
         </span>
       </h2>
       <p className="mt-4 text-gray-500 text-base max-w-md mx-auto">
-        {`We sent a ${length}-digit code to your contact number. Enter it below to proceed.`}
+        {`We sent a ${length}-digit code to your email address. Enter it below to proceed.`}
       </p>
       <div className="flex items-center justify-center gap-3 mt-6 mb-12">
         <div className="h-[1px] w-12 bg-gradient-to-r from-transparent to-[#dc143c]" />

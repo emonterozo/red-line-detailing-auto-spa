@@ -28,7 +28,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               customer.password,
             );
             if (isPasswordCorrect) {
-              if (!customer.is_number_verify) {
+              if (!customer.is_verify) {
                 const now = Date.now();
                 if (
                   customer.otp_send_blocked_until &&
@@ -37,7 +37,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                   throw new Error("TOO_MANY_ATTEMPTS");
                 }
 
-                throw new Error("CUSTOMER_NUMBER_NOT_VERIFY");
+                throw new Error("CUSTOMER_NOT_VERIFY");
               }
 
               return {

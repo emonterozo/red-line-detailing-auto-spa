@@ -216,6 +216,15 @@ const Login = () => {
                 exit={{ opacity: 0, x: 20 }}
                 transition={{ duration: 0.3 }}
               >
+                <Link
+                  href="/"
+                  className="flex items-center gap-2 text-white/90 hover:text-white transition mb-6 lg:hidden"
+                >
+                  <ChevronRight className="w-4 h-4 rotate-180" />
+                  <span className="text-xs uppercase tracking-widest font-medium">
+                    Back to home
+                  </span>
+                </Link>
                 <h2 className="font-russo text-4xl md:text-6xl font-extrabold text-white tracking-tight">
                   WELCOME{" "}
                   <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#dc143c] to-[#ff6b81]">

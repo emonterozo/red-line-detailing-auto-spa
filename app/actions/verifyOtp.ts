@@ -30,7 +30,7 @@ export const verifyOtp = async (data: VerifyOtpProps) => {
     if (otpDoc) {
       if (otpDoc.otp === data.code) {
         const customer = await Customer.findByIdAndUpdate(data.customer_id, {
-          $set: { is_number_verify: true, updated_at: new Date() },
+          $set: { is_verify: true, updated_at: new Date() },
         });
         await Otp.deleteMany({
           customer_id: new Types.ObjectId(data.customer_id),

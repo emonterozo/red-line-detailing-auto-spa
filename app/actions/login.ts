@@ -54,7 +54,7 @@ export const login = async (customerData: LoginProps) => {
             success: false,
             message: "Our systems are having trouble. Please try again later.",
           };
-        case "CUSTOMER_NUMBER_NOT_VERIFY": {
+        case "CUSTOMER_NOT_VERIFY": {
           const customer = await Customer.findOne({
             contact_number: contact_number,
           }).lean();
@@ -70,7 +70,7 @@ export const login = async (customerData: LoginProps) => {
               "You’ve successfully logged in. Welcome back to your premium experience!",
             customer: {
               customer_id: customer._id.toString(),
-              is_number_verify: customer.is_number_verify,
+              is_verify: customer.is_verify,
             },
             retry_after: result.retry_after,
           };

@@ -10,7 +10,7 @@ import { sendOtp } from "./sendOtp";
 
 type CreateCustomerProps = Pick<
   TCustomer,
-  "first_name" | "last_name" | "contact_number" | "password"
+  "first_name" | "last_name" | "contact_number" | "password" | "email"
 > & {
   referral_code?: string;
 };
@@ -42,6 +42,7 @@ export const createCustomer = async (customerData: CreateCustomerProps) => {
       first_name: customerData.first_name,
       last_name: customerData.last_name,
       name: `${customerData.first_name} ${customerData.last_name}`,
+      email: customerData.email,
       contact_number: customerData.contact_number,
       password: password,
       milestone_count: milestone_count,
@@ -98,6 +99,9 @@ export const createCustomer = async (customerData: CreateCustomerProps) => {
         if (field === "contact_number") {
           message =
             "This contact number is already in use. Please use a different number.";
+        } else if (field === "email") {
+          message =
+            "This email address is already in use. Please use a different email.";
         }
 
         return {

@@ -7,6 +7,7 @@ import { Types } from "mongoose";
 import connect from "@/lib/db/mongodb";
 import Customer from "@/models/Customer";
 import { sendMessage } from "@/lib/sendMessage";
+import { sendOTPEmail } from "@/lib/mail";
 
 const otpMessageTemplate = (otpCode: string, type: OtpType) => {
   const baseMessage = `Your verification code is ${otpCode}.`;
@@ -99,7 +100,7 @@ export const sendOtp = async (
   });
 
   if (existingOtp) {
-    const expiresAt = existingOtp.created_at.getTime() + 60 * 1000;
+    const expiresAt = existingOtp.created_at.getTime() + 180 * 1000;
 
     if (now < expiresAt) {
       const retry_after = Math.ceil((expiresAt - now) / 1000);
@@ -126,10 +127,12 @@ export const sendOtp = async (
     created_at: new Date(),
   });
 
-  await sendMessage({
-    message: otpMessageTemplate(otpCode, type),
-    phoneNumbers: [contact_number],
-  });
+  // await sendMessage({
+  //   message: otpMessageTemplate(otpCode, type),
+  //   phoneNumbers: [contact_number],
+  // });
+
+  await sendOTPEmail(customer.email, otpCode, customer.first_name, 180 / 60);
 
   // ----------------------------
   // 6. UPDATE COUNTERS
@@ -147,6 +150,6 @@ export const sendOtp = async (
     message: "We’ve sent you a verification code.",
     resend_count: customer.otp_send_count,
     remaining_send: LIMIT - customer.otp_send_count,
-    retry_after: 60,
+    retry_after: 180,
   };
 };

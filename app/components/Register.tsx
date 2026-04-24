@@ -34,6 +34,7 @@ export const formSchema = z.object({
       /^09\d{9}$/,
       "Please enter a valid contact number (11 digits, starting with 09).",
     ),
+  email: z.email("Please enter a valid email address."),
   password: z
     .string()
     .min(8, "Password must be at least 8 characters.")
@@ -51,6 +52,7 @@ const defaultValues: FormValues = {
   firstName: "",
   lastName: "",
   contactNumber: "",
+  email: "",
   password: "",
   confirmPassword: "",
 };
@@ -84,6 +86,7 @@ const Register = () => {
         first_name: value.firstName,
         last_name: value.lastName,
         contact_number: value.contactNumber,
+        email: value.email,
         password: value.password,
         referral_code: referralCode ?? undefined,
       });
@@ -222,6 +225,15 @@ const Register = () => {
                 exit={{ opacity: 0, x: 20 }}
                 transition={{ duration: 0.3 }}
               >
+                <Link
+                  href="/"
+                  className="flex items-center gap-2 text-white/90 hover:text-white transition mb-6 lg:hidden"
+                >
+                  <ChevronRight className="w-4 h-4 rotate-180" />
+                  <span className="text-xs uppercase tracking-widest font-medium">
+                    Back to home
+                  </span>
+                </Link>
                 <h2 className="font-russo text-4xl md:text-6xl font-extrabold text-white tracking-tight">
                   CREATE{" "}
                   <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#dc143c] to-[#ff6b81]">
@@ -332,6 +344,39 @@ const Register = () => {
                               }
                               aria-invalid={isInvalid}
                               placeholder="Contact Number (e.g., 09123456789)"
+                              className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
+                            />
+                            {isInvalid && (
+                              <FieldError
+                                className="text-[#ff6b81] text-xs mt-1"
+                                errors={field.state.meta.errors}
+                              />
+                            )}
+                          </Field>
+                        );
+                      }}
+                    </form.Field>
+                    <form.Field name="email">
+                      {(field) => {
+                        const isInvalid =
+                          field.state.meta.isTouched &&
+                          !field.state.meta.isValid;
+                        return (
+                          <Field>
+                            <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
+                              Email address
+                            </FieldLabel>
+                            <Input
+                              id={field.name}
+                              name={field.name}
+                              value={field.state.value}
+                              onBlur={field.handleBlur}
+                              onChange={(e) =>
+                                field.handleChange(e.target.value)
+                              }
+                              aria-invalid={isInvalid}
+                              placeholder="Email Address (e.g., example@email.com)"
+                              type="email"
                               className="h-12 px-4 rounded-xl bg-white/[0.04] border-white/10 text-white text-sm focus-visible:border-[#dc143c]/60 focus-visible:ring-[#dc143c]/20 focus-visible:ring-2"
                             />
                             {isInvalid && (
