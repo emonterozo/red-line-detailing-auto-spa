@@ -116,7 +116,7 @@ export const getCustomer = async (
     address_updated_at: customerDoc.address_updated_at,
     verified_at: customerDoc.verified_at,
     created_at: customerDoc.created_at,
-    is_verify: customerDoc.is_verify,
+    is_email_verify: customerDoc.is_email_verify,
     birth_day: customerDoc.birth_day,
     referral_code: customerDoc.referral_code,
     earned_points: customerDoc.earned_points,

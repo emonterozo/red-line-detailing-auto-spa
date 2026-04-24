@@ -28,7 +28,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               customer.password,
             );
             if (isPasswordCorrect) {
-              if (!customer.is_verify) {
+              if (!customer.is_email_verify) {
                 const now = Date.now();
                 if (
                   customer.otp_send_blocked_until &&

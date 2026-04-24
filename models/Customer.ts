@@ -63,7 +63,7 @@ const customerSchema = new Schema({
   address_updated_at: { type: Date, default: null },
   password: { type: String, required: true },
   is_verify: { type: Boolean, default: false },
-  is_verify: { type: Boolean, default: false },
+  is_email_verify: { type: Boolean, default: false },
   verified_at: { type: Date, default: null },
   earned_points: { type: Number, default: 0 },
   milestone_count: {

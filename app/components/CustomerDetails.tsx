@@ -114,7 +114,7 @@ export default function CustomerDetails() {
         <CustomerDetailsHeader
           firstName={customer?.first_name ?? ""}
           lastName={customer?.last_name ?? ""}
-          isVerified={customer?.is_verify ?? false}
+          isVerified={customer?.is_email_verify ?? false}
           verifiedAt={customer?.verified_at ?? new Date()}
           points={customer?.earned_points ?? 0}
         />
