@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useForm } from "@tanstack/react-form";
 import * as z from "zod";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
@@ -228,59 +228,106 @@ export default function CustomerBooking() {
     null,
   );
 
-  const fetchSchedules = async () => {
+  const fetchSchedules = useCallback(async () => {
     const response = await getSchedules();
     return response;
-  };
+  }, []);
 
-  const toggleService = (service: ServiceResponse, type: ServiceType): void => {
-    setAppliedPromo(null);
-    setPromoError(null);
-    form.setFieldValue("promoCode", "");
-    form.setFieldValue("pointsUsed", 0);
-    form.setFieldValue("promoDiscount", 0);
-    const isMain = type === ServiceType.SERVICE;
-    const field = isMain ? "services" : "addOns";
+  // Memoize pricing calculation function
+  const getPricing = useCallback(
+    (
+      selectedServices: z.infer<typeof serviceSchema>[],
+      selectedVehicleSizes: z.infer<typeof vehicleSizeSchema>[],
+    ) => {
+      return selectedServices.reduce((total, service) => {
+        const pricing = service.pricing_per_sizes.find(
+          (p) => p.size_id === selectedVehicleSizes[0]._id,
+        );
+        return total + (pricing?.price ?? 0);
+      }, 0);
+    },
+    [],
+  );
 
-    const current = (form.getFieldValue(field) as ServiceResponse[]) || [];
-    const isSelected = current.some(
-      (s: ServiceResponse) => s._id === service._id,
-    );
+  // Helper function to filter milestone rewards
+  const getFilteredMilestoneRewards = useCallback(
+    (selectedSize: VehicleSizeResponse): MilestoneRewardsResponse[] => {
+      return data.milestoneRewards.filter((r: MilestoneRewardsResponse) => {
+        const progress =
+          data.customer?.milestone_count.find(
+            (m) => m.size_id === selectedSize._id,
+          )?.progress ?? 0;
 
-    let nextItems: ServiceResponse[];
+        return (
+          r.vehicle_type === selectedSize.type &&
+          progress >= r.required_progress_count - 1
+        );
+      });
+    },
+    [data.milestoneRewards, data.customer],
+  );
 
-    if (isSelected) {
-      nextItems = current.filter((s: ServiceResponse) => s._id !== service._id);
-    } else if (isMain) {
-      const washConflicts: Record<string, string> = {
-        "Premium Detailer Wash": "Full Decontamination Wash",
-        "Full Decontamination Wash": "Premium Detailer Wash",
-      };
+  // Helper function to compute next items for service toggle
+  const computeNextItems = useCallback(
+    (
+      service: ServiceResponse,
+      isMain: boolean,
+      current: ServiceResponse[],
+    ): ServiceResponse[] => {
+      const isSelected = current.some(
+        (s: ServiceResponse) => s._id === service._id,
+      );
 
-      const conflictTitle = washConflicts[service.title];
-      nextItems = conflictTitle
-        ? [
-            ...current.filter(
-              (s: ServiceResponse) => s.title !== conflictTitle,
-            ),
-            service,
-          ]
-        : [...current, service];
-    } else {
-      nextItems = [...current, service];
-    }
+      if (isSelected) {
+        return current.filter((s: ServiceResponse) => s._id !== service._id);
+      }
 
-    form.setFieldValue(field, nextItems);
+      if (isMain) {
+        const washConflicts: Record<string, string> = {
+          "Premium Detailer Wash": "Full Decontamination Wash",
+          "Full Decontamination Wash": "Premium Detailer Wash",
+        };
 
-    const selectedSize = form.getFieldValue("vehicleSizes")?.[0] as
-      | VehicleSizeResponse
-      | undefined;
+        const conflictTitle = washConflicts[service.title];
+        return conflictTitle
+          ? [
+              ...current.filter(
+                (s: ServiceResponse) => s.title !== conflictTitle,
+              ),
+              service,
+            ]
+          : [...current, service];
+      }
 
-    if (selectedSize) {
+      return [...current, service];
+    },
+    [],
+  );
+
+  const toggleService = useCallback(
+    (service: ServiceResponse, type: ServiceType): void => {
+      setAppliedPromo(null);
+      setPromoError(null);
+      form.setFieldValue("promoCode", "");
+      form.setFieldValue("pointsUsed", 0);
+      form.setFieldValue("promoDiscount", 0);
+      const isMain = type === ServiceType.SERVICE;
+      const field = isMain ? "services" : "addOns";
+
+      const current = (form.getFieldValue(field) as ServiceResponse[]) || [];
+      const nextItems = computeNextItems(service, isMain, current);
+
+      form.setFieldValue(field, nextItems);
+
+      const selectedSize = form.getFieldValue("vehicleSizes")?.[0] as
+        | VehicleSizeResponse
+        | undefined;
+
+      if (!selectedSize) return;
+
       const services = isMain
         ? nextItems
         : (form.getFieldValue("services") as ServiceResponse[]) || [];
-
       const addOns = isMain
         ? (form.getFieldValue("addOns") as ServiceResponse[]) || []
         : nextItems;
@@ -290,48 +337,62 @@ export default function CustomerBooking() {
         getPricing([...services, ...addOns], [selectedSize]),
       );
 
-      if (isMain) {
-        const isPremium = nextItems.some(
-          (s: ServiceResponse) => s.title === "Premium Detailer Wash",
-        );
+      if (!isMain) return;
 
-        const available = isPremium
-          ? data.milestoneRewards.filter((r: MilestoneRewardsResponse) => {
-              const progress =
-                data.customer?.milestone_count.find(
-                  (m) => m.size_id === selectedSize._id,
-                )?.progress ?? 0;
+      const isPremium = nextItems.some(
+        (s: ServiceResponse) => s.title === "Premium Detailer Wash",
+      );
+      const available = isPremium ? getFilteredMilestoneRewards(selectedSize) : [];
 
-              return (
-                r.vehicle_type === selectedSize.type &&
-                progress >= r.required_progress_count - 1
-              );
-            })
-          : [];
-
-        setUi((prev) => ({ ...prev, vehicleMilestoneRewards: available }));
-        form.setFieldValue("milestoneReward", []);
-      }
-    }
-  };
-  const availableSet = new Set<number>(
-    data.schedules?.map((schedule) => {
-      const date = new Date(schedule.date);
-      date.setHours(23, 59, 59, 59);
-      return date.getTime();
-    }),
+      setUi((prev) => ({ ...prev, vehicleMilestoneRewards: available }));
+      form.setFieldValue("milestoneReward", []);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [data, getPricing, computeNextItems, getFilteredMilestoneRewards],
+  );
+  const availableSet = useMemo(
+    () =>
+      new Set<number>(
+        data.schedules?.map((schedule) => {
+          const date = new Date(schedule.date);
+          date.setHours(23, 59, 59, 59);
+          return date.getTime();
+        }),
+      ),
+    [data.schedules],
   );
 
-  const fullyBookedSet = new Set<number>(
-    data.schedules
-      .filter((schedule) =>
-        schedule.time_slots.every((slot) => !slot.is_available),
-      )
-      .map((schedule) => {
-        const d = new Date(schedule.date);
-        d.setHours(23, 59, 59, 59);
-        return d.getTime();
-      }),
+  const fullyBookedSet = useMemo(
+    () =>
+      new Set<number>(
+        data.schedules
+          .filter((schedule) =>
+            schedule.time_slots.every((slot) => !slot.is_available),
+          )
+          .map((schedule) => {
+            const d = new Date(schedule.date);
+            d.setHours(23, 59, 59, 59);
+            return d.getTime();
+          }),
+      ),
+    [data.schedules],
+  );
+
+  // Memoize services filtered by type
+  const mainServices = useMemo(
+    () =>
+      data.services.filter(
+        (service) => service.type === ServiceType.SERVICE,
+      ),
+    [data.services],
+  );
+
+  const addOnServices = useMemo(
+    () =>
+      data.services.filter(
+        (service) => service.type === ServiceType.ADD_ONS,
+      ),
+    [data.services],
   );
 
   const form = useForm({
@@ -580,104 +641,100 @@ export default function CustomerBooking() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
 
-  const getPricing = (
-    selectedServices: z.infer<typeof serviceSchema>[],
-    selectedVehicleSizes: z.infer<typeof vehicleSizeSchema>[],
-  ) => {
-    return selectedServices.reduce((total, service) => {
-      const pricing = service.pricing_per_sizes.find(
-        (p) => p.size_id === selectedVehicleSizes[0]._id,
-      );
-      return total + (pricing?.price ?? 0);
-    }, 0);
-  };
+  const onSelectMilestoneReward = useCallback(
+    (mr: MilestoneRewardsResponse): void => {
+      const vehicleSizes = form.getFieldValue(
+        "vehicleSizes",
+      ) as VehicleSizeResponse[];
 
-  const onSelectMilestoneReward = (mr: MilestoneRewardsResponse): void => {
-    const vehicleSizes = form.getFieldValue(
-      "vehicleSizes",
-    ) as VehicleSizeResponse[];
+      if (vehicleSizes.length > 0) {
+        const selectedVehicle = vehicleSizes[0];
+        const currentRewards =
+          (form.getFieldValue("milestoneReward") as MilestoneRewardsResponse[]) ||
+          [];
+        const isSelected = currentRewards.some((item) => item._id === mr._id);
 
-    if (vehicleSizes.length > 0) {
-      const selectedVehicle = vehicleSizes[0];
-      const currentRewards =
-        (form.getFieldValue("milestoneReward") as MilestoneRewardsResponse[]) ||
-        [];
-      const isSelected = currentRewards.some((item) => item._id === mr._id);
+        form.setFieldValue("milestoneReward", isSelected ? [] : [mr]);
 
-      form.setFieldValue("milestoneReward", isSelected ? [] : [mr]);
+        const mrService = data.services.find(
+          (s) => s._id === mr.reward_service_id._id,
+        );
 
-      const mrService = data.services.find(
-        (s) => s._id === mr.reward_service_id._id,
-      );
+        const pricing = mrService?.pricing_per_sizes.find(
+          (p) => p.size_id === selectedVehicle._id,
+        );
 
-      const pricing = mrService?.pricing_per_sizes.find(
-        (p) => p.size_id === selectedVehicle._id,
-      );
+        const mrPrice = pricing?.price ?? 0;
+        let discountAmount = 0;
 
-      const mrPrice = pricing?.price ?? 0;
-      let discountAmount = 0;
+        if (!isSelected) {
+          discountAmount = calculateMilestoneRewardDiscount(mrPrice, {
+            reward_type: mr.reward_type,
+            discount_amount: mr.discount_amount,
+            discount_percentage: mr.discount_percentage,
+          });
+        }
 
-      if (!isSelected) {
-        discountAmount = calculateMilestoneRewardDiscount(mrPrice, {
-          reward_type: mr.reward_type,
-          discount_amount: mr.discount_amount,
-          discount_percentage: mr.discount_percentage,
-        });
+        form.setFieldValue("milestoneRewardPrice", mrPrice);
+        form.setFieldValue("milestoneRewardDiscount", discountAmount);
       }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [data.services],
+  );
 
-      form.setFieldValue("milestoneRewardPrice", mrPrice);
-      form.setFieldValue("milestoneRewardDiscount", discountAmount);
-    }
-  };
+  const onSelectVehicleType = useCallback(
+    (size: VehicleSizeResponse): void => {
+      setAppliedPromo(null);
+      setPromoError(null);
+      form.setFieldValue("promoCode", "");
+      form.setFieldValue("pointsUsed", 0);
+      form.setFieldValue("promoDiscount", 0);
+      const { milestoneRewards, customer } = data;
+      const services =
+        (form.getFieldValue("services") as ServiceResponse[]) || [];
+      const addOns = (form.getFieldValue("addOns") as ServiceResponse[]) || [];
 
-  const onSelectVehicleType = (size: VehicleSizeResponse): void => {
-    setAppliedPromo(null);
-    setPromoError(null);
-    form.setFieldValue("promoCode", "");
-    form.setFieldValue("pointsUsed", 0);
-    form.setFieldValue("promoDiscount", 0);
-    const { milestoneRewards, customer } = data;
-    const services =
-      (form.getFieldValue("services") as ServiceResponse[]) || [];
-    const addOns = (form.getFieldValue("addOns") as ServiceResponse[]) || [];
+      const isPremiumSelected = services.some(
+        (s) => s.title === "Premium Detailer Wash",
+      );
 
-    const isPremiumSelected = services.some(
-      (s) => s.title === "Premium Detailer Wash",
-    );
+      const availableRewards = isPremiumSelected
+        ? milestoneRewards.filter((reward) => {
+            const progress =
+              customer?.milestone_count.find((m) => m.size_id === size._id)
+                ?.progress ?? 0;
+            return (
+              reward.vehicle_type === size.type &&
+              progress >= reward.required_progress_count - 1
+            );
+          })
+        : [];
 
-    const availableRewards = isPremiumSelected
-      ? milestoneRewards.filter((reward) => {
-          const progress =
-            customer?.milestone_count.find((m) => m.size_id === size._id)
-              ?.progress ?? 0;
-          return (
-            reward.vehicle_type === size.type &&
-            progress >= reward.required_progress_count - 1
-          );
-        })
-      : [];
+      setUi((prev) => ({
+        ...prev,
+        vehicleMilestoneRewards: availableRewards,
+      }));
 
-    setUi((prev) => ({
-      ...prev,
-      vehicleMilestoneRewards: availableRewards,
-    }));
+      const totalPrice = getPricing([...services, ...addOns], [size]);
 
-    const totalPrice = getPricing([...services, ...addOns], [size]);
+      form.setFieldValue("vehicleSizes", [size]);
+      form.setFieldValue("totalAmount", totalPrice);
 
-    form.setFieldValue("vehicleSizes", [size]);
-    form.setFieldValue("totalAmount", totalPrice);
+      form.setFieldValue("milestoneReward", []);
+      form.setFieldValue("milestoneRewardPrice", 0);
+      form.setFieldValue("milestoneRewardDiscount", 0);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [data, getPricing],
+  );
 
-    form.setFieldValue("milestoneReward", []);
-    form.setFieldValue("milestoneRewardPrice", 0);
-    form.setFieldValue("milestoneRewardDiscount", 0);
-  };
-
-  const toggleCalendar = () => {
+  const toggleCalendar = useCallback(() => {
     setUi((prev) => ({
       ...prev,
       isCalendarOpen: !prev.isCalendarOpen,
     }));
-  };
+  }, []);
 
   return (
     <section className="min-h-screen bg-[#0a0a0a] relative overflow-hidden">
@@ -1089,33 +1146,28 @@ export default function CustomerBooking() {
                         </PopoverTrigger>
                         <PopoverContent className="backdrop-blur-md border border-white/20 rounded-xl p-3 shadow-lg max-h-80 overflow-y-auto">
                           <Command>
-                            {data.services
-                              .filter(
-                                (service) =>
-                                  service.type === ServiceType.SERVICE,
-                              )
-                              .map((service) => {
-                                const isSelected = field.state.value.find(
-                                  (item) => item._id === service._id,
-                                );
-                                return (
-                                  <CommandItem
-                                    key={service._id}
-                                    onSelect={() =>
-                                      toggleService(
-                                        service,
-                                        ServiceType.SERVICE,
-                                      )
-                                    }
-                                    className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-600 hover:text-white hover:bg-white/[0.06] transition-colors"
-                                  >
-                                    <span>{service.title}</span>
-                                    {isSelected && (
-                                      <Check className="w-4 h-4 text-[#dc143c]" />
-                                    )}
-                                  </CommandItem>
-                                );
-                              })}
+                            {mainServices.map((service) => {
+                              const isSelected = field.state.value.find(
+                                (item) => item._id === service._id,
+                              );
+                              return (
+                                <CommandItem
+                                  key={service._id}
+                                  onSelect={() =>
+                                    toggleService(
+                                      service,
+                                      ServiceType.SERVICE,
+                                    )
+                                  }
+                                  className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-600 hover:text-white hover:bg-white/[0.06] transition-colors"
+                                >
+                                  <span>{service.title}</span>
+                                  {isSelected && (
+                                    <Check className="w-4 h-4 text-[#dc143c]" />
+                                  )}
+                                </CommandItem>
+                              );
+                            })}
                           </Command>
                         </PopoverContent>
                       </Popover>
@@ -1167,33 +1219,28 @@ export default function CustomerBooking() {
                         </PopoverTrigger>
                         <PopoverContent className="backdrop-blur-md border border-white/20 rounded-xl p-3 shadow-lg max-h-80 overflow-y-auto">
                           <Command>
-                            {data.services
-                              .filter(
-                                (service) =>
-                                  service.type === ServiceType.ADD_ONS,
-                              )
-                              .map((service) => {
-                                const isSelected = field.state.value?.find(
-                                  (item) => item._id === service._id,
-                                );
-                                return (
-                                  <CommandItem
-                                    key={service._id}
-                                    onSelect={() =>
-                                      toggleService(
-                                        service,
-                                        ServiceType.ADD_ONS,
-                                      )
-                                    }
-                                    className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-600 hover:text-white hover:bg-white/[0.06] transition-colors"
-                                  >
-                                    <span>{service.title}</span>
-                                    {isSelected && (
-                                      <Check className="w-4 h-4 text-[#dc143c]" />
-                                    )}
-                                  </CommandItem>
-                                );
-                              })}
+                            {addOnServices.map((service) => {
+                              const isSelected = field.state.value?.find(
+                                (item) => item._id === service._id,
+                              );
+                              return (
+                                <CommandItem
+                                  key={service._id}
+                                  onSelect={() =>
+                                    toggleService(
+                                      service,
+                                      ServiceType.ADD_ONS,
+                                    )
+                                  }
+                                  className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-600 hover:text-white hover:bg-white/[0.06] transition-colors"
+                                >
+                                  <span>{service.title}</span>
+                                  {isSelected && (
+                                    <Check className="w-4 h-4 text-[#dc143c]" />
+                                  )}
+                                </CommandItem>
+                              );
+                            })}
                           </Command>
                         </PopoverContent>
                       </Popover>
@@ -1251,18 +1298,7 @@ export default function CustomerBooking() {
                           Milestone Rewards
                         </FieldLabel>
                       </div>
-                      {!currentVehicle ? (
-                        <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-white/[0.02]">
-                          <div className="absolute inset-0 z-10 flex items-center justify-between px-4 bg-black/40 backdrop-blur-[1.5px]">
-                            <div className="flex items-center gap-2">
-                              <Lock className="w-3.5 h-3.5 text-white/40" />
-                              <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.1em]">
-                                Select vehicle to unlock
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
+                      {currentVehicle ? (
                         <div className="grid grid-cols-1 gap-3 pt-1">
                           {filteredRewards.length > 0 ? (
                             filteredRewards.map((mr) => {
@@ -1277,12 +1313,14 @@ export default function CustomerBooking() {
                               const isUnlocked =
                                 hasProgress && isCorrectService;
 
-                              const rewardLabel =
-                                mr.reward_type === RewardType.FREE_SERVICE
-                                  ? "FREE SERVICE"
-                                  : mr.discount_percentage > 0
-                                    ? `${mr.discount_percentage}% DISCOUNT`
-                                    : `₱${mr.discount_amount.toLocaleString()} OFF`;
+                              const isPercentageDiscount =
+                                mr.discount_percentage > 0;
+                              let rewardLabel = "FREE SERVICE";
+                              if (mr.reward_type !== RewardType.FREE_SERVICE) {
+                                rewardLabel = isPercentageDiscount
+                                  ? `${mr.discount_percentage}% DISCOUNT`
+                                  : `₱${mr.discount_amount.toLocaleString()} OFF`;
+                              }
 
                               return (
                                 <div key={mr._id} className="relative group">
@@ -1290,13 +1328,15 @@ export default function CustomerBooking() {
                                     type="button"
                                     disabled={!isUnlocked}
                                     onClick={() => onSelectMilestoneReward(mr)}
-                                    className={`w-full relative overflow-hidden text-left p-4 rounded-2xl border transition-all duration-300 ${
-                                      isSelected
-                                        ? "bg-[#dc143c]/10 border-[#dc143c]/40 ring-1 ring-[#dc143c]/20"
-                                        : isUnlocked
-                                          ? "bg-white/[0.04] border-white/10 hover:bg-white/[0.08] hover:border-white/20"
-                                          : "bg-black/20 border-white/5"
-                                    }`}
+                                    className={(() => {
+                                      if (isSelected) {
+                                        return `w-full relative overflow-hidden text-left p-4 rounded-2xl border transition-all duration-300 bg-[#dc143c]/10 border-[#dc143c]/40 ring-1 ring-[#dc143c]/20`;
+                                      }
+                                      if (isUnlocked) {
+                                        return `w-full relative overflow-hidden text-left p-4 rounded-2xl border transition-all duration-300 bg-white/[0.04] border-white/10 hover:bg-white/[0.08] hover:border-white/20`;
+                                      }
+                                      return `w-full relative overflow-hidden text-left p-4 rounded-2xl border transition-all duration-300 bg-black/20 border-white/5`;
+                                    })()}
                                   >
                                     <div className="flex justify-between items-start">
                                       <div className="space-y-1">
@@ -1306,14 +1346,15 @@ export default function CustomerBooking() {
                                           {mr.reward_service_id.title}
                                         </p>
                                         <p
-                                          className={`text-[10px] font-black tracking-widest uppercase ${
-                                            isUnlocked
-                                              ? mr.reward_type ===
-                                                RewardType.FREE_SERVICE
-                                                ? "text-emerald-400"
-                                                : "text-[#ff6b81]"
-                                              : "text-gray-700"
-                                          }`}
+                                          className={(() => {
+                                            if (!isUnlocked) return "text-[10px] font-black tracking-widest uppercase text-gray-700";
+                                            if (
+                                              mr.reward_type ===
+                                              RewardType.FREE_SERVICE
+                                            )
+                                              return "text-[10px] font-black tracking-widest uppercase text-emerald-400";
+                                            return "text-[10px] font-black tracking-widest uppercase text-[#ff6b81]";
+                                          })()}
                                         >
                                           {rewardLabel}
                                         </p>
@@ -1342,9 +1383,9 @@ export default function CustomerBooking() {
                                         Reward Locked
                                       </p>
                                       <p className="text-white/40 text-[9px] font-medium mt-0.5 text-center px-6 leading-tight">
-                                        {!isCorrectService
-                                          ? "Select a Wash Service to use"
-                                          : `Requires ${mr.required_progress_count} total wash counts`}
+                                        {isCorrectService
+                                          ? `Requires ${mr.required_progress_count} total wash counts`
+                                          : "Select a Wash Service to use"}
                                       </p>
                                     </div>
                                   )}
@@ -1356,6 +1397,17 @@ export default function CustomerBooking() {
                               No rewards available for this vehicle category.
                             </div>
                           )}
+                        </div>
+                      ) : (
+                        <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-white/[0.02]">
+                          <div className="absolute inset-0 z-10 flex items-center justify-between px-4 bg-black/40 backdrop-blur-[1.5px]">
+                            <div className="flex items-center gap-2">
+                              <Lock className="w-3.5 h-3.5 text-white/40" />
+                              <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.1em]">
+                                Select vehicle to unlock
+                              </p>
+                            </div>
+                          </div>
                         </div>
                       )}
                     </Field>
@@ -1439,11 +1491,13 @@ export default function CustomerBooking() {
                           </p>
                           {next ? (
                             <p className="text-gray-500 text-xs">
-                              ₱
+                              {"₱ "}
                               <span className="text-white font-semibold">
                                 {next.min - total}
-                              </span>{" "}
-                              more to unlock ₱{next.off} off
+                              </span>
+                              {" more to unlock ₱"}
+                              {next.off}
+                              {" off"}
                             </p>
                           ) : (
                             <p className="text-[#ff6b81] text-xs font-semibold">
@@ -1781,6 +1835,7 @@ export default function CustomerBooking() {
                           <strong className="text-amber-500 uppercase text-[10px] block mb-0.5">
                             Note:
                           </strong>
+                          {" "}
                           This total is a preliminary estimate based on the
                           information you provided. Our team will verify your
                           inputs and provide the finalized cost.
