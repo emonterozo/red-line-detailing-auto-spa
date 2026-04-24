@@ -219,6 +219,7 @@ export default function CustomerBooking() {
     initializing: false,
     isCalendarOpen: false,
     isSlotPickerOpen: false,
+    isVehicleSelectionOpen: false,
     slots: [] as (ITimeSlot & { _id: string })[],
     vehicleMilestoneRewards: [] as MilestoneRewardsResponse[],
   });
@@ -342,7 +343,9 @@ export default function CustomerBooking() {
       const isPremium = nextItems.some(
         (s: ServiceResponse) => s.title === "Premium Detailer Wash",
       );
-      const available = isPremium ? getFilteredMilestoneRewards(selectedSize) : [];
+      const available = isPremium
+        ? getFilteredMilestoneRewards(selectedSize)
+        : [];
 
       setUi((prev) => ({ ...prev, vehicleMilestoneRewards: available }));
       form.setFieldValue("milestoneReward", []);
@@ -381,17 +384,13 @@ export default function CustomerBooking() {
   // Memoize services filtered by type
   const mainServices = useMemo(
     () =>
-      data.services.filter(
-        (service) => service.type === ServiceType.SERVICE,
-      ),
+      data.services.filter((service) => service.type === ServiceType.SERVICE),
     [data.services],
   );
 
   const addOnServices = useMemo(
     () =>
-      data.services.filter(
-        (service) => service.type === ServiceType.ADD_ONS,
-      ),
+      data.services.filter((service) => service.type === ServiceType.ADD_ONS),
     [data.services],
   );
 
@@ -650,8 +649,9 @@ export default function CustomerBooking() {
       if (vehicleSizes.length > 0) {
         const selectedVehicle = vehicleSizes[0];
         const currentRewards =
-          (form.getFieldValue("milestoneReward") as MilestoneRewardsResponse[]) ||
-          [];
+          (form.getFieldValue(
+            "milestoneReward",
+          ) as MilestoneRewardsResponse[]) || [];
         const isSelected = currentRewards.some((item) => item._id === mr._id);
 
         form.setFieldValue("milestoneReward", isSelected ? [] : [mr]);
@@ -714,6 +714,7 @@ export default function CustomerBooking() {
       setUi((prev) => ({
         ...prev,
         vehicleMilestoneRewards: availableRewards,
+        isVehicleSelectionOpen: false,
       }));
 
       const totalPrice = getPricing([...services, ...addOns], [size]);
@@ -787,7 +788,15 @@ export default function CustomerBooking() {
                       <FieldLabel className="text-gray-500 text-xs uppercase tracking-widest">
                         Vehicle Type
                       </FieldLabel>
-                      <Popover>
+                      <Popover
+                        open={ui.isVehicleSelectionOpen}
+                        onOpenChange={(open) =>
+                          setUi((prev) => ({
+                            ...prev,
+                            isVehicleSelectionOpen: open,
+                          }))
+                        }
+                      >
                         <PopoverTrigger asChild>
                           <button type="button" className="w-full">
                             <SelectTrigger
@@ -1154,10 +1163,7 @@ export default function CustomerBooking() {
                                 <CommandItem
                                   key={service._id}
                                   onSelect={() =>
-                                    toggleService(
-                                      service,
-                                      ServiceType.SERVICE,
-                                    )
+                                    toggleService(service, ServiceType.SERVICE)
                                   }
                                   className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-600 hover:text-white hover:bg-white/[0.06] transition-colors"
                                 >
@@ -1227,10 +1233,7 @@ export default function CustomerBooking() {
                                 <CommandItem
                                   key={service._id}
                                   onSelect={() =>
-                                    toggleService(
-                                      service,
-                                      ServiceType.ADD_ONS,
-                                    )
+                                    toggleService(service, ServiceType.ADD_ONS)
                                   }
                                   className="flex justify-between items-center px-3 py-2.5 rounded-xl cursor-pointer text-gray-600 hover:text-white hover:bg-white/[0.06] transition-colors"
                                 >
@@ -1347,7 +1350,8 @@ export default function CustomerBooking() {
                                         </p>
                                         <p
                                           className={(() => {
-                                            if (!isUnlocked) return "text-[10px] font-black tracking-widest uppercase text-gray-700";
+                                            if (!isUnlocked)
+                                              return "text-[10px] font-black tracking-widest uppercase text-gray-700";
                                             if (
                                               mr.reward_type ===
                                               RewardType.FREE_SERVICE
@@ -1834,8 +1838,7 @@ export default function CustomerBooking() {
                         <p className="text-[11px] leading-relaxed text-amber-200/60 font-medium">
                           <strong className="text-amber-500 uppercase text-[10px] block mb-0.5">
                             Note:
-                          </strong>
-                          {" "}
+                          </strong>{" "}
                           This total is a preliminary estimate based on the
                           information you provided. Our team will verify your
                           inputs and provide the finalized cost.
