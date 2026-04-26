@@ -1018,6 +1018,9 @@ export default function CustomerBooking() {
                                 slots: dateTimeSlots?.time_slots ?? [],
                               }));
                               toggleCalendar();
+                              setAppliedPromo(null);
+                              setPromoError(null);
+                              form.setFieldValue("promoCode", "");
                             }}
                           />
                         </PopoverContent>
@@ -1570,6 +1573,17 @@ export default function CustomerBooking() {
                   const selectedServices = form.getFieldValue("services") || [];
                   const selectedAddOns = form.getFieldValue("addOns") || [];
                   const pointsUsed = form.getFieldValue("pointsUsed");
+                  const formSelectedDate = form.getFieldValue("preferred_date");
+
+                  const selectedDate = data.schedules.find(
+                    (schedule) =>
+                      schedule.date.getDate() === formSelectedDate?.getDate() &&
+                      schedule.date.getMonth() ===
+                        formSelectedDate?.getMonth() &&
+                      schedule.date.getFullYear() ===
+                        formSelectedDate?.getFullYear(),
+                  );
+
                   const selectedVehicleSizes =
                     form.getFieldValue("vehicleSizes");
                   const isLocked =
@@ -1606,6 +1620,7 @@ export default function CustomerBooking() {
                       userId,
                       cartItems,
                       pointsUsed > 0,
+                      selectedDate?.date ?? null,
                     );
 
                     if (result.success && result.data) {

@@ -24,7 +24,8 @@ export async function validatePromo(
   promo_code: string,
   user_id: string,
   cart: CartItem[],
-  has_used_points: boolean
+  has_used_points: boolean,
+  selected_date: Date | null,
 ) {
   try {
     await connect();
@@ -34,7 +35,6 @@ export async function validatePromo(
       promo_code: promo_code.toUpperCase(),
       is_active: true,
     }).lean();
-    
 
     if (!promo) {
       return { success: false, message: "Promo code not found or inactive." };
@@ -45,15 +45,28 @@ export async function validatePromo(
         success: false,
         message: "This promotion cannot be combined with point redemption.",
       };
+    }
 
+    if (!selected_date) {
+      return {
+        success: false,
+        message: "Please select a preferred date to apply this promo.",
+      };
     }
 
     // 2. Temporal Check
-    const now = new Date();
-    if (now < promo.start_date || now > promo.end_date) {
+    const now = new Date(selected_date);
+    if (now < promo.start_date) {
       return {
         success: false,
-        message: "This promotion has expired or hasn't started yet.",
+        message: "This promotion is not yet active for your preferred date.",
+      };
+    }
+
+    if (now > promo.end_date) {
+      return {
+        success: false,
+        message: "This promotion has already expired for your preferred date.",
       };
     }
 
@@ -173,6 +186,9 @@ export async function validatePromo(
       } as PromotionResponse,
     };
   } catch {
-    return { success: false, message: "Something went wrong. Please try again." };
+    return {
+      success: false,
+      message: "Something went wrong. Please try again.",
+    };
   }
 }
